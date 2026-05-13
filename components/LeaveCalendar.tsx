@@ -8,6 +8,7 @@ import {
 
 export type CalendarEvent = {
   id: string;
+  userId: string;
   userName: string;
   type: "annual" | "sick";
   status: "pending" | "approved" | "rejected" | "cancelled";
@@ -18,9 +19,13 @@ export type CalendarEvent = {
 export default function LeaveCalendar({
   events,
   holidays,
+  viewerUserId,
 }: {
   events: CalendarEvent[];
   holidays: { date: string; name: string }[];
+  // When set, events belonging to other users render in a neutral style
+  // and hide the leave type. Leave undefined for admin views.
+  viewerUserId?: string;
 }) {
   const [cursor, setCursor] = useState(new Date());
 
@@ -84,15 +89,24 @@ export default function LeaveCalendar({
                 )}
               </div>
               <div className="mt-1 space-y-0.5">
-                {dayEvents.slice(0, 3).map((ev) => (
-                  <div
-                    key={ev.id + iso}
-                    className={`truncate rounded px-1 py-0.5 text-[11px] ${badgeClass(ev)}`}
-                    title={`${ev.userName} — ${ev.type} (${ev.status})`}
-                  >
-                    {ev.userName.split(" ")[0]} · {ev.type[0].toUpperCase()}
-                  </div>
-                ))}
+                {dayEvents.slice(0, 3).map((ev) => {
+                  const isPeer = viewerUserId !== undefined && ev.userId !== viewerUserId;
+                  const label = isPeer
+                    ? ev.userName.split(" ")[0]
+                    : `${ev.userName.split(" ")[0]} · ${ev.type[0].toUpperCase()}`;
+                  const title = isPeer
+                    ? `${ev.userName} — off`
+                    : `${ev.userName} — ${ev.type} (${ev.status})`;
+                  return (
+                    <div
+                      key={ev.id + iso}
+                      className={`truncate rounded px-1 py-0.5 text-[11px] ${badgeClass(ev, isPeer)}`}
+                      title={title}
+                    >
+                      {label}
+                    </div>
+                  );
+                })}
                 {dayEvents.length > 3 && (
                   <div className="text-[10px] text-slate-500">+{dayEvents.length - 3} more</div>
                 )}
@@ -112,7 +126,8 @@ export default function LeaveCalendar({
   );
 }
 
-function badgeClass(ev: CalendarEvent) {
+function badgeClass(ev: CalendarEvent, isPeer: boolean) {
+  if (isPeer) return "bg-slate-200 text-slate-700";
   if (ev.status === "pending") return "bg-amber-100 text-amber-800";
   if (ev.status === "approved" && ev.type === "annual") return "bg-emerald-100 text-emerald-800";
   if (ev.status === "approved" && ev.type === "sick") return "bg-rose-100 text-rose-800";

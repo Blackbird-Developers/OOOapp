@@ -29,6 +29,7 @@ export default async function AdminHomePage() {
 
   const events = (rangeRows ?? []).map((r: any) => ({
     id: r.id,
+    userId: r.user_id,
     userName: r.profiles?.full_name ?? "Employee",
     type: r.type,
     status: r.status,

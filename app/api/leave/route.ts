@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { countLeaveDays } from "@/lib/days";
+import { getBalance } from "@/lib/balances";
 import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
 import { requireUser } from "@/lib/auth";
 
@@ -56,6 +57,26 @@ export async function POST(req: Request) {
 
   const willAutoApprove = Boolean(input.auto_approve && me.role === "admin");
   const status = willAutoApprove ? "approved" : "pending";
+
+  // Enforce remaining balance for employee self-requests. Admins acting on
+  // behalf can override (the auto_approve/isAdminAction paths). Balance
+  // counts both approved and pending leave against the allowance.
+  if (!willAutoApprove && !isAdminAction) {
+    const balance = await getBalance(targetUserId);
+    const remaining = input.type === "annual" ? balance.annual_remaining : balance.sick_remaining;
+    if (days > remaining) {
+      const noun = input.type === "annual" ? "annual leave" : "sick leave";
+      return NextResponse.json(
+        {
+          error:
+            remaining <= 0
+              ? `You have no ${noun} days remaining this year.`
+              : `You only have ${remaining} ${noun} day${remaining === 1 ? "" : "s"} remaining — this request is ${days} day${days === 1 ? "" : "s"}.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
 
   const insertPayload = {
     user_id: targetUserId,

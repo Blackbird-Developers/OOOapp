@@ -20,7 +20,9 @@ export default function TopBar({ profile }: { profile: Profile }) {
             </>
           ) : (
             <>
-              <Link href="/dashboard" className="hover:text-indigo-200">My leave</Link>
+              <Link href="/dashboard" className="hover:text-indigo-200">Who's off</Link>
+              <Link href="/dashboard/request" className="hover:text-indigo-200">Request leave</Link>
+              <Link href="/dashboard/my-requests" className="hover:text-indigo-200">My requests</Link>
             </>
           )}
           <span className="text-slate-300">·</span>
