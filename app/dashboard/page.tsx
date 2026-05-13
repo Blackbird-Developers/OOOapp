@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { requireUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { yearBounds } from "@/lib/days";
-import TopBar from "@/components/TopBar";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import ApprovalCelebration from "@/components/ApprovalCelebration";
 
@@ -56,8 +55,7 @@ export default async function DashboardPage() {
   const holidayToday = (holidays ?? []).find((h) => h.date === todayISO) ?? null;
 
   return (
-    <div className="bg-slate-50/60 min-h-screen">
-      <TopBar profile={profile} />
+    <>
       <ApprovalCelebration userId={profile.id} approved={myApproved} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -100,7 +98,7 @@ export default async function DashboardPage() {
           />
         </section>
       </main>
-    </div>
+    </>
   );
 }
 

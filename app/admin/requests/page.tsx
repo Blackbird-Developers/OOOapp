@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import StatusBadge from "@/components/StatusBadge";
 import DecisionButtons from "./DecisionButtons";
 
 export default async function AllRequestsPage() {
-  const profile = await requireAdmin();
+  await requireAdmin();
   const supabase = await createServerClient();
 
   const { data: rows } = await supabase
@@ -17,9 +16,7 @@ export default async function AllRequestsPage() {
   const total = (rows ?? []).length;
 
   return (
-    <div className="bg-app min-h-screen">
-      <TopBar profile={profile} />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-slate-900">All requests</h1>
@@ -119,6 +116,5 @@ export default async function AllRequestsPage() {
           </>
         )}
       </main>
-    </div>
   );
 }

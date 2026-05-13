@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { getBalance } from "@/lib/balances";
-import TopBar from "@/components/TopBar";
 import BalanceCards from "@/components/BalanceCards";
 import ApprovalCelebration from "@/components/ApprovalCelebration";
 import MyRequestsList from "../MyRequestsList";
@@ -34,8 +33,7 @@ export default async function MyRequestsPage() {
   const count = (requests ?? []).length;
 
   return (
-    <div className="bg-app min-h-screen">
-      <TopBar profile={profile} />
+    <>
       <ApprovalCelebration userId={profile.id} approved={myApproved} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -56,6 +54,6 @@ export default async function MyRequestsPage() {
 
         <MyRequestsList requests={requests ?? []} />
       </main>
-    </div>
+    </>
   );
 }
