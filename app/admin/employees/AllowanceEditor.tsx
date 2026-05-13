@@ -22,7 +22,7 @@ export default function AllowanceEditor({
     setBusy(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(j.error || "Failed");
+      alert(j.error || "Couldn't update allowances. Try again.");
       return;
     }
     router.refresh();

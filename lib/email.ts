@@ -6,7 +6,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 async function send(to: string | string[], subject: string, html: string) {
   if (!resend) {
-    console.warn("[email] RESEND_API_KEY not set — skipping email:", subject);
+    console.warn("[email] RESEND_API_KEY not set; skipping email:", subject);
     return;
   }
   try {
@@ -43,7 +43,7 @@ export async function emailNewRequestToAdmins(opts: {
     </ul>
     <p><a href="${SITE}/admin" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review in dashboard</a></p>
   `;
-  await send(opts.adminEmails, `Leave request — ${opts.employeeName} (${opts.days}d)`, wrap(body));
+  await send(opts.adminEmails, `Leave request from ${opts.employeeName} (${opts.days}d)`, wrap(body));
 }
 
 export async function emailDecisionToEmployee(opts: {
@@ -68,7 +68,7 @@ export async function emailDecisionToEmployee(opts: {
     </ul>
     <p><a href="${SITE}/dashboard" style="color:#6366f1">View your dashboard</a></p>
   `;
-  await send(opts.to, `Leave ${verb} — ${opts.startDate} → ${opts.endDate}`, wrap(body));
+  await send(opts.to, `Leave ${verb}: ${opts.startDate} to ${opts.endDate}`, wrap(body));
 }
 
 export async function emailInvite(opts: {

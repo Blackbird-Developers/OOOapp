@@ -28,7 +28,7 @@ export default function ApprovalCelebration({
     const currentIds = approved.map((r) => r.id);
 
     if (raw === null) {
-      // First time we've seen this user's browser — seed silently so we
+      // First time we've seen this user's browser: seed silently so we
       // don't celebrate historical approvals on initial sign-in.
       localStorage.setItem(key, JSON.stringify(currentIds));
       return;
@@ -62,8 +62,14 @@ export default function ApprovalCelebration({
         >
           <span className="text-emerald-600 shrink-0">✓</span>
           <span className="truncate">
-            Your days off have been approved
-            {items.length > 1 ? ` (${items.length} requests)` : items[0] ? ` — ${items[0].start_date}${items[0].start_date !== items[0].end_date ? ` → ${items[0].end_date}` : ""}` : ""}
+            Leave approved
+            {items.length > 1
+              ? ` (${items.length} requests)`
+              : items[0]
+              ? items[0].start_date === items[0].end_date
+                ? ` for ${items[0].start_date}`
+                : ` for ${items[0].start_date} to ${items[0].end_date}`
+              : ""}
           </span>
           <button
             type="button"
@@ -99,7 +105,7 @@ export default function ApprovalCelebration({
               </div>
             </div>
             <div className="celebrate-fade mt-6 sm:mt-8 text-white text-xl sm:text-2xl font-semibold drop-shadow-lg">
-              Your days off have been approved!
+              Leave approved.
             </div>
             <div className="celebrate-fade mt-4 sm:mt-6 text-white/60 text-xs">Tap anywhere to dismiss</div>
           </div>
@@ -128,6 +134,6 @@ function playClick() {
     osc.start();
     osc.stop(ctx.currentTime + 0.15);
   } catch {
-    // Browser autoplay policy may block — ignore.
+    // Browser autoplay policy may block; ignore.
   }
 }

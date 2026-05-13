@@ -35,22 +35,17 @@ export default async function RequestLeavePage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-900 transition mb-6"
+          className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-900 transition mb-5"
         >
           ← Back to dashboard
         </Link>
 
-        <header className="mb-8">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">New request</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Request leave</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Pick the dates you'll be off on the calendar, then choose the leave type and add a reason.
-          </p>
-        </header>
+        <section className="card p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pb-5 mb-6 border-b border-slate-200">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Request leave</h1>
+            <BalanceCards balance={balance} />
+          </div>
 
-        <BalanceCards balance={balance} />
-
-        <section className="card p-4 sm:p-6 mt-6">
           <RequestLeaveForm
             holidays={holidays ?? []}
             balance={balance}

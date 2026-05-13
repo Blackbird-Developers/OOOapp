@@ -42,10 +42,9 @@ export default async function AdminHomePage() {
     <div className="bg-app min-h-screen">
       <TopBar profile={profile} />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">Admin</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Overview</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Overview</h1>
             <p className="mt-1 text-sm text-slate-500">
               {format(new Date(), "EEEE, d MMMM yyyy")} · {pending?.length ?? 0} pending request{(pending?.length ?? 0) === 1 ? "" : "s"}
             </p>
@@ -85,34 +84,57 @@ export default async function AdminHomePage() {
               <p className="text-xs text-slate-400 mt-1">You're all caught up.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
-                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Employee</th>
-                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Type</th>
-                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Dates</th>
-                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Days</th>
-                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Reason</th>
-                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Status</th>
-                    <th className="py-3 px-4"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pending.map((r: any) => (
-                    <tr key={r.id} className="border-b border-slate-100 last:border-b-0 align-top">
-                      <td className="py-3 px-4 font-medium text-slate-900">{r.profiles?.full_name}</td>
-                      <td className="py-3 px-4 capitalize text-slate-700">{r.type}</td>
-                      <td className="py-3 px-4 whitespace-nowrap text-slate-700">{r.start_date} <span className="text-slate-400">→</span> {r.end_date}</td>
-                      <td className="py-3 px-4 text-slate-700">{r.days_count}</td>
-                      <td className="py-3 px-4 text-slate-500 max-w-[220px]">{r.reason ?? "—"}</td>
-                      <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
-                      <td className="py-3 px-4"><DecisionButtons id={r.id} /></td>
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
+                      <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Employee</th>
+                      <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Type</th>
+                      <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Dates</th>
+                      <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Days</th>
+                      <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Reason</th>
+                      <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Status</th>
+                      <th className="py-3 px-4"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {pending.map((r: any) => (
+                      <tr key={r.id} className="border-b border-slate-100 last:border-b-0 align-top">
+                        <td className="py-3 px-4 font-medium text-slate-900">{r.profiles?.full_name}</td>
+                        <td className="py-3 px-4 capitalize text-slate-700">{r.type}</td>
+                        <td className="py-3 px-4 whitespace-nowrap text-slate-700">{r.start_date} <span className="text-slate-400">→</span> {r.end_date}</td>
+                        <td className="py-3 px-4 text-slate-700">{r.days_count}</td>
+                        <td className="py-3 px-4 max-w-[220px]">{r.reason ?? <span className="text-slate-300">No reason given</span>}</td>
+                        <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
+                        <td className="py-3 px-4"><DecisionButtons id={r.id} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card list */}
+              <div className="md:hidden space-y-2">
+                {pending.map((r: any) => (
+                  <div key={r.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-slate-900 truncate">{r.profiles?.full_name}</div>
+                        <div className="text-xs text-slate-500 capitalize mt-0.5">{r.type} leave · {r.days_count} day{r.days_count === 1 ? "" : "s"}</div>
+                      </div>
+                      <StatusBadge status={r.status} />
+                    </div>
+                    <div className="text-sm text-slate-700 tabular-nums mb-2">
+                      {r.start_date} <span className="text-slate-400">→</span> {r.end_date}
+                    </div>
+                    {r.reason && <div className="text-sm text-slate-600 mb-3">{r.reason}</div>}
+                    <DecisionButtons id={r.id} />
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
       </main>

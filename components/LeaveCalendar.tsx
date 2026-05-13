@@ -150,8 +150,8 @@ export default function LeaveCalendar({
                       ? ev.userName.split(" ")[0]
                       : `${ev.userName.split(" ")[0]} · ${ev.type[0].toUpperCase()}`;
                     const title = isPeer
-                      ? `${ev.userName} — off`
-                      : `${ev.userName} — ${ev.type} (${ev.status})`;
+                      ? `${ev.userName}: off`
+                      : `${ev.userName}: ${ev.type} (${ev.status})`;
                     const hideOnMobile = idx >= mobileVisible;
                     return (
                       <div

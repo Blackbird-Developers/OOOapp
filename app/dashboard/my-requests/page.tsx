@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { format } from "date-fns";
 import { requireUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { getBalance } from "@/lib/balances";
@@ -32,48 +31,30 @@ export default async function MyRequestsPage() {
       days_count: r.days_count,
     }));
 
+  const count = (requests ?? []).length;
+
   return (
     <div className="bg-app min-h-screen">
       <TopBar profile={profile} />
       <ApprovalCelebration userId={profile.id} approved={myApproved} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
-              Your leave
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">My requests</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Track your balance and the status of every leave request you've submitted.
-            </p>
-          </div>
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">My requests</h1>
           <Link href="/dashboard/request" className="btn-primary w-full sm:w-auto">
             Request leave
             <span aria-hidden>→</span>
           </Link>
         </header>
 
-        <BalanceCards balance={balance} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-5 mb-5 border-b border-slate-200">
+          <BalanceCards balance={balance} />
+          <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400">
+            {count} {count === 1 ? "request" : "requests"}
+          </span>
+        </div>
 
-        <section className="card p-4 sm:p-6 mt-6">
-          <div className="mb-5 flex items-baseline justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 tracking-tight">History</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Click a rejected row to see the admin's comment.
-              </p>
-            </div>
-            <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400">
-              {(requests ?? []).length} {(requests ?? []).length === 1 ? "request" : "requests"}
-            </span>
-          </div>
-          <MyRequestsList requests={requests ?? []} />
-        </section>
-
-        <footer className="mt-10 text-center text-xs text-slate-400">
-          As of {format(new Date(), "d MMMM yyyy")}
-        </footer>
+        <MyRequestsList requests={requests ?? []} />
       </main>
     </div>
   );

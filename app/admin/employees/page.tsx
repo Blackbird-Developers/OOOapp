@@ -33,19 +33,21 @@ export default async function EmployeesPage() {
     usage.set(r.user_id, cur);
   }
 
+  const total = (employees ?? []).length;
+
   return (
     <div className="bg-app min-h-screen">
       <TopBar profile={profile} />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <header className="mb-8">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">Admin</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Employees</h1>
+        <header className="mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Employees</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {(employees ?? []).length} member{(employees ?? []).length === 1 ? "" : "s"} · adjust per-person leave allowances below
+            {total} member{total === 1 ? "" : "s"}. Adjust per-person leave allowances below.
           </p>
         </header>
 
-        <section className="card overflow-x-auto">
+        {/* Desktop table */}
+        <section className="hidden md:block card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
@@ -65,9 +67,7 @@ export default async function EmployeesPage() {
                     <td className="py-3 px-4 font-medium text-slate-900">{e.full_name}</td>
                     <td className="py-3 px-4 text-slate-500">{e.email}</td>
                     <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${e.role === "admin" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>
-                        {e.role}
-                      </span>
+                      <RolePill role={e.role} />
                     </td>
                     <td className="py-3 px-4 text-slate-700 tabular-nums">{u.au} / {u.ap} / {e.annual_allowance}</td>
                     <td className="py-3 px-4 text-slate-700 tabular-nums">{u.su} / {u.sp} / {e.sick_allowance}</td>
@@ -84,7 +84,54 @@ export default async function EmployeesPage() {
             </tbody>
           </table>
         </section>
+
+        {/* Mobile card list */}
+        <section className="md:hidden space-y-2">
+          {(employees ?? []).map((e: any) => {
+            const u = usage.get(e.id) ?? { au: 0, ap: 0, su: 0, sp: 0 };
+            return (
+              <div key={e.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 truncate">{e.full_name}</div>
+                    <div className="text-xs text-slate-500 truncate">{e.email}</div>
+                  </div>
+                  <RolePill role={e.role} />
+                </div>
+                <dl className="grid grid-cols-2 gap-2 text-xs text-slate-600 tabular-nums mt-2">
+                  <div>
+                    <dt className="text-slate-400">Annual (used / pending / allow)</dt>
+                    <dd className="font-medium text-slate-700">{u.au} / {u.ap} / {e.annual_allowance}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-400">Sick (used / pending / allow)</dt>
+                    <dd className="font-medium text-slate-700">{u.su} / {u.sp} / {e.sick_allowance}</dd>
+                  </div>
+                </dl>
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <AllowanceEditor
+                    id={e.id}
+                    annual={Number(e.annual_allowance)}
+                    sick={Number(e.sick_allowance)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </section>
       </main>
     </div>
+  );
+}
+
+function RolePill({ role }: { role: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
+        role === "admin" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+      }`}
+    >
+      {role}
+    </span>
   );
 }

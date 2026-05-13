@@ -58,7 +58,7 @@ export default function RequestLeaveForm({
       setError(
         remaining <= 0
           ? `You have no ${type} leave days remaining this year.`
-          : `You only have ${remaining} ${type} day${remaining === 1 ? "" : "s"} remaining — this request is ${days} day${days === 1 ? "" : "s"}.`
+          : `You only have ${remaining} ${type} day${remaining === 1 ? "" : "s"} left. This request is ${days} day${days === 1 ? "" : "s"}.`
       );
       return;
     }
@@ -83,7 +83,7 @@ export default function RequestLeaveForm({
       setError(json.error || "Something went wrong.");
       return;
     }
-    setSuccess(`Request submitted (${json.days} day${json.days === 1 ? "" : "s"}). Admin has been notified.`);
+    setSuccess(`Request submitted (${json.days} day${json.days === 1 ? "" : "s"}). Admin notified.`);
     setReason("");
     router.push("/dashboard");
     router.refresh();
@@ -149,8 +149,8 @@ export default function RequestLeaveForm({
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <strong>Not enough days.</strong>{" "}
           {remaining <= 0
-            ? `You have no ${type} leave days remaining this year.`
-            : `You have ${remaining} ${type} day${remaining === 1 ? "" : "s"} left but selected ${days} day${days === 1 ? "" : "s"}. Reduce your range or pick a half-day.`}
+            ? `You have no ${type} leave days left this year.`
+            : `You have ${remaining} ${type} day${remaining === 1 ? "" : "s"} left, but selected ${days}. Shorten the range or take a half day.`}
         </div>
       )}
 

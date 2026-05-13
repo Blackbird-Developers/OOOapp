@@ -11,7 +11,7 @@ export type Profile = {
   sick_allowance: number;
 };
 
-// `cache()` dedupes calls within a single server render — if requireUser
+// `cache()` dedupes calls within a single server render: if requireUser
 // and getProfile are both invoked while rendering one page, only one
 // profile lookup happens.
 export const getProfile = cache(async (): Promise<Profile | null> => {

@@ -1,75 +1,61 @@
 import type { Balance } from "@/lib/balances";
 
+/**
+ * Inline leave summary, not a card.
+ * Reads like a status bar: `● Annual: 14 of 20 · 6 used    ● Sick: 20 of 20`.
+ * Component name kept (`BalanceCards`) so existing imports don't break.
+ */
 export default function BalanceCards({ balance }: { balance: Balance }) {
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <BalanceCard
-        title="Annual leave"
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+      <BalanceLine
+        label="Annual"
+        remaining={balance.annual_remaining}
         allowance={balance.annual_allowance}
         used={balance.annual_used}
         pending={balance.annual_pending}
-        remaining={balance.annual_remaining}
-        accent="emerald"
+        tone="emerald"
       />
-      <BalanceCard
-        title="Sick leave"
+      <span aria-hidden className="hidden sm:inline h-4 w-px bg-slate-200" />
+      <BalanceLine
+        label="Sick"
+        remaining={balance.sick_remaining}
         allowance={balance.sick_allowance}
         used={balance.sick_used}
         pending={balance.sick_pending}
-        remaining={balance.sick_remaining}
-        accent="rose"
+        tone="rose"
       />
-    </section>
+    </div>
   );
 }
 
-function BalanceCard({
-  title, allowance, used, pending, remaining, accent,
+function BalanceLine({
+  label, remaining, allowance, used, pending, tone,
 }: {
-  title: string;
+  label: string;
+  remaining: number;
   allowance: number;
   used: number;
   pending: number;
-  remaining: number;
-  accent: "emerald" | "rose";
+  tone: "emerald" | "rose";
 }) {
-  const negative = remaining < 0;
-  const dot = accent === "emerald" ? "bg-emerald-500" : "bg-rose-500";
-  const fill = accent === "emerald" ? "bg-emerald-500" : "bg-rose-500";
-  // Bar represents what's still available. Full bar = full allowance untouched.
-  const remaining_pct = allowance > 0 ? Math.min(100, Math.max(0, (remaining / allowance) * 100)) : 0;
+  const dot = tone === "emerald" ? "bg-emerald-500" : "bg-rose-500";
+  const numClass = remaining < 0 ? "text-rose-600" : "text-slate-900";
+  const detail: string[] = [];
+  if (used > 0) detail.push(`${used} used`);
+  if (pending > 0) detail.push(`${pending} pending`);
 
   return (
-    <div className="card p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${dot}`} />
-          <h3 className="text-sm font-medium text-slate-700">{title}</h3>
-        </div>
-        <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400">
-          this year
+    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
+      <span className="text-slate-500">{label}</span>
+      <span className={`font-semibold tabular-nums ${numClass}`}>{remaining}</span>
+      <span className="text-slate-400">of {allowance}</span>
+      {detail.length > 0 && (
+        <span className="text-slate-400 tabular-nums">
+          ({detail.join(", ")})
         </span>
-      </div>
-
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className={`text-3xl font-semibold tracking-tight ${negative ? "text-rose-600" : "text-slate-900"}`}>
-          {remaining}
-        </span>
-        <span className="text-sm text-slate-500">/ {allowance} days left</span>
-      </div>
-
-      <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-        <div
-          className={`h-full ${fill} transition-[width] duration-500 ease-out`}
-          style={{ width: `${remaining_pct}%` }}
-        />
-      </div>
-
-      <div className="mt-3 grid grid-cols-3 text-xs text-slate-500">
-        <div><span className="font-medium text-slate-700">{used}</span> used</div>
-        <div><span className="font-medium text-slate-700">{pending}</span> pending</div>
-        <div className="text-right"><span className="font-medium text-slate-700">{allowance}</span> total</div>
-      </div>
-    </div>
+      )}
+    </span>
   );
 }

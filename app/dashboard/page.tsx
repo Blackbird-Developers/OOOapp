@@ -61,15 +61,12 @@ export default async function DashboardPage() {
       <ApprovalCelebration userId={profile.id} approved={myApproved} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
-              {format(now, "EEEE")}
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
               Team availability
             </h1>
-            <p className="mt-1 text-sm text-slate-500">{format(now, "d MMMM yyyy")}</p>
+            <p className="mt-1 text-sm text-slate-500">{format(now, "EEEE, d MMMM yyyy")}</p>
           </div>
           <Link
             href="/dashboard/request"

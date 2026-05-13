@@ -104,8 +104,8 @@ export async function POST(req: Request) {
         {
           error:
             remaining <= 0
-              ? `You have no ${noun} days remaining this year.`
-              : `You only have ${remaining} ${noun} day${remaining === 1 ? "" : "s"} remaining — this request is ${days} day${days === 1 ? "" : "s"}.`,
+              ? `You have no ${noun} days left this year.`
+              : `You only have ${remaining} ${noun} day${remaining === 1 ? "" : "s"} left. This request is ${days} day${days === 1 ? "" : "s"}.`,
         },
         { status: 400 }
       );
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
       });
     }
   } else {
-    // Employee submitted — notify all admins.
+    // Employee submitted: notify all admins.
     const { data: admins } = await admin
       .from("profiles")
       .select("email")

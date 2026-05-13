@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import StatusBadge from "@/components/StatusBadge";
 
 type Request = {
@@ -17,16 +17,6 @@ type Request = {
 
 export default function MyRequestsList({ requests }: { requests: Request[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const open = requests.find((r) => r.id === openId) ?? null;
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpenId(null);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
 
   if (requests.length === 0) {
     return (
@@ -39,7 +29,8 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
@@ -53,92 +44,147 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
           <tbody>
             {requests.map((r) => {
               const isRejected = r.status === "rejected";
+              const isOpen = openId === r.id;
               return (
-                <tr
+                <DesktopRow
                   key={r.id}
-                  onClick={isRejected ? () => setOpenId(r.id) : undefined}
-                  className={`border-b border-slate-100 last:border-b-0 transition-colors ${
-                    isRejected ? "cursor-pointer hover:bg-rose-50/40" : ""
-                  }`}
-                >
-                  <td className="py-3 px-4">
-                    <span className="capitalize text-slate-700">{r.type}</span>
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap text-slate-700">
-                    {r.start_date} <span className="text-slate-400">→</span> {r.end_date}
-                  </td>
-                  <td className="py-3 px-4 text-slate-700">{r.days_count}</td>
-                  <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
-                  <td className="py-3 px-4 text-right">
-                    {isRejected && (
-                      <span className="text-xs font-medium text-rose-700">View reason →</span>
-                    )}
-                  </td>
-                </tr>
+                  r={r}
+                  isRejected={isRejected}
+                  isOpen={isOpen}
+                  toggle={() => setOpenId(isOpen ? null : r.id)}
+                />
               );
             })}
           </tbody>
         </table>
       </div>
 
-      {open && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4"
-          onClick={() => setOpenId(null)}
-        >
-          <div
-            className="card max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="flex items-start justify-between mb-5">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Rejected</span>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Request not approved</h3>
-                <p className="text-xs text-slate-500 mt-1 capitalize">
-                  {open.type} leave · {open.start_date} → {open.end_date} · {open.days_count} day{open.days_count === 1 ? "" : "s"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOpenId(null)}
-                className="rounded-md w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {requests.map((r) => {
+          const isRejected = r.status === "rejected";
+          const isOpen = openId === r.id;
+          return (
+            <MobileCard
+              key={r.id}
+              r={r}
+              isRejected={isRejected}
+              isOpen={isOpen}
+              toggle={() => setOpenId(isOpen ? null : r.id)}
+            />
+          );
+        })}
+      </div>
+    </>
+  );
+}
 
-            {open.reason && (
-              <div className="mb-4">
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Your reason</div>
-                <p className="text-sm text-slate-700 whitespace-pre-wrap">{open.reason}</p>
-              </div>
-            )}
-
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Comment from admin</div>
-              {open.decision_note ? (
-                <p className="text-sm text-slate-800 whitespace-pre-wrap rounded-md border border-rose-100 bg-rose-50/60 p-3 leading-relaxed">
-                  {open.decision_note}
-                </p>
-              ) : (
-                <p className="text-sm text-slate-400 italic">No comment was left.</p>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button type="button" className="btn-secondary" onClick={() => setOpenId(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+function DesktopRow({
+  r, isRejected, isOpen, toggle,
+}: {
+  r: Request;
+  isRejected: boolean;
+  isOpen: boolean;
+  toggle: () => void;
+}) {
+  return (
+    <>
+      <tr
+        onClick={isRejected ? toggle : undefined}
+        className={`border-b border-slate-100 transition-colors ${
+          isRejected ? "cursor-pointer hover:bg-rose-50/40" : ""
+        } ${isOpen ? "bg-rose-50/30" : ""}`}
+      >
+        <td className="py-3 px-4 capitalize text-slate-700">{r.type}</td>
+        <td className="py-3 px-4 whitespace-nowrap text-slate-700">
+          {r.start_date} <span className="text-slate-400">→</span> {r.end_date}
+        </td>
+        <td className="py-3 px-4 text-slate-700">{r.days_count}</td>
+        <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
+        <td className="py-3 px-4 text-right">
+          {isRejected && (
+            <span className="text-xs font-medium text-rose-700">
+              {isOpen ? "Hide" : "View"} reason {isOpen ? "↑" : "↓"}
+            </span>
+          )}
+        </td>
+      </tr>
+      {isOpen && isRejected && (
+        <tr className="border-b border-slate-100 bg-rose-50/30">
+          <td colSpan={5} className="px-4 pb-4 pt-1">
+            <RejectionDetail reason={r.reason} note={r.decision_note} />
+          </td>
+        </tr>
       )}
     </>
+  );
+}
+
+function MobileCard({
+  r, isRejected, isOpen, toggle,
+}: {
+  r: Request;
+  isRejected: boolean;
+  isOpen: boolean;
+  toggle: () => void;
+}) {
+  return (
+    <div
+      className={`rounded-lg border border-slate-200 bg-white p-3 transition-colors ${
+        isRejected ? "cursor-pointer" : ""
+      } ${isOpen ? "border-rose-200 bg-rose-50/30" : ""}`}
+      onClick={isRejected ? toggle : undefined}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium capitalize text-slate-900">{r.type}</span>
+            <StatusBadge status={r.status} />
+          </div>
+          <div className="mt-1 text-sm text-slate-600 tabular-nums">
+            {r.start_date} <span className="text-slate-400">→</span> {r.end_date}
+          </div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            {r.days_count} {r.days_count === 1 ? "day" : "days"}
+          </div>
+        </div>
+        {isRejected && (
+          <span className="text-xs font-medium text-rose-700 shrink-0">
+            {isOpen ? "Hide ↑" : "View ↓"}
+          </span>
+        )}
+      </div>
+      {isOpen && isRejected && (
+        <div className="mt-3 pt-3 border-t border-rose-100">
+          <RejectionDetail reason={r.reason} note={r.decision_note} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RejectionDetail({
+  reason, note,
+}: {
+  reason?: string | null;
+  note: string | null;
+}) {
+  return (
+    <div className="space-y-3 text-sm">
+      {reason && (
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Your reason</div>
+          <p className="text-slate-700 whitespace-pre-wrap">{reason}</p>
+        </div>
+      )}
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 mb-1">Comment from admin</div>
+        {note ? (
+          <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{note}</p>
+        ) : (
+          <p className="text-slate-400 italic">Admin didn't leave a comment.</p>
+        )}
+      </div>
+    </div>
   );
 }

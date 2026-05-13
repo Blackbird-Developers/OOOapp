@@ -23,7 +23,7 @@ export default function InviteForm() {
     const json = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setMessage({ kind: "err", text: json.error || "Failed" });
+      setMessage({ kind: "err", text: json.error || "Couldn't send the invite. Check the email and try again." });
       return;
     }
     setMessage({ kind: "ok", text: `Invite sent to ${email}.` });

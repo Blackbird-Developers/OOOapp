@@ -15,11 +15,10 @@ export default async function HolidaysPage() {
     <div className="bg-app min-h-screen">
       <TopBar profile={profile} />
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <header className="mb-8">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">Admin</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Public holidays</h1>
+        <header className="mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Public holidays</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Holidays added here are excluded from working-day counts when employees request leave.
+            Excluded from working-day counts when employees request leave.
           </p>
         </header>
 

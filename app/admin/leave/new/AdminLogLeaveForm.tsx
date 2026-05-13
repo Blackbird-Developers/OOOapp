@@ -50,10 +50,10 @@ export default function AdminLogLeaveForm({
     const json = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setMsg({ kind: "err", text: json.error || "Failed" });
+      setMsg({ kind: "err", text: json.error || "Couldn't log the leave. Try again." });
       return;
     }
-    setMsg({ kind: "ok", text: `Logged ${json.days} day(s) for the selected employee.` });
+    setMsg({ kind: "ok", text: `Logged ${json.days} day${json.days === 1 ? "" : "s"} for that employee. They've been emailed.` });
     setReason("");
     router.refresh();
   }

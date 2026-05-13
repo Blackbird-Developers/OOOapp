@@ -17,7 +17,7 @@ export default function DateRangePicker({
   end: string;   // ISO yyyy-MM-dd
   onChange: (start: string, end: string) => void;
   holidays?: { date: string; name: string }[];
-  // ISO dates the viewer already has approved/pending leave for — not selectable.
+  // ISO dates the viewer already has approved/pending leave for; not selectable.
   blocked?: string[];
 }) {
   const [cursor, setCursor] = useState(() => parseISO(start));
@@ -110,11 +110,11 @@ export default function DateRangePicker({
             const isBlocked = blockedSet.has(iso);
             const isPast = iso < todayISO;
 
-            let cls = "bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-700";
-            if (!inMonth) cls = "bg-white text-slate-300 hover:bg-indigo-50 hover:text-indigo-700";
-            else if (weekend) cls = "bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-700";
-            if (inRange) cls = "bg-indigo-100 text-indigo-800 hover:bg-indigo-200";
-            if (isEdge) cls = "bg-indigo-600 text-white font-semibold hover:bg-indigo-700";
+            let cls = "bg-white text-slate-700 hover:bg-slate-100";
+            if (!inMonth) cls = "bg-white text-slate-300 hover:bg-slate-100 hover:text-slate-700";
+            else if (weekend) cls = "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-700";
+            if (inRange) cls = "bg-slate-200 text-slate-800 hover:bg-slate-300";
+            if (isEdge) cls = "bg-slate-900 text-white font-semibold hover:bg-slate-800";
             if (isPast) cls = "bg-slate-50 text-slate-300 cursor-not-allowed hover:bg-slate-50";
             if (isBlocked) cls = "bg-rose-100 text-rose-700 line-through cursor-not-allowed hover:bg-rose-100";
 
@@ -136,7 +136,7 @@ export default function DateRangePicker({
                     : undefined
                 }
               >
-                <span className={isToday(d) && !isEdge && !disabled ? "inline-flex items-center justify-center w-5 h-5 rounded-full ring-1 ring-indigo-400" : ""}>
+                <span className={isToday(d) && !isEdge && !disabled ? "inline-flex items-center justify-center w-5 h-5 rounded-full ring-1 ring-slate-400" : ""}>
                   {format(d, "d")}
                 </span>
                 {holiday && !disabled && <span className="absolute top-0.5 right-1 text-[10px]">🏖</span>}

@@ -162,7 +162,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="md:hidden relative inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 transition"
+            className="md:hidden relative inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 transition"
             aria-label="Open menu"
             aria-expanded={open}
           >
@@ -176,7 +176,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
 
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[2px] transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-0 z-40 bg-slate-900/50 transition-opacity duration-200 md:hidden ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
@@ -203,7 +203,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
               aria-label="Close menu"
             >
               <CloseIcon />

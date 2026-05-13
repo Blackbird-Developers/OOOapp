@@ -24,7 +24,7 @@ export default function HolidayManager({ initialHolidays }: { initialHolidays: H
     setBusy(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      setError(j.error || "Failed");
+      setError(j.error || "Couldn't add the holiday. Try again.");
       return;
     }
     setDate("");
@@ -32,12 +32,12 @@ export default function HolidayManager({ initialHolidays }: { initialHolidays: H
     router.refresh();
   }
 
-  async function remove(id: string) {
-    if (!window.confirm("Remove this holiday?")) return;
-    const res = await fetch(`/api/holidays?id=${id}`, { method: "DELETE" });
+  async function remove(h: Holiday) {
+    if (!window.confirm(`Remove ${h.name} (${h.date}) from public holidays?`)) return;
+    const res = await fetch(`/api/holidays?id=${h.id}`, { method: "DELETE" });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(j.error || "Failed");
+      alert(j.error || "Couldn't remove the holiday. Try again.");
       return;
     }
     router.refresh();
@@ -75,34 +75,56 @@ export default function HolidayManager({ initialHolidays }: { initialHolidays: H
             <p className="text-sm text-slate-500">No holidays configured yet.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
-                  <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Date</th>
-                  <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Name</th>
-                  <th className="py-3 px-4"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {initialHolidays.map((h) => (
-                  <tr key={h.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/40 transition-colors">
-                    <td className="py-3 px-4 whitespace-nowrap text-slate-700 tabular-nums">{h.date}</td>
-                    <td className="py-3 px-4 text-slate-900">{h.name}</td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        className="text-xs font-medium text-rose-600 hover:text-rose-700 transition"
-                        onClick={() => remove(h.id)}
-                      >
-                        Remove
-                      </button>
-                    </td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
+                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Date</th>
+                    <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Name</th>
+                    <th className="py-3 px-4"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {initialHolidays.map((h) => (
+                    <tr key={h.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/40 transition-colors">
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-700 tabular-nums">{h.date}</td>
+                      <td className="py-3 px-4 text-slate-900">{h.name}</td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-rose-600 hover:text-rose-700 transition"
+                          onClick={() => remove(h)}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile list */}
+            <ul className="sm:hidden space-y-2">
+              {initialHolidays.map((h) => (
+                <li key={h.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900 truncate">{h.name}</div>
+                    <div className="text-xs text-slate-500 tabular-nums">{h.date}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-rose-600 hover:text-rose-700 transition shrink-0"
+                    onClick={() => remove(h)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
     </>

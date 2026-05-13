@@ -25,7 +25,7 @@ export default function DecisionButtons({ id, allowCancel = false }: { id: strin
     setBusy(null);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(j.error || "Failed");
+      alert(j.error || "Couldn't update the request. Try again.");
       return;
     }
     router.refresh();
