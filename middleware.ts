@@ -6,18 +6,23 @@ const PUBLIC_PATHS = ["/login", "/invite", "/api/auth", "/_next", "/favicon.ico"
 type CookieSet = { name: string; value: string; options?: CookieOptions };
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+  try {
+    const path = request.nextUrl.pathname;
+    const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
 
-  // Public paths skip the Supabase Auth round-trip entirely.
-  if (isPublic) return NextResponse.next();
+    // Public paths skip the Supabase Auth round-trip entirely.
+    if (isPublic) return NextResponse.next();
 
-  let response = NextResponse.next({ request });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+    // If env is missing in this deployment, don't 500 — let the request through.
+    // Pages that need auth will redirect on their own.
+    if (!supabaseUrl || !supabaseAnon) return NextResponse.next();
+
+    let response = NextResponse.next({ request });
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnon, {
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -32,27 +37,30 @@ export async function middleware(request: NextRequest) {
           }
         },
       },
+    });
+
+    // A failure here (corrupt cookies, network blip) must not 500 the request —
+    // treat it as signed-out and let the redirect logic handle it.
+    let user: { id: string } | null = null;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch {
+      user = null;
     }
-  );
 
-  // A failure here (corrupt cookies, network blip) must not 500 the request —
-  // treat it as signed-out and let the redirect logic handle it.
-  let user: { id: string } | null = null;
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("redirect", path);
+      return NextResponse.redirect(url);
+    }
+
+    return response;
   } catch {
-    user = null;
+    // Last-resort safety net: never let the middleware 500.
+    return NextResponse.next();
   }
-
-  if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("redirect", path);
-    return NextResponse.redirect(url);
-  }
-
-  return response;
 }
 
 export const config = {
