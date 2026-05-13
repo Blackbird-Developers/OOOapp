@@ -34,34 +34,44 @@ export default async function EmployeesPage() {
   }
 
   return (
-    <div>
+    <div className="bg-app min-h-screen">
       <TopBar profile={profile} />
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-4">
-        <h1 className="text-2xl font-bold">Employees</h1>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <header className="mb-8">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">Admin</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Employees</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {(employees ?? []).length} member{(employees ?? []).length === 1 ? "" : "s"} · adjust per-person leave allowances below
+          </p>
+        </header>
 
-        <div className="card overflow-x-auto">
+        <section className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-4">Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Annual (used / pending / allow)</th>
-                <th>Sick (used / pending / allow)</th>
-                <th>Edit allowances</th>
+            <thead>
+              <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
+                <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Name</th>
+                <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Email</th>
+                <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Role</th>
+                <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Annual (used / pending / allow)</th>
+                <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Sick (used / pending / allow)</th>
+                <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Edit allowances</th>
               </tr>
             </thead>
             <tbody>
               {(employees ?? []).map((e: any) => {
                 const u = usage.get(e.id) ?? { au: 0, ap: 0, su: 0, sp: 0 };
                 return (
-                  <tr key={e.id} className="border-b border-slate-100">
-                    <td className="py-2 px-4 font-medium">{e.full_name}</td>
-                    <td className="text-slate-500">{e.email}</td>
-                    <td className="capitalize">{e.role}</td>
-                    <td>{u.au} / {u.ap} / {e.annual_allowance}</td>
-                    <td>{u.su} / {u.sp} / {e.sick_allowance}</td>
-                    <td>
+                  <tr key={e.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/40 transition-colors">
+                    <td className="py-3 px-4 font-medium text-slate-900">{e.full_name}</td>
+                    <td className="py-3 px-4 text-slate-500">{e.email}</td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${e.role === "admin" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>
+                        {e.role}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-slate-700 tabular-nums">{u.au} / {u.ap} / {e.annual_allowance}</td>
+                    <td className="py-3 px-4 text-slate-700 tabular-nums">{u.su} / {u.sp} / {e.sick_allowance}</td>
+                    <td className="py-3 px-4">
                       <AllowanceEditor
                         id={e.id}
                         annual={Number(e.annual_allowance)}
@@ -73,7 +83,7 @@ export default async function EmployeesPage() {
               })}
             </tbody>
           </table>
-        </div>
+        </section>
       </main>
     </div>
   );

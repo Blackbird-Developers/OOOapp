@@ -52,7 +52,7 @@ export default function InviteForm() {
           </select>
         </div>
       </div>
-      <button className="btn-primary" disabled={busy}>{busy ? "Sending…" : "Send invite"}</button>
+      <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Sending…" : "Send invite"}</button>
       {message && (
         <p className={`text-sm ${message.kind === "ok" ? "text-emerald-600" : "text-red-600"}`}>{message.text}</p>
       )}

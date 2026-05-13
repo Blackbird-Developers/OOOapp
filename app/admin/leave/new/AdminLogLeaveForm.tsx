@@ -118,9 +118,9 @@ export default function AdminLogLeaveForm({
         Mark as approved immediately
       </label>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-600">Total: <strong>{days}</strong> working day{days === 1 ? "" : "s"}</p>
-        <button className="btn-primary" disabled={busy || days === 0 || !userId}>
+        <button className="btn-primary w-full sm:w-auto" disabled={busy || days === 0 || !userId}>
           {busy ? "Saving…" : "Log leave"}
         </button>
       </div>

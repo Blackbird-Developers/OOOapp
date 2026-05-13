@@ -3,26 +3,75 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
+  --background: #f7f8fa;
   --foreground: #0f172a;
 }
 
 html, body {
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "cv11", "ss01";
 }
 
 .btn {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none;
+  @apply inline-flex items-center gap-1.5 justify-center rounded-md px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
 }
-.btn-primary { @apply btn bg-brand-accent text-white hover:bg-indigo-500; }
-.btn-secondary { @apply btn bg-white border border-slate-300 text-slate-700 hover:bg-slate-50; }
-.btn-danger { @apply btn bg-red-600 text-white hover:bg-red-500; }
-.btn-success { @apply btn bg-emerald-600 text-white hover:bg-emerald-500; }
+.btn-primary   { @apply btn bg-slate-900 text-white shadow-sm hover:bg-slate-800; }
+.btn-secondary { @apply btn bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300; }
+.btn-danger    { @apply btn bg-rose-600 text-white shadow-sm hover:bg-rose-500; }
+.btn-success   { @apply btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-500; }
+.btn-ghost     { @apply btn bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
 
 .input {
-  @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent;
+  @apply w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400;
 }
-.label { @apply block text-sm font-medium text-slate-700 mb-1; }
-.card { @apply bg-white rounded-lg border border-slate-200 shadow-sm; }
+.label { @apply block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 mb-1.5; }
+.card  { @apply bg-white rounded-xl border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]; }
+
+/* Soft page background helper for top-level layouts */
+.bg-app { background: var(--background); }
+
+/* Page fade-in animation, fired on every client navigation via PageTransition. */
+@keyframes page-in {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.page-fade { animation: page-in 260ms cubic-bezier(.2,.7,.3,1) both; }
+
+/* Approval celebration animations */
+@keyframes celebrate-pop {
+  0%   { transform: scale(0);     opacity: 0; }
+  35%  { transform: scale(1.35);  opacity: 1; }
+  60%  { transform: scale(0.92); }
+  80%  { transform: scale(1.06); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.celebrate-pop { animation: celebrate-pop 800ms cubic-bezier(.2,.7,.3,1) forwards; }
+
+@keyframes celebrate-ring {
+  0%   { transform: scale(0.7); opacity: 0.85; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.celebrate-ring { animation: celebrate-ring 700ms ease-out 650ms forwards; }
+
+@keyframes celebrate-fade {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.celebrate-fade { animation: celebrate-fade 400ms ease-out 500ms both; }
+
+@keyframes celebrate-banner {
+  0%   { opacity: 0; transform: translate(-50%, -16px); }
+  100% { opacity: 1; transform: translate(-50%, 0); }
+}
+.celebrate-banner { animation: celebrate-banner 350ms ease-out forwards; }
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .page-fade,
+  .celebrate-pop,
+  .celebrate-ring,
+  .celebrate-fade,
+  .celebrate-banner { animation: none !important; }
+}

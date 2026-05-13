@@ -9,9 +9,12 @@ import DateRangePicker from "@/components/DateRangePicker";
 export default function RequestLeaveForm({
   holidays,
   balance,
+  blockedDates,
 }: {
   holidays: { date: string; name: string }[];
   balance: Balance;
+  // ISO dates the user already has approved/pending leave on.
+  blockedDates: string[];
 }) {
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
@@ -37,8 +40,20 @@ export default function RequestLeaveForm({
   const remaining = type === "annual" ? balance.annual_remaining : balance.sick_remaining;
   const overBalance = days > 0 && days > remaining;
 
+  const conflict = useMemo(() => {
+    if (!start || !end) return null;
+    for (const d of blockedDates) {
+      if (d >= start && d <= end) return d;
+    }
+    return null;
+  }, [start, end, blockedDates]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (conflict) {
+      setError(`You already have a leave request that covers ${conflict}. Pick different dates or cancel the existing one first.`);
+      return;
+    }
     if (overBalance) {
       setError(
         remaining <= 0
@@ -86,6 +101,7 @@ export default function RequestLeaveForm({
             setEnd(e);
           }}
           holidays={holidays}
+          blocked={blockedDates}
         />
       </div>
 
@@ -122,7 +138,14 @@ export default function RequestLeaveForm({
         <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>
 
-      {overBalance && (
+      {conflict && (
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <strong>Date already booked.</strong>{" "}
+          You already have a leave request that covers <strong>{conflict}</strong>. Pick different dates or cancel the existing request first.
+        </div>
+      )}
+
+      {!conflict && overBalance && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <strong>Not enough days.</strong>{" "}
           {remaining <= 0
@@ -131,14 +154,17 @@ export default function RequestLeaveForm({
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-600">
           Total: <strong>{days}</strong> working day{days === 1 ? "" : "s"}{" "}
           <span className="text-slate-400">
             · {remaining} {type} day{remaining === 1 ? "" : "s"} remaining
           </span>
         </p>
-        <button className="btn-primary" disabled={submitting || days === 0 || overBalance}>
+        <button
+          className="btn-primary w-full sm:w-auto"
+          disabled={submitting || days === 0 || overBalance || !!conflict}
+        >
           {submitting ? "Submitting…" : "Submit request"}
         </button>
       </div>

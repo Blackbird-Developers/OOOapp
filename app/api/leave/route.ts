@@ -33,6 +33,17 @@ export async function POST(req: Request) {
   const targetUserId = input.user_id && me.role === "admin" ? input.user_id : me.id;
   const isAdminAction = me.role === "admin" && targetUserId !== me.id;
 
+  // Employees can't book past dates. Admins logging on behalf can.
+  if (!isAdminAction) {
+    const todayISO = new Date().toISOString().slice(0, 10);
+    if (input.start_date < todayISO) {
+      return NextResponse.json(
+        { error: "You can't request leave for dates that have already passed." },
+        { status: 400 }
+      );
+    }
+  }
+
   const supabase = await createServerClient();
 
   // Load holidays in range to compute working days.
@@ -53,6 +64,29 @@ export async function POST(req: Request) {
 
   if (days <= 0) {
     return NextResponse.json({ error: "Selected range contains no working days." }, { status: 400 });
+  }
+
+  // Block double-booking: any existing approved or pending leave that
+  // overlaps the new range, for the same user.
+  const { data: overlapping } = await supabase
+    .from("leave_requests")
+    .select("start_date, end_date")
+    .eq("user_id", targetUserId)
+    .in("status", ["approved", "pending"])
+    .lte("start_date", input.end_date)
+    .gte("end_date", input.start_date);
+
+  if (overlapping && overlapping.length > 0) {
+    const o = overlapping[0];
+    const sameRow = o.start_date === o.end_date;
+    return NextResponse.json(
+      {
+        error: sameRow
+          ? `You already have a leave request for ${o.start_date}. Cancel it first if you want to change it.`
+          : `Your selection overlaps an existing request (${o.start_date} → ${o.end_date}). Cancel it first if you want to change it.`,
+      },
+      { status: 400 }
+    );
   }
 
   const willAutoApprove = Boolean(input.auto_approve && me.role === "admin");

@@ -45,7 +45,8 @@ export default function HolidayManager({ initialHolidays }: { initialHolidays: H
 
   return (
     <>
-      <form onSubmit={add} className="card p-6 space-y-4">
+      <form onSubmit={add} className="card p-4 sm:p-6 space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Add a holiday</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="label">Date</label>
@@ -56,37 +57,52 @@ export default function HolidayManager({ initialHolidays }: { initialHolidays: H
             <input className="input" required placeholder="e.g. St. Patrick's Day" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
         </div>
-        <button className="btn-primary" disabled={busy}>{busy ? "Adding…" : "Add holiday"}</button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Adding…" : "Add holiday"}</button>
+        {error && (
+          <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div>
+        )}
       </form>
 
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold mb-3">Holidays this year and beyond</h2>
+      <div className="card p-4 sm:p-6 mt-6">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-900 tracking-tight">Holidays this year and beyond</h2>
+          <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400">
+            {initialHolidays.length} total
+          </span>
+        </div>
         {initialHolidays.length === 0 ? (
-          <p className="text-sm text-slate-500">No holidays configured yet.</p>
+          <div className="rounded-lg border border-dashed border-slate-200 px-6 py-10 text-center">
+            <p className="text-sm text-slate-500">No holidays configured yet.</p>
+          </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="py-2">Date</th>
-                <th>Name</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {initialHolidays.map((h) => (
-                <tr key={h.id} className="border-b border-slate-100">
-                  <td className="py-2 whitespace-nowrap">{h.date}</td>
-                  <td>{h.name}</td>
-                  <td className="text-right">
-                    <button className="text-red-600 text-xs hover:underline" onClick={() => remove(h.id)}>
-                      Remove
-                    </button>
-                  </td>
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
+                  <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Date</th>
+                  <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Name</th>
+                  <th className="py-3 px-4"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {initialHolidays.map((h) => (
+                  <tr key={h.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/40 transition-colors">
+                    <td className="py-3 px-4 whitespace-nowrap text-slate-700 tabular-nums">{h.date}</td>
+                    <td className="py-3 px-4 text-slate-900">{h.name}</td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-rose-600 hover:text-rose-700 transition"
+                        onClick={() => remove(h.id)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>

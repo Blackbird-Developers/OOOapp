@@ -29,20 +29,25 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
   }, [open]);
 
   if (requests.length === 0) {
-    return <p className="text-sm text-slate-500">No requests yet.</p>;
+    return (
+      <div className="rounded-lg border border-dashed border-slate-200 px-6 py-10 text-center">
+        <p className="text-sm text-slate-500">No requests yet.</p>
+        <p className="text-xs text-slate-400 mt-1">Submit one from the Request leave page.</p>
+      </div>
+    );
   }
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-sm">
-          <thead className="text-left text-slate-500 border-b border-slate-200">
-            <tr>
-              <th className="py-2">Type</th>
-              <th>Dates</th>
-              <th>Days</th>
-              <th>Status</th>
-              <th></th>
+          <thead>
+            <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
+              <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Type</th>
+              <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Dates</th>
+              <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Days</th>
+              <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Status</th>
+              <th className="py-3 px-4"></th>
             </tr>
           </thead>
           <tbody>
@@ -52,17 +57,21 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
                 <tr
                   key={r.id}
                   onClick={isRejected ? () => setOpenId(r.id) : undefined}
-                  className={`border-b border-slate-100 ${
-                    isRejected ? "cursor-pointer hover:bg-rose-50" : ""
+                  className={`border-b border-slate-100 last:border-b-0 transition-colors ${
+                    isRejected ? "cursor-pointer hover:bg-rose-50/40" : ""
                   }`}
                 >
-                  <td className="py-2 capitalize">{r.type}</td>
-                  <td>{r.start_date} → {r.end_date}</td>
-                  <td>{r.days_count}</td>
-                  <td><StatusBadge status={r.status} /></td>
-                  <td className="text-right">
+                  <td className="py-3 px-4">
+                    <span className="capitalize text-slate-700">{r.type}</span>
+                  </td>
+                  <td className="py-3 px-4 whitespace-nowrap text-slate-700">
+                    {r.start_date} <span className="text-slate-400">→</span> {r.end_date}
+                  </td>
+                  <td className="py-3 px-4 text-slate-700">{r.days_count}</td>
+                  <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
+                  <td className="py-3 px-4 text-right">
                     {isRejected && (
-                      <span className="text-xs text-rose-700 underline">View reason</span>
+                      <span className="text-xs font-medium text-rose-700">View reason →</span>
                     )}
                   </td>
                 </tr>
@@ -74,26 +83,30 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
 
       {open && (
         <div
-          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4"
           onClick={() => setOpenId(null)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            className="card max-w-md w-full p-6"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
           >
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-5">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Request rejected</h3>
-                <p className="text-xs text-slate-500 mt-0.5 capitalize">
-                  {open.type} · {open.start_date} → {open.end_date} · {open.days_count} day{open.days_count === 1 ? "" : "s"}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Rejected</span>
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Request not approved</h3>
+                <p className="text-xs text-slate-500 mt-1 capitalize">
+                  {open.type} leave · {open.start_date} → {open.end_date} · {open.days_count} day{open.days_count === 1 ? "" : "s"}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setOpenId(null)}
-                className="text-slate-400 hover:text-slate-700 text-xl leading-none"
+                className="rounded-md w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
                 aria-label="Close"
               >
                 ×
@@ -102,19 +115,19 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
 
             {open.reason && (
               <div className="mb-4">
-                <div className="text-xs font-medium text-slate-500 mb-1">Your reason</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Your reason</div>
                 <p className="text-sm text-slate-700 whitespace-pre-wrap">{open.reason}</p>
               </div>
             )}
 
             <div>
-              <div className="text-xs font-medium text-slate-500 mb-1">Comment from admin</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Comment from admin</div>
               {open.decision_note ? (
-                <p className="text-sm text-slate-800 whitespace-pre-wrap bg-rose-50 border border-rose-100 rounded p-3">
+                <p className="text-sm text-slate-800 whitespace-pre-wrap rounded-md border border-rose-100 bg-rose-50/60 p-3 leading-relaxed">
                   {open.decision_note}
                 </p>
               ) : (
-                <p className="text-sm text-slate-500 italic">No comment was left.</p>
+                <p className="text-sm text-slate-400 italic">No comment was left.</p>
               )}
             </div>
 
