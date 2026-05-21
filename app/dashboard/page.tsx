@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { requireUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { yearBounds } from "@/lib/days";
@@ -56,6 +56,22 @@ export default async function DashboardPage() {
   const offToday = Array.from(offTodayMap.values());
   const holidayToday = (holidays ?? []).find((h) => h.date === todayISO) ?? null;
 
+  // Upcoming leave in the next 14 days — surfaced when no one is off today,
+  // so the strip doesn't say "everyone's in" while the calendar clearly shows
+  // people off later this week.
+  const horizonISO = format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+  const upcomingMap = new Map<string, { name: string; start: string }>();
+  for (const ev of teamEvents) {
+    if (ev.status !== "approved") continue;
+    if (ev.start > todayISO && ev.start <= horizonISO) {
+      const existing = upcomingMap.get(ev.userId);
+      if (!existing || ev.start < existing.start) {
+        upcomingMap.set(ev.userId, { name: ev.userName, start: ev.start });
+      }
+    }
+  }
+  const upcoming = Array.from(upcomingMap.values()).sort((a, b) => a.start.localeCompare(b.start));
+
   return (
     <>
       <ApprovalCelebration userId={profile.id} approved={myApproved} />
@@ -81,6 +97,7 @@ export default async function DashboardPage() {
           offToday={offToday}
           holidayToday={holidayToday}
           viewerName={profile.full_name}
+          upcoming={upcoming}
         />
 
         <section className="card mt-6 p-4 sm:p-6">
@@ -108,10 +125,12 @@ function TodayStrip({
   offToday,
   holidayToday,
   viewerName,
+  upcoming,
 }: {
   offToday: string[];
   holidayToday: { date: string; name: string } | null;
   viewerName: string;
+  upcoming: { name: string; start: string }[];
 }) {
   const viewerFirst = viewerName.split(" ")[0];
   const peersOff = offToday.filter((n) => n.split(" ")[0] !== viewerFirst);
@@ -133,6 +152,19 @@ function TodayStrip({
     if (isYouOff) parts.push("you");
     if (peersOff.length > 0) parts.push(peersOff.map((n) => n.split(" ")[0]).join(", "));
     detail = parts.join(" · ");
+  } else if (upcoming.length > 0) {
+    dot = "bg-slate-400";
+    const next = upcoming[0];
+    const nextDate = format(parseISO(next.start), "EEE d MMM");
+    const names = upcoming.map((u) => u.name.split(" ")[0]);
+    const namesLabel =
+      names.length === 1
+        ? names[0]
+        : names.length === 2
+        ? `${names[0]} & ${names[1]}`
+        : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+    title = `${upcoming.length} ${upcoming.length === 1 ? "person" : "people"} off in the next 2 weeks`;
+    detail = `Up next: ${namesLabel} from ${nextDate}`;
   }
 
   return (
