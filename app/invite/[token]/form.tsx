@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -47,20 +48,25 @@ export default function InviteAcceptForm({
   return (
     <div className="bg-app min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white text-sm font-semibold tracking-tight">
-            BB
-          </span>
-          <span className="text-base font-semibold tracking-tight text-slate-900">BBM Leave</span>
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <Image
+            src="/blackbird-logo.svg"
+            alt="Blackbird"
+            width={140}
+            height={24}
+            priority
+            className="h-6 w-auto"
+          />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-500">Leave</span>
         </div>
 
         <form onSubmit={onSubmit} className="card p-8 space-y-5">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+            <h1 className="text-2xl font-bold tracking-tight text-black">
               Welcome, {fullName.split(" ")[0]}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">Set a password to finish creating your account.</p>
-            <p className="text-xs text-slate-400 mt-2">{email}</p>
+            <p className="text-sm text-neutral-500 mt-1">Set a password to finish creating your account.</p>
+            <p className="text-xs text-neutral-400 mt-2">{email}</p>
           </div>
 
           <div>

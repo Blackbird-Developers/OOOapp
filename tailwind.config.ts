@@ -10,9 +10,14 @@ export default {
     extend: {
       colors: {
         brand: {
-          DEFAULT: "#0f172a",
-          accent: "#6366f1",
+          DEFAULT: "#000000",
+          accent: "#D7FF36",
+          ink: "#0a0a0a",
         },
+      },
+      fontFamily: {
+        display: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
       },
     },
   },

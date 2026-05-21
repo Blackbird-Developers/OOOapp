@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -117,17 +118,24 @@ export default function TopBar({ profile }: { profile: Profile }) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+      <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
           <Link
             href={isAdmin ? "/admin" : "/dashboard"}
-            className="flex items-center gap-2 text-slate-900"
+            className="flex items-center gap-2.5 text-black"
             onClick={() => setOpen(false)}
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-white text-[11px] font-semibold tracking-tight">
-              BB
+            <Image
+              src="/blackbird-logo.svg"
+              alt="Blackbird"
+              width={120}
+              height={20}
+              priority
+              className="h-5 w-auto"
+            />
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500 border-l border-neutral-200 pl-2.5">
+              Leave
             </span>
-            <span className="font-semibold text-sm tracking-tight">BBM Leave</span>
           </Link>
 
           {/* Desktop nav */}
@@ -193,12 +201,18 @@ export default function TopBar({ profile }: { profile: Profile }) {
         aria-label="Navigation"
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between h-14 px-4 border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-white text-[11px] font-semibold tracking-tight">
-                BB
+          <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-200">
+            <div className="flex items-center gap-2.5">
+              <Image
+                src="/blackbird-logo.svg"
+                alt="Blackbird"
+                width={108}
+                height={18}
+                className="h-[18px] w-auto"
+              />
+              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500 border-l border-neutral-200 pl-2.5">
+                Menu
               </span>
-              <span className="font-semibold text-sm tracking-tight text-slate-900">Menu</span>
             </div>
             <button
               type="button"
