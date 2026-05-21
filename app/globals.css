@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f8fa;
-  --foreground: #0f172a;
+  --background: #fafaf9;
+  --foreground: #0a0a0a;
+  --accent: #D7FF36;
 }
 
 html, body {
@@ -14,20 +15,26 @@ html, body {
   font-feature-settings: "cv11", "ss01";
 }
 
-.btn {
-  @apply inline-flex items-center gap-1.5 justify-center rounded-md px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
-.btn-primary   { @apply btn bg-slate-900 text-white shadow-sm hover:bg-slate-800; }
-.btn-secondary { @apply btn bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300; }
+
+.btn {
+  @apply inline-flex items-center gap-1.5 justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
+}
+.btn-primary   { @apply btn bg-black text-white shadow-sm hover:bg-neutral-800; }
+.btn-secondary { @apply btn bg-white border border-neutral-200 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:border-neutral-300; }
+.btn-accent    { @apply btn bg-[#D7FF36] text-black font-bold shadow-sm hover:brightness-110 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-lime-500/20; }
 .btn-danger    { @apply btn bg-rose-600 text-white shadow-sm hover:bg-rose-500; }
 .btn-success   { @apply btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-500; }
-.btn-ghost     { @apply btn bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+.btn-ghost     { @apply btn bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-black; }
 
 .input {
-  @apply w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400;
+  @apply w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-neutral-400;
 }
-.label { @apply block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 mb-1.5; }
-.card  { @apply bg-white rounded-xl border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]; }
+.label { @apply block text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 mb-1.5; }
+.card  { @apply bg-white rounded-2xl border border-neutral-200 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-12px_rgba(0,0,0,0.08)]; }
 
 /* Soft page background helper for top-level layouts */
 .bg-app { background: var(--background); }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -31,17 +32,22 @@ export default function LoginForm() {
   return (
     <div className="bg-app min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white text-sm font-semibold tracking-tight">
-            BB
-          </span>
-          <span className="text-base font-semibold tracking-tight text-slate-900">BBM Leave</span>
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <Image
+            src="/blackbird-logo.svg"
+            alt="Blackbird"
+            width={140}
+            height={24}
+            priority
+            className="h-6 w-auto"
+          />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-500">Leave</span>
         </div>
 
         <form onSubmit={onSubmit} className="card p-8 space-y-5">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Welcome back</h1>
-            <p className="text-sm text-slate-500 mt-1">Sign in to manage your leave.</p>
+            <h1 className="text-2xl font-bold tracking-tight text-black">Welcome back</h1>
+            <p className="text-sm text-neutral-500 mt-1">Sign in to manage your leave.</p>
           </div>
 
           <div>
