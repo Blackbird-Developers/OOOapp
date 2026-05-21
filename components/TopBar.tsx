@@ -87,6 +87,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
   const links: NavItem[] = isAdmin
     ? [
         { href: "/admin", label: "Calendar" },
+        { href: "/admin/whos-off", label: "Who's off" },
         { href: "/admin/requests", label: "Requests", badge: pendingCount },
         { href: "/admin/employees", label: "Employees" },
         { href: "/admin/invites", label: "Invites" },
