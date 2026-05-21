@@ -19,7 +19,9 @@ export default async function DashboardPage() {
     supabase
       .from("leave_requests")
       .select("id, type, status, start_date, end_date, user_id, days_count, decided_at, profiles:user_id(full_name)")
-      .eq("status", "approved")
+      // Approved leave is visible to everyone; pending is only visible to the
+      // requester (so peers can't see each other's unapproved requests).
+      .or(`status.eq.approved,and(status.eq.pending,user_id.eq.${profile.id})`)
       .gte("end_date", from)
       .lte("start_date", to),
   ]);
@@ -35,7 +37,7 @@ export default async function DashboardPage() {
   }));
 
   const myApproved = (teamRows ?? [])
-    .filter((r: any) => r.user_id === profile.id && r.decided_at && r.decided_at >= sinceISO)
+    .filter((r: any) => r.user_id === profile.id && r.status === "approved" && r.decided_at && r.decided_at >= sinceISO)
     .map((r: any) => ({
       id: r.id,
       type: r.type,
@@ -44,10 +46,10 @@ export default async function DashboardPage() {
       days_count: r.days_count,
     }));
 
-  // Who's off today (de-dup by user)
+  // Who's off today (de-dup by user) — approved only; pending doesn't count yet.
   const offTodayMap = new Map<string, string>();
   for (const ev of teamEvents) {
-    if (todayISO >= ev.start && todayISO <= ev.end) {
+    if (ev.status === "approved" && todayISO >= ev.start && todayISO <= ev.end) {
       offTodayMap.set(ev.userId, ev.userName);
     }
   }
