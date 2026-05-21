@@ -11,7 +11,7 @@ export default async function AllRequestsPage() {
   const { data: rows } = await supabase
     .from("leave_requests")
     .select("id, type, start_date, end_date, days_count, reason, status, decision_note, created_at, profiles:user_id(full_name, email)")
-    .order("start_date", { ascending: false });
+    .order("created_at", { ascending: false });
 
   const total = (rows ?? []).length;
 
