@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import InviteForm from "./InviteForm";
+import DeleteInviteButton from "./DeleteInviteButton";
 
 export default async function InvitesPage() {
   await requireAdmin();
@@ -49,6 +50,7 @@ export default async function InvitesPage() {
                       <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Email</th>
                       <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Role</th>
                       <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Status</th>
+                      <th className="py-3 px-4 text-right text-[11px] font-semibold uppercase tracking-[0.08em]"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -58,6 +60,7 @@ export default async function InvitesPage() {
                         <td className="py-3 px-4 text-slate-500">{i.email}</td>
                         <td className="py-3 px-4 capitalize text-slate-700">{i.role}</td>
                         <td className="py-3 px-4"><InviteStatus invite={i} /></td>
+                        <td className="py-3 px-4 text-right"><DeleteInviteButton id={i.id} email={i.email} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -74,7 +77,10 @@ export default async function InvitesPage() {
                         <div className="text-xs text-slate-500 truncate">{i.email}</div>
                         <div className="text-xs text-slate-400 capitalize mt-0.5">{i.role}</div>
                       </div>
-                      <InviteStatus invite={i} />
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <InviteStatus invite={i} />
+                        <DeleteInviteButton id={i.id} email={i.email} variant="mobile" />
+                      </div>
                     </div>
                   </li>
                 ))}

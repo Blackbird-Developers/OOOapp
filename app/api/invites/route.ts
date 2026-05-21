@@ -46,7 +46,17 @@ export async function POST(req: Request) {
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await emailInvite({ to: parsed.data.email, fullName: parsed.data.full_name, token });
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
+  const inviteUrl = `${site}/invite/${token}`;
 
-  return NextResponse.json({ ok: true });
+  let emailError: string | null = null;
+  try {
+    await emailInvite({ to: parsed.data.email, fullName: parsed.data.full_name, token });
+  } catch (err) {
+    emailError = err instanceof Error ? err.message : "Email send failed.";
+  }
+
+  // The invite row exists either way — return the link so an admin can share
+  // it manually if email delivery is broken (unverified domain, bad API key, etc.).
+  return NextResponse.json({ ok: true, inviteUrl, emailError });
 }

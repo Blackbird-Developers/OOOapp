@@ -64,5 +64,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // `invite` is excluded so the public signup link never runs through Supabase
+  // session checks at the edge — that path is fully public and self-contained.
+  matcher: ["/((?!invite|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

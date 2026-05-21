@@ -9,7 +9,10 @@ export default function InviteForm() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"employee" | "admin">("employee");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [message, setMessage] = useState<
+    | { kind: "ok" | "err"; text: string; inviteUrl?: string; emailError?: string | null }
+    | null
+  >(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +29,15 @@ export default function InviteForm() {
       setMessage({ kind: "err", text: json.error || "Couldn't send the invite. Check the email and try again." });
       return;
     }
-    setMessage({ kind: "ok", text: `Invite sent to ${email}.` });
+    const sentTo = email;
+    setMessage({
+      kind: "ok",
+      text: json.emailError
+        ? `Invite created for ${sentTo}, but the email didn't send. Copy the link below and share it manually.`
+        : `Invite sent to ${sentTo}.`,
+      inviteUrl: json.inviteUrl,
+      emailError: json.emailError,
+    });
     setFullName("");
     setEmail("");
     setRole("employee");
@@ -54,7 +65,31 @@ export default function InviteForm() {
       </div>
       <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Sending…" : "Send invite"}</button>
       {message && (
-        <p className={`text-sm ${message.kind === "ok" ? "text-emerald-600" : "text-red-600"}`}>{message.text}</p>
+        <div className="space-y-2">
+          <p className={`text-sm ${message.kind === "ok" && !message.emailError ? "text-emerald-600" : message.emailError ? "text-amber-600" : "text-red-600"}`}>
+            {message.text}
+          </p>
+          {message.inviteUrl && (
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                className="input flex-1 font-mono text-xs"
+                value={message.inviteUrl}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => navigator.clipboard.writeText(message.inviteUrl!)}
+              >
+                Copy
+              </button>
+            </div>
+          )}
+          {message.emailError && (
+            <p className="text-xs text-slate-500">Email error: {message.emailError}</p>
+          )}
+        </div>
       )}
     </form>
   );

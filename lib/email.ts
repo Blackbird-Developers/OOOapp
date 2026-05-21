@@ -7,12 +7,13 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 async function send(to: string | string[], subject: string, html: string) {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not set; skipping email:", subject);
-    return;
+    throw new Error("Email is not configured (RESEND_API_KEY missing).");
   }
-  try {
-    await resend.emails.send({ from: FROM, to, subject, html });
-  } catch (err) {
-    console.error("[email] send failed:", err);
+  const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+  if (error) {
+    // Resend returns errors in the response body rather than throwing.
+    console.error("[email] send failed:", error);
+    throw new Error(error.message || "Email provider rejected the send.");
   }
 }
 
