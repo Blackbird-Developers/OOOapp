@@ -84,7 +84,6 @@ export default async function AdminWhosOffPage() {
         <LeaveCalendar
           events={teamEvents}
           holidays={holidays ?? []}
-          viewerUserId={profile.id}
         />
       </section>
     </main>
