@@ -1,5 +1,5 @@
 export function SkeletonBlock({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-slate-200/70 ${className}`} />;
+  return <div className={`animate-pulse rounded bg-neutral-200/70 ${className}`} />;
 }
 
 export function SkeletonHeader({

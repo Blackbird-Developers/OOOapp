@@ -21,17 +21,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn {
-  @apply inline-flex items-center gap-1.5 justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
+  /* `min-h-11` (44px) keeps all button variants above the touch-target floor.
+     Disabled state is set per-variant below (visibly muted, still legible). */
+  @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed;
 }
-.btn-primary   { @apply btn bg-black text-white shadow-sm hover:bg-neutral-800; }
-.btn-secondary { @apply btn bg-white border border-neutral-200 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:border-neutral-300; }
-.btn-accent    { @apply btn bg-[#D7FF36] text-black font-bold shadow-sm hover:brightness-110 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-lime-500/20; }
-.btn-danger    { @apply btn bg-rose-600 text-white shadow-sm hover:bg-rose-500; }
-.btn-success   { @apply btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-500; }
-.btn-ghost     { @apply btn bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-black; }
+.btn-primary   { @apply btn bg-brand-ink text-white shadow-sm hover:bg-neutral-800 disabled:bg-neutral-300 disabled:text-neutral-500 disabled:shadow-none disabled:hover:bg-neutral-300; }
+.btn-secondary { @apply btn bg-white border border-neutral-200 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:border-neutral-300 disabled:bg-neutral-50 disabled:text-neutral-400 disabled:border-neutral-200 disabled:shadow-none; }
+.btn-accent    { @apply btn bg-brand-accent text-brand-ink font-bold shadow-sm hover:brightness-[1.04] disabled:bg-neutral-200 disabled:text-neutral-500 disabled:shadow-none disabled:hover:brightness-100; }
+.btn-danger    { @apply btn bg-rose-600 text-white shadow-sm hover:bg-rose-500 disabled:bg-rose-200 disabled:text-white disabled:shadow-none disabled:hover:bg-rose-200; }
+.btn-ghost     { @apply btn bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-brand-ink disabled:text-neutral-400 disabled:hover:bg-transparent disabled:hover:text-neutral-400; }
 
 .input {
-  @apply w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-neutral-400;
+  @apply w-full min-h-11 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-ink/10 focus:border-neutral-400;
 }
 .label { @apply block text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 mb-1.5; }
 .card  { @apply bg-white rounded-2xl border border-neutral-200 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-12px_rgba(0,0,0,0.08)]; }
@@ -46,39 +47,23 @@ h1, h2, h3, h4, h5, h6 {
 }
 .page-fade { animation: page-in 140ms cubic-bezier(.2,.7,.3,1) both; }
 
-/* Approval celebration animations */
-@keyframes celebrate-pop {
-  0%   { transform: scale(0);     opacity: 0; }
-  35%  { transform: scale(1.35);  opacity: 1; }
-  60%  { transform: scale(0.92); }
-  80%  { transform: scale(1.06); }
-  100% { transform: scale(1);    opacity: 1; }
+/* Modal dialog enter animation (used by components/Dialog). */
+@keyframes dialog-in {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-.celebrate-pop { animation: celebrate-pop 800ms cubic-bezier(.2,.7,.3,1) forwards; }
 
-@keyframes celebrate-ring {
-  0%   { transform: scale(0.7); opacity: 0.85; }
-  100% { transform: scale(1.9); opacity: 0; }
-}
-.celebrate-ring { animation: celebrate-ring 700ms ease-out 650ms forwards; }
-
-@keyframes celebrate-fade {
-  0%   { opacity: 0; transform: translateY(8px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.celebrate-fade { animation: celebrate-fade 400ms ease-out 500ms both; }
-
+/* Approval banner slides in from above; the only celebration motion that
+   remains after dropping the full-screen overlay. */
 @keyframes celebrate-banner {
   0%   { opacity: 0; transform: translate(-50%, -16px); }
   100% { opacity: 1; transform: translate(-50%, 0); }
 }
-.celebrate-banner { animation: celebrate-banner 350ms ease-out forwards; }
+.celebrate-banner { animation: celebrate-banner 350ms cubic-bezier(.2,.7,.3,1) forwards; }
 
 /* Respect users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .page-fade,
-  .celebrate-pop,
-  .celebrate-ring,
-  .celebrate-fade,
-  .celebrate-banner { animation: none !important; }
+  .celebrate-banner,
+  dialog[open] { animation: none !important; }
 }

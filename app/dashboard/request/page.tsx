@@ -32,14 +32,14 @@ export default async function RequestLeavePage() {
     <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-900 transition mb-5"
+        className="inline-flex min-h-11 items-center gap-1 px-2 -mx-2 mb-3 text-xs font-medium text-neutral-500 transition hover:text-neutral-900"
       >
         ← Back to dashboard
       </Link>
 
       <section className="card p-4 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pb-5 mb-6 border-b border-slate-200">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">Request leave</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pb-5 mb-6 border-b border-neutral-200">
+          <h1 className="text-xl font-semibold tracking-tight text-neutral-900">Request leave</h1>
           <BalanceCards balance={balance} />
         </div>
 

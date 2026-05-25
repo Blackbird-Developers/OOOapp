@@ -17,7 +17,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="card p-8 max-w-sm text-center space-y-2">
           <h1 className="text-xl font-bold">Invite invalid</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-neutral-500">
             This invite link is expired or has already been used. Ask your admin for a new one.
           </p>
         </div>

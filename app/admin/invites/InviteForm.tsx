@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Field from "@/components/Field";
 
 export default function InviteForm() {
   const router = useRouter();
@@ -47,26 +48,32 @@ export default function InviteForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="label">Full name</label>
-          <input className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Email</label>
-          <input type="email" className="input" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Role</label>
-          <select className="input" value={role} onChange={(e) => setRole(e.target.value as "employee" | "admin")}>
-            <option value="employee">Employee</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
+        <Field label="Full name">
+          {(p) => (
+            <input {...p} className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          )}
+        </Field>
+        <Field label="Email">
+          {(p) => (
+            <input {...p} type="email" className="input" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          )}
+        </Field>
+        <Field label="Role">
+          {(p) => (
+            <select {...p} className="input" value={role} onChange={(e) => setRole(e.target.value as "employee" | "admin")}>
+              <option value="employee">Employee</option>
+              <option value="admin">Admin</option>
+            </select>
+          )}
+        </Field>
       </div>
       <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Sending…" : "Send invite"}</button>
       {message && (
         <div className="space-y-2">
-          <p className={`text-sm ${message.kind === "ok" && !message.emailError ? "text-emerald-600" : message.emailError ? "text-amber-600" : "text-red-600"}`}>
+          <p className={`text-sm ${message.kind === "err" || message.emailError ? "text-rose-700" : "text-neutral-700"}`}>
+            {message.kind === "ok" && !message.emailError && (
+              <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
+            )}
             {message.text}
           </p>
           {message.inviteUrl && (
@@ -76,6 +83,7 @@ export default function InviteForm() {
                 className="input flex-1 font-mono text-xs"
                 value={message.inviteUrl}
                 onFocus={(e) => e.currentTarget.select()}
+                aria-label="Invite link"
               />
               <button
                 type="button"
@@ -87,7 +95,7 @@ export default function InviteForm() {
             </div>
           )}
           {message.emailError && (
-            <p className="text-xs text-slate-500">Email error: {message.emailError}</p>
+            <p className="text-xs text-neutral-500">Email error: {message.emailError}</p>
           )}
         </div>
       )}

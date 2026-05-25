@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import Field from "@/components/Field";
 
 export default function InviteAcceptForm({
   token,
@@ -62,38 +63,42 @@ export default function InviteAcceptForm({
 
         <form onSubmit={onSubmit} className="card p-8 space-y-5">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-black">
+            <h1 className="text-2xl font-bold tracking-tight text-brand-ink">
               Welcome, {fullName.split(" ")[0]}
             </h1>
             <p className="text-sm text-neutral-500 mt-1">Set a password to finish creating your account.</p>
-            <p className="text-xs text-neutral-400 mt-2">{email}</p>
+            <p className="text-xs text-neutral-500 mt-2">{email}</p>
           </div>
 
-          <div>
-            <label className="label">Password</label>
-            <input
-              type="password"
-              required
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              placeholder="At least 8 characters"
-            />
-          </div>
+          <Field label="Password" hint="At least 8 characters">
+            {(p) => (
+              <input
+                {...p}
+                type="password"
+                required
+                className="input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                minLength={8}
+              />
+            )}
+          </Field>
 
-          <div>
-            <label className="label">Confirm password</label>
-            <input
-              type="password"
-              required
-              className="input"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-              placeholder="Re-enter the password"
-            />
-          </div>
+          <Field label="Confirm password">
+            {(p) => (
+              <input
+                {...p}
+                type="password"
+                required
+                className="input"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                autoComplete="new-password"
+                placeholder="Re-enter the password"
+              />
+            )}
+          </Field>
 
           {error && (
             <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">

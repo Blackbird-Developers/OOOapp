@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import Field from "@/components/Field";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -46,35 +47,39 @@ export default function LoginForm() {
 
         <form onSubmit={onSubmit} className="card p-8 space-y-5">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-black">Welcome back</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-brand-ink">Welcome back</h1>
             <p className="text-sm text-neutral-500 mt-1">Sign in to manage your leave.</p>
           </div>
 
-          <div>
-            <label className="label">Email</label>
-            <input
-              type="email"
-              required
-              className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              placeholder="you@blackbird.marketing"
-            />
-          </div>
+          <Field label="Email">
+            {(p) => (
+              <input
+                {...p}
+                type="email"
+                required
+                className="input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                placeholder="you@blackbird.marketing"
+              />
+            )}
+          </Field>
 
-          <div>
-            <label className="label">Password</label>
-            <input
-              type="password"
-              required
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              placeholder="••••••••"
-            />
-          </div>
+          <Field label="Password">
+            {(p) => (
+              <input
+                {...p}
+                type="password"
+                required
+                className="input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                placeholder="••••••••"
+              />
+            )}
+          </Field>
 
           {error && (
             <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
@@ -86,7 +91,7 @@ export default function LoginForm() {
             {loading ? "Signing in…" : "Sign in"}
           </button>
 
-          <p className="text-xs text-slate-500 text-center pt-2">
+          <p className="text-xs text-neutral-500 text-center pt-2">
             No account? Ask your admin for an invite.
           </p>
         </form>

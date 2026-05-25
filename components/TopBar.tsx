@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Profile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -15,6 +15,8 @@ export default function TopBar({ profile }: { profile: Profile }) {
   const [open, setOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [decisionCount, setDecisionCount] = useState(0);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
 
   const initials = profile.full_name
     .split(" ")
@@ -99,11 +101,38 @@ export default function TopBar({ profile }: { profile: Profile }) {
         { href: "/dashboard/my-requests", label: "My requests", badge: decisionCount },
       ];
 
-  // Close drawer on Escape and lock body scroll while it's open.
+  // Close on Escape, lock body scroll, focus the first interactive element on
+  // open, trap focus inside the drawer, and restore focus to the hamburger
+  // when it closes.
   useEffect(() => {
     if (!open) return;
+
+    const drawer = drawerRef.current;
+    const focusables = drawer
+      ? Array.from(
+          drawer.querySelectorAll<HTMLElement>(
+            'a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => !el.hasAttribute("disabled"))
+      : [];
+    focusables[0]?.focus();
+
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -111,6 +140,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      hamburgerRef.current?.focus();
     };
   }, [open]);
 
@@ -123,7 +153,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
           <Link
             href={isAdmin ? "/admin" : "/dashboard"}
-            className="flex items-center gap-2.5 text-black"
+            className="flex items-center gap-2.5 text-brand-ink"
             onClick={() => setOpen(false)}
           >
             <Image
@@ -147,21 +177,21 @@ export default function TopBar({ profile }: { profile: Profile }) {
               </NavLink>
             ))}
 
-            <div className="mx-3 h-5 w-px bg-slate-200" />
+            <div className="mx-3 h-5 w-px bg-neutral-200" />
 
             <div className="flex items-center gap-2">
               <span
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-700"
                 aria-hidden
                 title={profile.full_name}
               >
                 {initials || "·"}
               </span>
-              <span className="hidden lg:inline text-slate-600 text-sm">{profile.full_name}</span>
+              <span className="hidden lg:inline text-neutral-600 text-sm">{profile.full_name}</span>
             </div>
 
             <form action="/api/auth/logout" method="post" className="ml-2">
-              <button className="rounded-md px-3 py-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition text-sm">
+              <button className="rounded-md px-3 py-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition text-sm">
                 Sign out
               </button>
             </form>
@@ -169,11 +199,13 @@ export default function TopBar({ profile }: { profile: Profile }) {
 
           {/* Hamburger (mobile) */}
           <button
+            ref={hamburgerRef}
             type="button"
             onClick={() => setOpen(true)}
-            className="md:hidden relative inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 transition"
+            className="md:hidden relative inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 transition"
             aria-label="Open menu"
             aria-expanded={open}
+            aria-controls="primary-mobile-nav"
           >
             <BurgerIcon />
             {hamburgerCount > 0 && (
@@ -185,21 +217,25 @@ export default function TopBar({ profile }: { profile: Profile }) {
 
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-slate-900/50 transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-0 z-40 bg-neutral-900/50 transition-opacity duration-200 md:hidden ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
         aria-hidden
       />
 
-      {/* Drawer */}
+      {/* Drawer. `inert` when closed removes the off-screen content from the
+          a11y tree and tab order so keyboard users don't tab into hidden links. */}
       <aside
-        className={`fixed top-0 right-0 z-50 h-dvh w-[78vw] max-w-xs bg-white border-l border-slate-200 shadow-2xl transition-transform duration-300 ease-out md:hidden ${
-          open ? "translate-x-0" : "translate-x-full"
+        ref={drawerRef}
+        id="primary-mobile-nav"
+        className={`fixed top-0 right-0 z-50 h-dvh w-[78vw] max-w-xs bg-white border-l border-neutral-200 shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+          open ? "tranneutral-x-0" : "tranneutral-x-full"
         }`}
         role="dialog"
         aria-modal="true"
         aria-label="Navigation"
+        inert={!open}
       >
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-200">
@@ -218,7 +254,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
               aria-label="Close menu"
             >
               <CloseIcon />
@@ -231,7 +267,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="flex items-center justify-between rounded-md px-3 py-3 text-[15px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                className="flex items-center justify-between rounded-md px-3 py-3 text-[15px] font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition"
               >
                 <span>{l.label}</span>
                 {l.badge !== undefined && l.badge > 0 && <Badge count={l.badge} />}
@@ -239,14 +275,14 @@ export default function TopBar({ profile }: { profile: Profile }) {
             ))}
           </nav>
 
-          <div className="border-t border-slate-200 p-4 space-y-3">
+          <div className="border-t border-neutral-200 p-4 space-y-3">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-700">
                 {initials || "·"}
               </span>
               <div className="min-w-0">
-                <div className="text-sm font-medium text-slate-900 truncate">{profile.full_name}</div>
-                <div className="text-xs text-slate-500 truncate">{profile.email}</div>
+                <div className="text-sm font-medium text-neutral-900 truncate">{profile.full_name}</div>
+                <div className="text-xs text-neutral-500 truncate">{profile.email}</div>
               </div>
             </div>
             <form action="/api/auth/logout" method="post">
@@ -273,7 +309,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+      className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition"
     >
       <span>{children}</span>
       {badge !== undefined && badge > 0 && <Badge count={badge} />}
