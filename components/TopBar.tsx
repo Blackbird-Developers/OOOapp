@@ -230,7 +230,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
         ref={drawerRef}
         id="primary-mobile-nav"
         className={`fixed top-0 right-0 z-50 h-dvh w-[78vw] max-w-xs bg-white border-l border-neutral-200 shadow-2xl transition-transform duration-300 ease-out md:hidden ${
-          open ? "tranneutral-x-0" : "tranneutral-x-full"
+          open ? "translate-x-0" : "translate-x-full"
         }`}
         role="dialog"
         aria-modal="true"
