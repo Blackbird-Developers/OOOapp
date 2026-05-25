@@ -55,12 +55,12 @@ export default function LeaveCalendar({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-medium text-slate-900 tracking-tight">{format(cursor, "MMMM yyyy")}</h3>
+        <h3 className="text-base font-medium text-neutral-900 tracking-tight">{format(cursor, "MMMM yyyy")}</h3>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setCursor(addMonths(cursor, -1))}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
+            className="inline-flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
             aria-label="Previous month"
           >
             ‹
@@ -68,14 +68,14 @@ export default function LeaveCalendar({
           <button
             type="button"
             onClick={() => setCursor(new Date())}
-            className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+            className="rounded-md px-3 min-h-11 sm:min-h-0 sm:py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition"
           >
             Today
           </button>
           <button
             type="button"
             onClick={() => setCursor(addMonths(cursor, 1))}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
+            className="inline-flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
             aria-label="Next month"
           >
             ›
@@ -83,14 +83,14 @@ export default function LeaveCalendar({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200">
-        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/60">
+      <div className="overflow-hidden rounded-xl border border-neutral-200">
+        <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/60">
           {[
             ["Mon", "M"], ["Tue", "T"], ["Wed", "W"], ["Thu", "T"], ["Fri", "F"], ["Sat", "S"], ["Sun", "S"],
           ].map(([long, short]) => (
             <div
               key={long}
-              className="px-1 sm:px-3 py-2 sm:py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500"
+              className="px-1 sm:px-3 py-2 sm:py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-500"
             >
               <span className="hidden sm:inline">{long}</span>
               <span className="sm:hidden">{short}</span>
@@ -98,7 +98,7 @@ export default function LeaveCalendar({
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-px bg-slate-100">
+        <div className="grid grid-cols-7 gap-px bg-neutral-100">
           {days.map((d) => {
             const iso = format(d, "yyyy-MM-dd");
             const dayEvents = eventsByDay.get(iso) ?? [];
@@ -114,18 +114,21 @@ export default function LeaveCalendar({
               <div
                 key={iso}
                 className={`bg-white p-1 sm:p-2 transition-colors min-h-[68px] sm:min-h-[104px] ${
-                  weekend ? "bg-slate-50/40" : ""
+                  weekend ? "bg-neutral-50/40" : ""
                 } ${!inMonth ? "opacity-50" : ""}`}
               >
                 <div className="flex items-start justify-between gap-1 mb-1 sm:mb-1.5">
                   {today ? (
-                    <span className="inline-flex h-5 sm:h-6 min-w-5 sm:min-w-6 items-center justify-center rounded-full bg-slate-900 px-1 sm:px-1.5 text-[10px] sm:text-[11px] font-semibold text-white">
+                    <span
+                      className="inline-flex h-5 sm:h-6 min-w-5 sm:min-w-6 items-center justify-center rounded-full bg-brand-accent px-1 sm:px-1.5 text-[10px] sm:text-[11px] font-bold text-brand-ink ring-1 ring-brand-ink/5"
+                      aria-label={`Today, ${format(d, "EEEE d MMMM yyyy")}`}
+                    >
                       {format(d, "d")}
                     </span>
                   ) : (
                     <span
                       className={`text-[11px] sm:text-xs font-medium leading-5 sm:leading-6 ${
-                        inMonth ? "text-slate-700" : "text-slate-300"
+                        inMonth ? "text-neutral-700" : "text-neutral-400"
                       }`}
                     >
                       {format(d, "d")}
@@ -135,7 +138,7 @@ export default function LeaveCalendar({
                     <>
                       <span className="sm:hidden text-[10px]" title={holiday} aria-label={holiday}>·</span>
                       <span
-                        className="hidden sm:inline truncate text-[9px] font-medium uppercase tracking-wide text-amber-700"
+                        className="hidden sm:inline truncate text-[9px] font-medium uppercase tracking-wide text-neutral-500"
                         title={holiday}
                       >
                         Holiday
@@ -153,24 +156,27 @@ export default function LeaveCalendar({
                       ? `${ev.userName}: off`
                       : `${ev.userName}: ${ev.type} (${ev.status})`;
                     const hideOnMobile = idx >= mobileVisible;
+                    const pending = ev.status === "pending";
                     return (
                       <div
                         key={ev.id + iso}
-                        className={`${hideOnMobile ? "hidden sm:flex" : "flex"} items-center gap-1 truncate rounded sm:rounded-md px-1 sm:px-1.5 py-0 sm:py-0.5 text-[9px] sm:text-[11px] font-medium leading-tight ${badgeClass(ev, isPeer)}`}
+                        className={`${hideOnMobile ? "hidden sm:flex" : "flex"} items-center gap-1 truncate rounded sm:rounded-md px-1 sm:px-1.5 py-0 sm:py-0.5 text-[9px] sm:text-[11px] font-medium leading-tight ${badgeClass(ev, isPeer)} ${
+                          pending ? "border border-dashed border-neutral-400" : ""
+                        }`}
                         title={title}
                       >
-                        <span className={`inline-block h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full shrink-0 ${dotClass(ev, isPeer)}`} />
+                        <span aria-hidden className={`inline-block h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full shrink-0 ${dotClass(ev, isPeer)}`} />
                         <span className="truncate">{label}</span>
                       </div>
                     );
                   })}
                   {dayEvents.length > mobileVisible && (
-                    <div className="text-[9px] text-slate-400 px-1 sm:hidden">
+                    <div className="text-[9px] text-neutral-500 px-1 sm:hidden">
                       +{dayEvents.length - mobileVisible}
                     </div>
                   )}
                   {dayEvents.length > desktopVisible && (
-                    <div className="hidden sm:block text-[10px] text-slate-400 px-1.5">
+                    <div className="hidden sm:block text-[10px] text-neutral-500 px-1.5">
                       +{dayEvents.length - desktopVisible} more
                     </div>
                   )}
@@ -181,48 +187,35 @@ export default function LeaveCalendar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-xs text-slate-500">
-        <LegendDot tone="emerald" label="Annual · approved" />
-        <LegendDot tone="rose" label="Sick · approved" />
-        <LegendDot tone="amber" label="Pending" />
-        <LegendDot tone="slate" label="Team mate · off" />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-xs text-neutral-500">
+        <Legend swatch={<span className="h-2 w-2 rounded-full bg-brand-accent" />}>
+          Yours
+          <span className="hidden sm:inline text-neutral-400"> (A = annual, S = sick)</span>
+        </Legend>
+        <Legend swatch={<span className="h-2 w-2 rounded-full bg-brand-accent/40" />}>Team mate</Legend>
+        <Legend swatch={<span className="h-2 w-2 rounded-full border border-dashed border-neutral-400 bg-transparent" />}>Pending</Legend>
       </div>
     </div>
   );
 }
 
 function badgeClass(ev: CalendarEvent, isPeer: boolean) {
-  if (isPeer) return "bg-slate-100 text-slate-700";
-  if (ev.status === "pending") return "bg-amber-50 text-amber-800";
-  if (ev.status === "approved" && ev.type === "annual") return "bg-emerald-50 text-emerald-800";
-  if (ev.status === "approved" && ev.type === "sick") return "bg-rose-50 text-rose-800";
-  return "bg-slate-50 text-slate-600";
+  if (ev.status === "pending") return "bg-neutral-50 text-neutral-700";
+  if (isPeer) return "bg-brand-accent/40 text-neutral-800";
+  return "bg-brand-accent text-neutral-900";
 }
 
 function dotClass(ev: CalendarEvent, isPeer: boolean) {
-  if (isPeer) return "bg-slate-400";
-  if (ev.status === "pending") return "bg-amber-500";
-  if (ev.status === "approved" && ev.type === "annual") return "bg-emerald-500";
-  if (ev.status === "approved" && ev.type === "sick") return "bg-rose-500";
-  return "bg-slate-400";
+  if (ev.status === "pending") return "bg-neutral-400";
+  if (isPeer) return "bg-brand-ink/40";
+  return "bg-brand-ink";
 }
 
-function LegendDot({
-  tone,
-  label,
-}: {
-  tone: "emerald" | "rose" | "amber" | "slate";
-  label: string;
-}) {
-  const color =
-    tone === "emerald" ? "bg-emerald-500"
-    : tone === "rose" ? "bg-rose-500"
-    : tone === "amber" ? "bg-amber-500"
-    : "bg-slate-400";
+function Legend({ swatch, children }: { swatch: React.ReactNode; children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`h-2 w-2 rounded-full ${color}`} />
-      {label}
+      {swatch}
+      {children}
     </span>
   );
 }

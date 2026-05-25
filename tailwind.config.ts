@@ -10,7 +10,6 @@ export default {
     extend: {
       colors: {
         brand: {
-          DEFAULT: "#000000",
           accent: "#D7FF36",
           ink: "#0a0a0a",
         },

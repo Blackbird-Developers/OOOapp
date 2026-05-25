@@ -38,16 +38,16 @@ export default async function MyRequestsPage() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">My requests</h1>
-          <Link href="/dashboard/request" className="btn-primary w-full sm:w-auto">
+          <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">My requests</h1>
+          <Link href="/dashboard/request" className="btn-accent w-full sm:w-auto">
             Request leave
             <span aria-hidden>→</span>
           </Link>
         </header>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-5 mb-5 border-b border-slate-200">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-5 mb-5 border-b border-neutral-200">
           <BalanceCards balance={balance} />
-          <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400">
+          <span className="text-[11px] uppercase tracking-wider font-medium text-neutral-500">
             {count} {count === 1 ? "request" : "requests"}
           </span>
         </div>

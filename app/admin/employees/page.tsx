@@ -37,8 +37,8 @@ export default async function EmployeesPage() {
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <header className="mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Employees</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Employees</h1>
+          <p className="mt-1 text-sm text-neutral-500">
             {total} member{total === 1 ? "" : "s"}. Use Edit to change a person's leave allowances.
           </p>
         </header>
@@ -47,7 +47,7 @@ export default async function EmployeesPage() {
         <section className="hidden md:block card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50/60 text-slate-500 border-b border-slate-200">
+              <tr className="bg-neutral-50/60 text-neutral-500 border-b border-neutral-200">
                 <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Name</th>
                 <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Email</th>
                 <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Role</th>
@@ -64,9 +64,9 @@ export default async function EmployeesPage() {
                 const annualLeft = annualTotal - u.au - u.ap;
                 const sickLeft = sickTotal - u.su - u.sp;
                 return (
-                  <tr key={e.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/40 transition-colors">
-                    <td className="py-3 px-4 font-medium text-slate-900">{e.full_name}</td>
-                    <td className="py-3 px-4 text-slate-500">{e.email}</td>
+                  <tr key={e.id} className="border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50/40 transition-colors">
+                    <td className="py-3 px-4 font-medium text-neutral-900">{e.full_name}</td>
+                    <td className="py-3 px-4 text-neutral-500">{e.email}</td>
                     <td className="py-3 px-4">
                       <RolePill role={e.role} />
                     </td>
@@ -99,25 +99,25 @@ export default async function EmployeesPage() {
             const annualLeft = annualTotal - u.au - u.ap;
             const sickLeft = sickTotal - u.su - u.sp;
             return (
-              <div key={e.id} className="rounded-lg border border-slate-200 bg-white p-3">
+              <div key={e.id} className="rounded-lg border border-neutral-200 bg-white p-3">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="min-w-0">
-                    <div className="font-medium text-slate-900 truncate">{e.full_name}</div>
-                    <div className="text-xs text-slate-500 truncate">{e.email}</div>
+                    <div className="font-medium text-neutral-900 truncate">{e.full_name}</div>
+                    <div className="text-xs text-neutral-500 truncate">{e.email}</div>
                   </div>
                   <RolePill role={e.role} />
                 </div>
-                <dl className="grid grid-cols-2 gap-2 text-xs text-slate-600 tabular-nums mt-2">
+                <dl className="grid grid-cols-2 gap-2 text-xs text-neutral-600 tabular-nums mt-2">
                   <div>
-                    <dt className="text-slate-400">Annual remaining</dt>
+                    <dt className="text-neutral-500">Annual remaining</dt>
                     <dd><Remaining left={annualLeft} total={annualTotal} used={u.au} pending={u.ap} /></dd>
                   </div>
                   <div>
-                    <dt className="text-slate-400">Sick remaining</dt>
+                    <dt className="text-neutral-500">Sick remaining</dt>
                     <dd><Remaining left={sickLeft} total={sickTotal} used={u.su} pending={u.sp} /></dd>
                   </div>
                 </dl>
-                <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                <div className="mt-3 pt-3 border-t border-neutral-100 flex justify-end">
                   <AllowanceEditor
                     id={e.id}
                     annual={annualTotal}
@@ -138,10 +138,10 @@ function Remaining({
   const low = left <= 0;
   return (
     <div className="leading-tight">
-      <div className={`text-sm font-semibold ${low ? "text-red-600" : "text-slate-900"}`}>
-        {left} <span className="font-normal text-slate-400">of {total}</span>
+      <div className={`text-sm font-semibold ${low ? "text-rose-600" : "text-neutral-900"}`}>
+        {left} <span className="font-normal text-neutral-500">of {total}</span>
       </div>
-      <div className="text-[11px] text-slate-400">
+      <div className="text-[11px] text-neutral-500">
         {used} used{pending > 0 ? ` · ${pending} pending` : ""}
       </div>
     </div>
@@ -152,7 +152,7 @@ function RolePill({ role }: { role: string }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
-        role === "admin" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+        role === "admin" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
       }`}
     >
       {role}

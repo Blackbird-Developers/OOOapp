@@ -13,8 +13,8 @@ export default async function HolidaysPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <header className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Public holidays</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Public holidays</h1>
+        <p className="mt-1 text-sm text-neutral-500">
           Excluded from working-day counts when employees request leave.
         </p>
       </header>

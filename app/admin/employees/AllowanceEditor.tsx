@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Dialog from "@/components/Dialog";
 
 export default function AllowanceEditor({
   id, annual, sick,
@@ -11,16 +12,19 @@ export default function AllowanceEditor({
   const [a, setA] = useState(annual);
   const [s, setS] = useState(sick);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const dirty = a !== annual || s !== sick;
 
   function cancel() {
     setA(annual);
     setS(sick);
+    setError(null);
     setOpen(false);
   }
 
   async function save() {
     setBusy(true);
+    setError(null);
     const res = await fetch(`/api/employees/${id}/allowance`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -29,7 +33,7 @@ export default function AllowanceEditor({
     setBusy(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(j.error || "Couldn't update allowances. Try again.");
+      setError(j.error || "Couldn't update allowances. Try again.");
       return;
     }
     setOpen(false);
@@ -41,7 +45,7 @@ export default function AllowanceEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs font-medium text-slate-600 hover:text-slate-900"
+        className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-neutral-600 transition hover:text-neutral-900"
       >
         Edit
       </button>
@@ -50,31 +54,44 @@ export default function AllowanceEditor({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label className="flex items-center gap-1 text-[11px] text-slate-500">
+      <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
         Annual
         <input
-          type="number" step="0.5" min="0" className="input w-20 py-1"
+          type="number" step="0.5" min="0" className="input w-20"
           value={a} onChange={(e) => setA(Number(e.target.value))}
         />
       </label>
-      <label className="flex items-center gap-1 text-[11px] text-slate-500">
+      <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
         Sick
         <input
-          type="number" step="0.5" min="0" className="input w-20 py-1"
+          type="number" step="0.5" min="0" className="input w-20"
           value={s} onChange={(e) => setS(Number(e.target.value))}
         />
       </label>
-      <button className="btn-primary py-1 px-3 text-xs" disabled={!dirty || busy} onClick={save}>
-        {busy ? "…" : "Save"}
+      <button className="btn-primary px-4 text-xs" disabled={!dirty || busy} onClick={save}>
+        {busy ? "Saving…" : "Save"}
       </button>
       <button
         type="button"
         onClick={cancel}
         disabled={busy}
-        className="text-xs font-medium text-slate-500 hover:text-slate-900 disabled:opacity-50"
+        className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-neutral-500 transition hover:text-neutral-900 disabled:text-neutral-500"
       >
         Cancel
       </button>
+      {error && (
+        <Dialog
+          open={!!error}
+          onClose={() => setError(null)}
+          title="Couldn't save allowances"
+          description={error}
+          footer={
+            <button type="button" className="btn-primary" onClick={() => setError(null)}>
+              OK
+            </button>
+          }
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { countLeaveDays, type HalfKind } from "@/lib/days";
+import Field from "@/components/Field";
 
 type Employee = { id: string; full_name: string; email: string };
 
@@ -60,73 +61,85 @@ export default function AdminLogLeaveForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="label">Employee</label>
-        <select className="input" value={userId} required onChange={(e) => setUserId(e.target.value)}>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>{e.full_name} ({e.email})</option>
-          ))}
-        </select>
-      </div>
+      <Field label="Employee">
+        {(p) => (
+          <select {...p} className="input" value={userId} required onChange={(e) => setUserId(e.target.value)}>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.email})</option>
+            ))}
+          </select>
+        )}
+      </Field>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="label">Type</label>
-          <select className="input" value={type} onChange={(e) => setType(e.target.value as "annual" | "sick")}>
-            <option value="annual">Annual</option>
-            <option value="sick">Sick</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">Start date</label>
-          <input type="date" required className="input" value={start} onChange={(e) => setStart(e.target.value)} />
-        </div>
-        <div>
-          <label className="label">End date</label>
-          <input type="date" required className="input" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
-        </div>
+        <Field label="Type">
+          {(p) => (
+            <select {...p} className="input" value={type} onChange={(e) => setType(e.target.value as "annual" | "sick")}>
+              <option value="annual">Annual</option>
+              <option value="sick">Sick</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Start date">
+          {(p) => (
+            <input {...p} type="date" required className="input" value={start} onChange={(e) => setStart(e.target.value)} />
+          )}
+        </Field>
+        <Field label="End date">
+          {(p) => (
+            <input {...p} type="date" required className="input" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
+          )}
+        </Field>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="label">{sameDay ? "Half-day?" : "First day"}</label>
-          <select className="input" value={halfStart} onChange={(e) => setHalfStart(e.target.value as HalfKind)}>
-            <option value="full">Full day</option>
-            <option value="am">Morning only (½)</option>
-            <option value="pm">Afternoon only (½)</option>
-          </select>
-        </div>
-        {!sameDay && (
-          <div>
-            <label className="label">Last day</label>
-            <select className="input" value={halfEnd} onChange={(e) => setHalfEnd(e.target.value as HalfKind)}>
+        <Field label={sameDay ? "Half-day?" : "First day"}>
+          {(p) => (
+            <select {...p} className="input" value={halfStart} onChange={(e) => setHalfStart(e.target.value as HalfKind)}>
               <option value="full">Full day</option>
               <option value="am">Morning only (½)</option>
               <option value="pm">Afternoon only (½)</option>
             </select>
-          </div>
+          )}
+        </Field>
+        {!sameDay && (
+          <Field label="Last day">
+            {(p) => (
+              <select {...p} className="input" value={halfEnd} onChange={(e) => setHalfEnd(e.target.value as HalfKind)}>
+                <option value="full">Full day</option>
+                <option value="am">Morning only (½)</option>
+                <option value="pm">Afternoon only (½)</option>
+              </select>
+            )}
+          </Field>
         )}
       </div>
 
-      <div>
-        <label className="label">Note (optional)</label>
-        <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </div>
+      <Field label="Note (optional)">
+        {(p) => (
+          <textarea {...p} className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+        )}
+      </Field>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex items-center gap-2 text-sm text-neutral-700">
         <input type="checkbox" checked={autoApprove} onChange={(e) => setAutoApprove(e.target.checked)} />
         Mark as approved immediately
       </label>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">Total: <strong>{days}</strong> working day{days === 1 ? "" : "s"}</p>
-        <button className="btn-primary w-full sm:w-auto" disabled={busy || days === 0 || !userId}>
+        <p className="text-sm text-neutral-600">Total: <strong>{days}</strong> working day{days === 1 ? "" : "s"}</p>
+        <button className="btn-accent w-full sm:w-auto" disabled={busy || days === 0 || !userId}>
           {busy ? "Saving…" : "Log leave"}
         </button>
       </div>
 
       {msg && (
-        <p className={`text-sm ${msg.kind === "ok" ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>
+        <p className={`text-sm ${msg.kind === "ok" ? "text-neutral-700" : "text-rose-700"}`}>
+          {msg.kind === "ok" && (
+            <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
+          )}
+          {msg.text}
+        </p>
       )}
     </form>
   );

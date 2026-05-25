@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { countLeaveDays, type HalfKind } from "@/lib/days";
 import type { Balance } from "@/lib/balances";
 import DateRangePicker from "@/components/DateRangePicker";
+import Field from "@/components/Field";
 
 export default function RequestLeaveForm({
   holidays,
@@ -92,7 +93,7 @@ export default function RequestLeaveForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div>
-        <label className="label">Pick the dates you'll be off</label>
+        <span className="label">Pick the dates you'll be off</span>
         <DateRangePicker
           start={start}
           end={end}
@@ -106,37 +107,41 @@ export default function RequestLeaveForm({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="label">Leave type</label>
-          <select className="input" value={type} onChange={(e) => setType(e.target.value as "annual" | "sick")}>
-            <option value="annual">Annual</option>
-            <option value="sick">Sick</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">{sameDay ? "Half-day?" : "First day"}</label>
-          <select className="input" value={halfStart} onChange={(e) => setHalfStart(e.target.value as HalfKind)}>
-            <option value="full">Full day</option>
-            <option value="am">Morning only (½)</option>
-            <option value="pm">Afternoon only (½)</option>
-          </select>
-        </div>
-        {!sameDay && (
-          <div>
-            <label className="label">Last day</label>
-            <select className="input" value={halfEnd} onChange={(e) => setHalfEnd(e.target.value as HalfKind)}>
+        <Field label="Leave type">
+          {(p) => (
+            <select {...p} className="input" value={type} onChange={(e) => setType(e.target.value as "annual" | "sick")}>
+              <option value="annual">Annual</option>
+              <option value="sick">Sick</option>
+            </select>
+          )}
+        </Field>
+        <Field label={sameDay ? "Half-day?" : "First day"}>
+          {(p) => (
+            <select {...p} className="input" value={halfStart} onChange={(e) => setHalfStart(e.target.value as HalfKind)}>
               <option value="full">Full day</option>
               <option value="am">Morning only (½)</option>
               <option value="pm">Afternoon only (½)</option>
             </select>
-          </div>
+          )}
+        </Field>
+        {!sameDay && (
+          <Field label="Last day">
+            {(p) => (
+              <select {...p} className="input" value={halfEnd} onChange={(e) => setHalfEnd(e.target.value as HalfKind)}>
+                <option value="full">Full day</option>
+                <option value="am">Morning only (½)</option>
+                <option value="pm">Afternoon only (½)</option>
+              </select>
+            )}
+          </Field>
         )}
       </div>
 
-      <div>
-        <label className="label">Reason (optional)</label>
-        <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </div>
+      <Field label="Reason (optional)">
+        {(p) => (
+          <textarea {...p} className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+        )}
+      </Field>
 
       {conflict && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -146,7 +151,7 @@ export default function RequestLeaveForm({
       )}
 
       {!conflict && overBalance && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           <strong>Not enough days.</strong>{" "}
           {remaining <= 0
             ? `You have no ${type} leave days left this year.`
@@ -155,22 +160,27 @@ export default function RequestLeaveForm({
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-neutral-600">
           Total: <strong>{days}</strong> working day{days === 1 ? "" : "s"}{" "}
-          <span className="text-slate-400">
+          <span className="text-neutral-500">
             · {remaining} {type} day{remaining === 1 ? "" : "s"} remaining
           </span>
         </p>
         <button
-          className="btn-primary w-full sm:w-auto"
+          className="btn-accent w-full sm:w-auto"
           disabled={submitting || days === 0 || overBalance || !!conflict}
         >
           {submitting ? "Submitting…" : "Submit request"}
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {success && <p className="text-sm text-emerald-600">{success}</p>}
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {success && (
+        <p className="text-sm text-neutral-700">
+          <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
+          {success}
+        </p>
+      )}
     </form>
   );
 }
