@@ -33,10 +33,10 @@ export default function InviteAcceptForm({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token, password }),
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => null);
     if (!res.ok) {
       setLoading(false);
-      setError(json.error || "Something went wrong.");
+      setError(json?.error || "Something went wrong. Please try again.");
       return;
     }
 
