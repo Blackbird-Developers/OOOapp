@@ -101,6 +101,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
         { href: "/dashboard/request", label: "Request leave" },
         { href: "/dashboard/my-requests", label: "My requests", badge: decisionCount },
         { href: "/dashboard/account", label: "Account" },
+        { href: "/dashboard/help", label: "Help" },
       ];
 
   // Close on Escape, lock body scroll, focus the first interactive element on
