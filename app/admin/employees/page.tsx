@@ -2,9 +2,10 @@ import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { yearBounds } from "@/lib/days";
 import AllowanceEditor from "./AllowanceEditor";
+import DeleteEmployeeButton from "./DeleteEmployeeButton";
 
 export default async function EmployeesPage() {
-  await requireAdmin();
+  const me = await requireAdmin();
   const supabase = await createServerClient();
   const { from, to } = yearBounds();
 
@@ -39,7 +40,8 @@ export default async function EmployeesPage() {
         <header className="mb-6">
           <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Employees</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {total} member{total === 1 ? "" : "s"}. Use Edit to change a person's leave allowances.
+            {total} member{total === 1 ? "" : "s"}. Use Edit to change a person's leave allowances,
+            or Delete to remove their account.
           </p>
         </header>
 
@@ -53,7 +55,7 @@ export default async function EmployeesPage() {
                 <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Role</th>
                 <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Annual remaining</th>
                 <th className="py-3 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em]">Sick remaining</th>
-                <th className="py-3 px-4 text-right text-[11px] font-semibold uppercase tracking-[0.08em]">Allowances</th>
+                <th className="py-3 px-4 text-right text-[11px] font-semibold uppercase tracking-[0.08em]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -77,11 +79,20 @@ export default async function EmployeesPage() {
                       <Remaining left={sickLeft} total={sickTotal} used={u.su} pending={u.sp} />
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <AllowanceEditor
-                        id={e.id}
-                        annual={annualTotal}
-                        sick={sickTotal}
-                      />
+                      <div className="inline-flex items-center justify-end gap-1">
+                        <AllowanceEditor
+                          id={e.id}
+                          annual={annualTotal}
+                          sick={sickTotal}
+                        />
+                        {e.id !== me.id && (
+                          <DeleteEmployeeButton
+                            id={e.id}
+                            name={e.full_name}
+                            email={e.email}
+                          />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -117,12 +128,19 @@ export default async function EmployeesPage() {
                     <dd><Remaining left={sickLeft} total={sickTotal} used={u.su} pending={u.sp} /></dd>
                   </div>
                 </dl>
-                <div className="mt-3 pt-3 border-t border-neutral-100 flex justify-end">
+                <div className="mt-3 pt-3 border-t border-neutral-100 flex justify-end gap-1">
                   <AllowanceEditor
                     id={e.id}
                     annual={annualTotal}
                     sick={sickTotal}
                   />
+                  {e.id !== me.id && (
+                    <DeleteEmployeeButton
+                      id={e.id}
+                      name={e.full_name}
+                      email={e.email}
+                    />
+                  )}
                 </div>
               </div>
             );
