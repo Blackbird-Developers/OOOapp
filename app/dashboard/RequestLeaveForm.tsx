@@ -11,11 +11,14 @@ export default function RequestLeaveForm({
   holidays,
   balance,
   blockedDates,
+  calendarHref,
 }: {
   holidays: { date: string; name: string }[];
   balance: Balance;
   // ISO dates the user already has approved/pending leave on.
   blockedDates: string[];
+  // Calendar page to land on after a successful submit.
+  calendarHref: string;
 }) {
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
@@ -28,7 +31,6 @@ export default function RequestLeaveForm({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const holidayDates = useMemo(() => holidays.map((h) => h.date), [holidays]);
 
@@ -65,7 +67,6 @@ export default function RequestLeaveForm({
     }
     setSubmitting(true);
     setError(null);
-    setSuccess(null);
     const res = await fetch("/api/leave", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -79,14 +80,13 @@ export default function RequestLeaveForm({
       }),
     });
     const json = await res.json();
-    setSubmitting(false);
     if (!res.ok) {
+      setSubmitting(false);
       setError(json.error || "Something went wrong.");
       return;
     }
-    setSuccess(`Request submitted (${json.days} day${json.days === 1 ? "" : "s"}). Admin notified.`);
     setReason("");
-    router.push("/dashboard");
+    router.push(calendarHref);
     router.refresh();
   }
 
@@ -175,12 +175,6 @@ export default function RequestLeaveForm({
       </div>
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
-      {success && (
-        <p className="text-sm text-neutral-700">
-          <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
-          {success}
-        </p>
-      )}
     </form>
   );
 }
