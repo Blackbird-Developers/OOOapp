@@ -47,6 +47,7 @@ export default async function RequestLeavePage() {
           holidays={holidays ?? []}
           balance={balance}
           blockedDates={blockedDates}
+          calendarHref={profile.role === "admin" ? "/admin" : "/dashboard"}
         />
       </section>
     </main>

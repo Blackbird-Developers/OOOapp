@@ -1,15 +1,17 @@
 import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = process.env.RESEND_FROM ?? "BBM Leave <onboarding@resend.dev>";
+const FROM = process.env.RESEND_FROM ?? "Blackbird Leave <onboarding@resend.dev>";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SUBJECT_PREFIX = "Blackbird Leave";
 
 async function send(to: string | string[], subject: string, html: string) {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not set; skipping email:", subject);
     throw new Error("Email is not configured (RESEND_API_KEY missing).");
   }
-  const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+  const fullSubject = `${SUBJECT_PREFIX}: ${subject}`;
+  const { error } = await resend.emails.send({ from: FROM, to, subject: fullSubject, html });
   if (error) {
     // Resend returns errors in the response body rather than throwing.
     console.error("[email] send failed:", error);
@@ -19,10 +21,10 @@ async function send(to: string | string[], subject: string, html: string) {
 
 const wrap = (body: string) => `
 <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a">
-  <h2 style="margin:0 0 16px;color:#0f172a">BBM Leave</h2>
+  <h2 style="margin:0 0 16px;color:#0f172a">Blackbird Leave</h2>
   ${body}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-  <p style="font-size:12px;color:#64748b;margin:0">Blackbird Marketing leave tracker · <a href="${SITE}" style="color:#6366f1">Open dashboard</a></p>
+  <p style="font-size:12px;color:#64748b;margin:0">Blackbird Leave · <a href="${SITE}" style="color:#6366f1">Open dashboard</a></p>
 </div>
 `;
 
@@ -80,11 +82,11 @@ export async function emailInvite(opts: {
   const url = `${SITE}/invite/${opts.token}`;
   const body = `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>You've been invited to join the Blackbird Marketing leave tracker.</p>
+    <p>You've been invited to join Blackbird Leave.</p>
     <p><a href="${url}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Accept invite & set password</a></p>
     <p style="font-size:12px;color:#64748b">This link expires in 7 days.</p>
   `;
-  await send(opts.to, "You're invited to BBM Leave", wrap(body));
+  await send(opts.to, "You're invited", wrap(body));
 }
 
 export async function emailPasswordReset(opts: {
@@ -95,11 +97,11 @@ export async function emailPasswordReset(opts: {
   const url = `${SITE}/reset-password/${opts.token}`;
   const body = `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>We received a request to reset the password on your BBM Leave account.</p>
+    <p>We received a request to reset the password on your Blackbird Leave account.</p>
     <p><a href="${url}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Choose a new password</a></p>
     <p style="font-size:12px;color:#64748b">This link expires in 1 hour. If you didn't request this, you can safely ignore the email — your password won't change.</p>
   `;
-  await send(opts.to, "Reset your BBM Leave password", wrap(body));
+  await send(opts.to, "Reset your password", wrap(body));
 }
 
 function escapeHtml(s: string) {
