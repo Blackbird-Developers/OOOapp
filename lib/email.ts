@@ -87,6 +87,21 @@ export async function emailInvite(opts: {
   await send(opts.to, "You're invited to BBM Leave", wrap(body));
 }
 
+export async function emailPasswordReset(opts: {
+  to: string;
+  fullName: string;
+  token: string;
+}) {
+  const url = `${SITE}/reset-password/${opts.token}`;
+  const body = `
+    <p>Hi ${escapeHtml(opts.fullName)},</p>
+    <p>We received a request to reset the password on your BBM Leave account.</p>
+    <p><a href="${url}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Choose a new password</a></p>
+    <p style="font-size:12px;color:#64748b">This link expires in 1 hour. If you didn't request this, you can safely ignore the email — your password won't change.</p>
+  `;
+  await send(opts.to, "Reset your BBM Leave password", wrap(body));
+}
+
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
