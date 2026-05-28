@@ -346,7 +346,7 @@ function LanguageToggle({
     <div
       role="radiogroup"
       aria-label={label}
-      className="relative inline-flex shrink-0 rounded-full bg-neutral-100 p-1 text-sm font-medium"
+      className="relative inline-flex shrink-0 self-center sm:self-auto rounded-full bg-neutral-100 p-1 text-sm font-medium"
     >
       {/* Sliding pill — sits behind the buttons and moves between them. */}
       <span
