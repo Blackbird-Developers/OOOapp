@@ -49,6 +49,37 @@ export async function emailNewRequestToAdmins(opts: {
   await send(opts.adminEmails, `Leave request from ${opts.employeeName} (${opts.days}d)`, wrap(body));
 }
 
+export async function emailEditedRequestToAdmins(opts: {
+  adminEmails: string[];
+  employeeName: string;
+  wasApproved: boolean;
+  before: { type: "annual" | "sick"; startDate: string; endDate: string; days: number; reason?: string | null };
+  after: { type: "annual" | "sick"; startDate: string; endDate: string; days: number; reason?: string | null };
+}) {
+  const changed = (a: string | number, b: string | number) =>
+    a === b
+      ? `${escapeHtml(String(b))}`
+      : `<s style="color:#94a3b8">${escapeHtml(String(a))}</s> → <strong>${escapeHtml(String(b))}</strong>`;
+
+  const { before, after } = opts;
+  const body = `
+    <p><strong>${escapeHtml(opts.employeeName)}</strong> edited a leave request.</p>
+    ${
+      opts.wasApproved
+        ? `<p style="color:#b45309"><strong>This request was already approved.</strong> It has been reset to <strong>pending</strong> and needs your re-approval.</p>`
+        : ""
+    }
+    <ul>
+      <li><strong>Type:</strong> ${changed(before.type, after.type)}</li>
+      <li><strong>Dates:</strong> ${changed(`${before.startDate} → ${before.endDate}`, `${after.startDate} → ${after.endDate}`)}</li>
+      <li><strong>Days:</strong> ${changed(before.days, after.days)}</li>
+      <li><strong>Reason:</strong> ${changed(before.reason || "—", after.reason || "—")}</li>
+    </ul>
+    <p><a href="${SITE}/admin" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review in dashboard</a></p>
+  `;
+  await send(opts.adminEmails, `Leave request edited by ${opts.employeeName} (${after.days}d)`, wrap(body));
+}
+
 export async function emailDecisionToEmployee(opts: {
   to: string;
   employeeName: string;

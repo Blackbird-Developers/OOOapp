@@ -17,8 +17,14 @@ type Request = {
   created_at: string;
 };
 
+// Pending or approved leave that hasn't started yet can still be edited.
+function isEditable(r: Request, todayISO: string) {
+  return (r.status === "pending" || r.status === "approved") && r.start_date >= todayISO;
+}
+
 export default function MyRequestsList({ requests }: { requests: Request[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const todayISO = new Date().toISOString().slice(0, 10);
 
   if (requests.length === 0) {
     return (
@@ -59,6 +65,7 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
                   r={r}
                   isRejected={isRejected}
                   isOpen={isOpen}
+                  editable={isEditable(r, todayISO)}
                   toggle={() => setOpenId(isOpen ? null : r.id)}
                 />
               );
@@ -78,6 +85,7 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
               r={r}
               isRejected={isRejected}
               isOpen={isOpen}
+              editable={isEditable(r, todayISO)}
               toggle={() => setOpenId(isOpen ? null : r.id)}
             />
           );
@@ -88,11 +96,12 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
 }
 
 function DesktopRow({
-  r, isRejected, isOpen, toggle,
+  r, isRejected, isOpen, editable, toggle,
 }: {
   r: Request;
   isRejected: boolean;
   isOpen: boolean;
+  editable: boolean;
   toggle: () => void;
 }) {
   return (
@@ -110,6 +119,14 @@ function DesktopRow({
         <td className="py-3 px-4 text-neutral-700">{r.days_count}</td>
         <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
         <td className="py-3 px-4 text-right">
+          {editable && (
+            <Link
+              href={`/dashboard/my-requests/${r.id}/edit`}
+              className="text-xs font-medium text-neutral-600 transition hover:text-brand-ink"
+            >
+              Edit
+            </Link>
+          )}
           {isRejected && (
             <span className="text-xs font-medium text-rose-700">
               {isOpen ? "Hide" : "View"} reason {isOpen ? "↑" : "↓"}
@@ -129,11 +146,12 @@ function DesktopRow({
 }
 
 function MobileCard({
-  r, isRejected, isOpen, toggle,
+  r, isRejected, isOpen, editable, toggle,
 }: {
   r: Request;
   isRejected: boolean;
   isOpen: boolean;
+  editable: boolean;
   toggle: () => void;
 }) {
   return (
@@ -156,6 +174,15 @@ function MobileCard({
             {r.days_count} {r.days_count === 1 ? "day" : "days"}
           </div>
         </div>
+        {editable && (
+          <Link
+            href={`/dashboard/my-requests/${r.id}/edit`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs font-medium text-neutral-600 transition hover:text-brand-ink shrink-0"
+          >
+            Edit
+          </Link>
+        )}
         {isRejected && (
           <span className="text-xs font-medium text-rose-700 shrink-0">
             {isOpen ? "Hide ↑" : "View ↓"}

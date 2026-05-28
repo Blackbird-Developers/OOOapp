@@ -7,11 +7,23 @@ import type { Balance } from "@/lib/balances";
 import DateRangePicker from "@/components/DateRangePicker";
 import Field from "@/components/Field";
 
+export type EditTarget = {
+  id: string;
+  type: "annual" | "sick";
+  start: string;
+  end: string;
+  halfStart: HalfKind;
+  halfEnd: HalfKind;
+  reason: string;
+  status: "pending" | "approved";
+};
+
 export default function RequestLeaveForm({
   holidays,
   balance,
   blockedDates,
   calendarHref,
+  edit,
 }: {
   holidays: { date: string; name: string }[];
   balance: Balance;
@@ -19,16 +31,18 @@ export default function RequestLeaveForm({
   blockedDates: string[];
   // Calendar page to land on after a successful submit.
   calendarHref: string;
+  // When present, the form edits this existing request instead of creating one.
+  edit?: EditTarget;
 }) {
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
 
-  const [type, setType] = useState<"annual" | "sick">("annual");
-  const [start, setStart] = useState(today);
-  const [end, setEnd] = useState(today);
-  const [halfStart, setHalfStart] = useState<HalfKind>("full");
-  const [halfEnd, setHalfEnd] = useState<HalfKind>("full");
-  const [reason, setReason] = useState("");
+  const [type, setType] = useState<"annual" | "sick">(edit?.type ?? "annual");
+  const [start, setStart] = useState(edit?.start ?? today);
+  const [end, setEnd] = useState(edit?.end ?? today);
+  const [halfStart, setHalfStart] = useState<HalfKind>(edit?.halfStart ?? "full");
+  const [halfEnd, setHalfEnd] = useState<HalfKind>(edit?.halfEnd ?? "full");
+  const [reason, setReason] = useState(edit?.reason ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +54,16 @@ export default function RequestLeaveForm({
   }, [start, end, halfStart, halfEnd, holidayDates]);
 
   const sameDay = start === end;
-  const remaining = type === "annual" ? balance.annual_remaining : balance.sick_remaining;
+  // When editing, the request being changed is already counted in the balance.
+  // Add its days back to the matching type so the remaining figure reflects the
+  // budget actually available to this request.
+  const editAddBack = useMemo(() => {
+    if (!edit || edit.type !== type) return 0;
+    return countLeaveDays(edit.start, edit.end, edit.halfStart, edit.halfEnd, holidayDates);
+  }, [edit, type, holidayDates]);
+  const remaining = +(
+    (type === "annual" ? balance.annual_remaining : balance.sick_remaining) + editAddBack
+  ).toFixed(1);
   const overBalance = days > 0 && days > remaining;
 
   const conflict = useMemo(() => {
@@ -67,8 +90,8 @@ export default function RequestLeaveForm({
     }
     setSubmitting(true);
     setError(null);
-    const res = await fetch("/api/leave", {
-      method: "POST",
+    const res = await fetch(edit ? `/api/leave/${edit.id}/edit` : "/api/leave", {
+      method: edit ? "PATCH" : "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         type,
@@ -170,9 +193,21 @@ export default function RequestLeaveForm({
           className="btn-accent w-full sm:w-auto"
           disabled={submitting || days === 0 || overBalance || !!conflict}
         >
-          {submitting ? "Submitting…" : "Submit request"}
+          {edit
+            ? submitting
+              ? "Saving…"
+              : "Save changes"
+            : submitting
+            ? "Submitting…"
+            : "Submit request"}
         </button>
       </div>
+
+      {edit?.status === "approved" && (
+        <p className="text-xs text-amber-700">
+          This request is already approved. Saving changes will send it back to your admin for re-approval.
+        </p>
+      )}
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
     </form>
