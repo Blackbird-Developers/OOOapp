@@ -188,10 +188,8 @@ export default function LeaveCalendar({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-xs text-neutral-500">
-        <Legend swatch={<span className="h-2 w-2 rounded-full bg-brand-accent" />}>
-          Yours
-          <span className="hidden sm:inline text-neutral-400"> (A = annual, S = sick)</span>
-        </Legend>
+        <Legend swatch={<span className="h-2 w-2 rounded-full bg-violet-500" />}>Your annual</Legend>
+        <Legend swatch={<span className="h-2 w-2 rounded-full bg-red-500" />}>Your sick</Legend>
         <Legend swatch={<span className="h-2 w-2 rounded-full bg-brand-accent/40" />}>Team mate</Legend>
         <Legend swatch={<span className="h-2 w-2 rounded-full border border-dashed border-neutral-400 bg-transparent" />}>Pending</Legend>
       </div>
@@ -202,12 +200,17 @@ export default function LeaveCalendar({
 function badgeClass(ev: CalendarEvent, isPeer: boolean) {
   if (ev.status === "pending") return "bg-neutral-50 text-neutral-700";
   if (isPeer) return "bg-brand-accent/40 text-neutral-800";
+  // Your own approved leave is colour-coded by type so it stands out from colleagues.
+  if (ev.type === "sick") return "bg-red-200 text-red-900";
+  if (ev.type === "annual") return "bg-violet-200 text-violet-900";
   return "bg-brand-accent text-neutral-900";
 }
 
 function dotClass(ev: CalendarEvent, isPeer: boolean) {
   if (ev.status === "pending") return "bg-neutral-400";
   if (isPeer) return "bg-brand-ink/40";
+  if (ev.type === "sick") return "bg-red-600";
+  if (ev.type === "annual") return "bg-violet-600";
   return "bg-brand-ink";
 }
 
