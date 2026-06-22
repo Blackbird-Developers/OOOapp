@@ -149,6 +149,7 @@ export default function LeaveCalendar({
                 <div className="space-y-0.5 sm:space-y-1">
                   {dayEvents.slice(0, desktopVisible).map((ev, idx) => {
                     const isPeer = viewerUserId !== undefined && ev.userId !== viewerUserId;
+                    const isOwn = viewerUserId !== undefined && ev.userId === viewerUserId;
                     const label = isPeer
                       ? ev.userName.split(" ")[0]
                       : `${ev.userName.split(" ")[0]} · ${ev.type[0].toUpperCase()}`;
@@ -160,12 +161,12 @@ export default function LeaveCalendar({
                     return (
                       <div
                         key={ev.id + iso}
-                        className={`${hideOnMobile ? "hidden sm:flex" : "flex"} items-center gap-1 truncate rounded sm:rounded-md px-1 sm:px-1.5 py-0 sm:py-0.5 text-[9px] sm:text-[11px] font-medium leading-tight ${badgeClass(ev, isPeer)} ${
+                        className={`${hideOnMobile ? "hidden sm:flex" : "flex"} items-center gap-1 truncate rounded sm:rounded-md px-1 sm:px-1.5 py-0 sm:py-0.5 text-[9px] sm:text-[11px] font-medium leading-tight ${badgeClass(ev, isPeer, isOwn)} ${
                           pending ? "border border-dashed border-neutral-400" : ""
                         }`}
                         title={title}
                       >
-                        <span aria-hidden className={`inline-block h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full shrink-0 ${dotClass(ev, isPeer)}`} />
+                        <span aria-hidden className={`inline-block h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full shrink-0 ${dotClass(ev, isPeer, isOwn)}`} />
                         <span className="truncate">{label}</span>
                       </div>
                     );
@@ -197,20 +198,21 @@ export default function LeaveCalendar({
   );
 }
 
-function badgeClass(ev: CalendarEvent, isPeer: boolean) {
+function badgeClass(ev: CalendarEvent, isPeer: boolean, isOwn: boolean) {
   if (ev.status === "pending") return "bg-neutral-50 text-neutral-700";
   if (isPeer) return "bg-brand-accent/40 text-neutral-800";
   // Your own approved leave is colour-coded by type so it stands out from colleagues.
-  if (ev.type === "sick") return "bg-red-200 text-red-900";
-  if (ev.type === "annual") return "bg-violet-200 text-violet-900";
+  // Only applies when the viewer is known (dashboard); admin views leave this untouched.
+  if (isOwn && ev.type === "sick") return "bg-red-200 text-red-900";
+  if (isOwn && ev.type === "annual") return "bg-violet-200 text-violet-900";
   return "bg-brand-accent text-neutral-900";
 }
 
-function dotClass(ev: CalendarEvent, isPeer: boolean) {
+function dotClass(ev: CalendarEvent, isPeer: boolean, isOwn: boolean) {
   if (ev.status === "pending") return "bg-neutral-400";
   if (isPeer) return "bg-brand-ink/40";
-  if (ev.type === "sick") return "bg-red-600";
-  if (ev.type === "annual") return "bg-violet-600";
+  if (isOwn && ev.type === "sick") return "bg-red-600";
+  if (isOwn && ev.type === "annual") return "bg-violet-600";
   return "bg-brand-ink";
 }
 
