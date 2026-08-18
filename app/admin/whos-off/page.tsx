@@ -1,16 +1,21 @@
 import { format } from "date-fns";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { yearBounds } from "@/lib/days";
+import { todayISOIn, yearBounds } from "@/lib/days";
+import { isSlackConfigured } from "@/lib/slack";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import TodayStrip from "@/components/TodayStrip";
+import SlackDigestButton from "./SlackDigestButton";
 
 export default async function AdminWhosOffPage() {
   const profile = await requireAdmin();
   const supabase = await createServerClient();
   const { from, to } = yearBounds();
   const now = new Date();
-  const todayISO = format(now, "yyyy-MM-dd");
+  // Office wall clock, not the server's. Vercel runs UTC, which would call it
+  // "yesterday" during the small hours of Irish summer time — and the Slack
+  // digest has to agree with this page about what "today" means.
+  const todayISO = todayISOIn();
 
   const [{ data: holidays }, { data: teamRows }] = await Promise.all([
     supabase.from("public_holidays").select("date, name").order("date"),
@@ -63,6 +68,7 @@ export default async function AdminWhosOffPage() {
           </h1>
           <p className="mt-1 text-sm text-neutral-500">{format(now, "EEEE, d MMMM yyyy")}</p>
         </div>
+        {isSlackConfigured() && <SlackDigestButton />}
       </header>
 
       <TodayStrip

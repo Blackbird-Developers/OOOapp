@@ -65,6 +65,40 @@ export function datesInRange(startISO: string, endISO: string): string[] {
   return out;
 }
 
+/**
+ * The company's wall clock. Vercel runs its functions in UTC, so anything that
+ * has to agree with what a person in the office would call "today" — the daily
+ * Slack digest, above all — has to convert explicitly rather than trust the
+ * host's clock.
+ */
+export const APP_TIME_ZONE = "Europe/Dublin";
+
+/** Today's date in `tz`, as yyyy-MM-dd. */
+export function todayISOIn(tz: string = APP_TIME_ZONE): string {
+  // en-CA formats as yyyy-MM-dd, which is exactly the shape we store dates in.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+/**
+ * Current hour (0–23) in `tz`.
+ *
+ * `hourCycle: "h23"` rather than `hour12: false` on purpose — some ICU builds
+ * render midnight as "24" under the latter, which would read as *later* than
+ * any target hour and fire a scheduled job at 00:00.
+ */
+export function hourNowIn(tz: string = APP_TIME_ZONE): number {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", hourCycle: "h23" }).format(
+      new Date()
+    )
+  );
+}
+
 export function currentYear(): number {
   return new Date().getFullYear();
 }
