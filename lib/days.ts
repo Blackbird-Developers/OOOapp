@@ -70,8 +70,12 @@ export function datesInRange(startISO: string, endISO: string): string[] {
  * has to agree with what a person in the office would call "today" — the daily
  * Slack digest, above all — has to convert explicitly rather than trust the
  * host's clock.
+ *
+ * `Europe/Belgrade` is Kosovo's zone in the IANA database — there is no
+ * `Europe/Pristina` entry, so this is the correct spelling of Kosovo time
+ * (CET in winter, CEST in summer), not a reference to a different country.
  */
-export const APP_TIME_ZONE = "Europe/Dublin";
+export const APP_TIME_ZONE = "Europe/Belgrade";
 
 /** Today's date in `tz`, as yyyy-MM-dd. */
 export function todayISOIn(tz: string = APP_TIME_ZONE): string {

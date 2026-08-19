@@ -12,10 +12,11 @@ const DEFAULT_POST_HOUR = 9;
 /**
  * Daily out-of-office digest → Slack.
  *
- * Scheduled twice in vercel.json (08:00 and 09:00 UTC) so that 09:00 in
- * Europe/Dublin is covered in both IST and GMT. Whichever run first finds the
- * local clock at or past the target hour does the post; `slack_daily_posts`
- * makes every later run for the same date a no-op.
+ * Scheduled twice in vercel.json (07:00 and 08:00 UTC) so that 09:00 Kosovo
+ * time is covered in both CEST (UTC+2, so the 07:00 run lands on it) and CET
+ * (UTC+1, so the 08:00 run does). Whichever run first finds the local clock at
+ * or past the target hour does the post; `slack_daily_posts` makes every later
+ * run for the same date a no-op.
  *
  * Silent when nobody is off — a channel that only speaks when it has something
  * to say is a channel people don't mute.

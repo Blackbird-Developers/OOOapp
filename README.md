@@ -104,7 +104,7 @@ Just add a menu item or a button somewhere on the WordPress site that links to `
 
 ## 7. Slack daily out-of-office digest
 
-Posts one message each weekday at **09:00 Europe/Dublin** into a channel of your choice, listing who's off that day. It reads the same approved-leave data as the Who's off calendar, so the two can't drift.
+Posts one message each weekday at **09:00 Kosovo time** (`Europe/Belgrade` — CET/CEST) into a channel of your choice, listing who's off that day. It reads the same approved-leave data as the Who's off calendar, so the two can't drift.
 
 It stays **silent when nobody is off** — a channel that only speaks when it has something to say is a channel people don't mute.
 
@@ -134,10 +134,10 @@ Add these in **Vercel → Settings → Environment Variables** (and to `.env.loc
 | -------- | ----- |
 | `SLACK_BOT_TOKEN` | the `xoxb-…` token from 7.1 |
 | `SLACK_CHANNEL_ID` | the `C…` ID from 7.2 |
-| `SLACK_DAILY_POST_HOUR` | optional, `0`–`23` Dublin time. Defaults to `9` |
+| `SLACK_DAILY_POST_HOUR` | optional, `0`–`23` Kosovo time. Defaults to `9` |
 | `CRON_SECRET` | any long random string — generate with `openssl rand -hex 32` |
 
-`CRON_SECRET` is what stops a stranger who guesses the URL from making the bot post. Vercel sends it automatically with every scheduled trigger. **In production the endpoint refuses to run if it isn't set.**
+`CRON_SECRET` is what stops a stranger who guesses the URL from making the bot post. Vercel sends it automatically with every scheduled trigger. **In production the endpoint refuses to run if it isn't set — the 09:00 post simply never happens, and the only trace is a `CRON_SECRET is not configured` line in the function logs.** If the digest is silent on a day when people *are* off, check this variable first.
 
 ### 7.4 Run the migration
 
@@ -157,7 +157,7 @@ A muted channel stops making noise and drops out of the unread bolding, but the 
 
 ### How the schedule actually works
 
-Vercel Cron runs in UTC and Ireland changes offset twice a year, so `vercel.json` schedules the endpoint at **both 08:00 and 09:00 UTC**, Monday–Friday. Whichever run first finds the Dublin clock at or past the target hour does the post; the `slack_daily_posts` table makes every later run that day a no-op. That covers GMT and IST without a timezone library, and it survives Vercel firing a cron late.
+Vercel Cron runs in UTC and Kosovo changes offset twice a year, so `vercel.json` schedules the endpoint at **both 07:00 and 08:00 UTC**, Monday–Friday. In summer (CEST, UTC+2) the 07:00 run is the one that lands on 09:00 local; in winter (CET, UTC+1) it's the 08:00 run. Whichever run first finds the Kosovo clock at or past the target hour does the post; the `slack_daily_posts` table makes every later run that day a no-op. That covers both offsets without a timezone library, and it survives Vercel firing a cron late.
 
 > **Note:** Vercel Cron only runs on **Production** deployments, and the Hobby plan allows a maximum of two cron jobs — which is exactly what this uses.
 
@@ -207,5 +207,5 @@ supabase/migrations/     001_init.sql … 006_slack_daily_digest.sql
 - **Cancellations**: only admins can cancel pending or approved requests (per spec). Cancellation emails the employee.
 - **Half-days**: pick `Morning only` or `Afternoon only` on the first and/or last day of a range. Single-day requests with a half flag count as 0.5.
 - **Holidays**: admin-managed in `/admin/holidays`. Add the year's Irish public holidays each year (or as needed). Anything in this table is excluded from working-day counts.
-- **Slack digest**: weekdays at 09:00 Dublin, silent when nobody is off, and it never names the leave type (see section 7). If a post fails, the day's claim in `slack_daily_posts` is released so the second cron run — or a manual **Post to Slack now** — can retry.
+- **Slack digest**: weekdays at 09:00 Kosovo time, silent when nobody is off, and it never names the leave type (see section 7). If a post fails, the day's claim in `slack_daily_posts` is released so the second cron run — or a manual **Post to Slack now** — can retry.
 - **Security**: all DB access goes through Postgres Row-Level Security. The service-role key is only used in server-side route handlers (never exposed to the browser) for operations that need to bypass RLS (creating auth users, invite lookup, etc.).
