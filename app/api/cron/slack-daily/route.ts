@@ -7,14 +7,14 @@ import { APP_TIME_ZONE, hourNowIn, todayISOIn } from "@/lib/days";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_POST_HOUR = 9;
+const DEFAULT_POST_HOUR = 6;
 
 /**
  * Daily out-of-office digest → Slack.
  *
- * Scheduled twice in vercel.json (07:00 and 08:00 UTC) so that 09:00 Kosovo
- * time is covered in both CEST (UTC+2, so the 07:00 run lands on it) and CET
- * (UTC+1, so the 08:00 run does). Whichever run first finds the local clock at
+ * Scheduled twice in vercel.json (04:00 and 05:00 UTC) so that 06:00 Kosovo
+ * time is covered in both CEST (UTC+2, so the 04:00 run lands on it) and CET
+ * (UTC+1, so the 05:00 run does). Whichever run first finds the local clock at
  * or past the target hour does the post; `slack_daily_posts` makes every later
  * run for the same date a no-op.
  *
