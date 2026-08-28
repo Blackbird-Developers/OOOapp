@@ -2,11 +2,11 @@
 -- Slack daily out-of-office digest.
 -- One row per day on which the bot actually posted to Slack.
 --
--- The cron endpoint is scheduled twice (see vercel.json) so that 09:00
--- Europe/Dublin is hit in both GMT and IST. This table is what stops the
--- second run — or a manual retry, or a Vercel redelivery — from posting a
--- duplicate: post_date is the primary key, so the insert that claims the
--- day fails for everyone after the first.
+-- The cron endpoint is scheduled twice (see vercel.json) so that 06:00 Kosovo
+-- time is hit in both CET and CEST. This table is what stops the second run
+-- — or a manual retry, or a Vercel redelivery — from posting a duplicate:
+-- post_date is the primary key, so the insert that claims the day fails for
+-- everyone after the first.
 -- =====================================================================
 
 create table public.slack_daily_posts (
