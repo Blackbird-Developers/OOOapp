@@ -23,6 +23,10 @@ export default function AdminLogLeaveForm({
   const [autoApprove, setAutoApprove] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // Set when the API rejects with a hierarchy conflict (409). Holds the exact
+  // payload that was rejected, so "Log anyway" overrides that submission even
+  // if the form fields have been edited since.
+  const [conflict, setConflict] = useState<{ text: string; payload: Record<string, unknown> } | null>(null);
 
   const sameDay = start === end;
   const days = useMemo(() => {
@@ -30,33 +34,47 @@ export default function AdminLogLeaveForm({
     return countLeaveDays(start, end, halfStart, halfEnd, holidays);
   }, [start, end, halfStart, halfEnd, holidays]);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function send(payload: Record<string, unknown>) {
     setBusy(true);
     setMsg(null);
+    setConflict(null);
     const res = await fetch("/api/leave", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        user_id: userId,
-        type,
-        start_date: start,
-        end_date: end,
-        half_start: halfStart,
-        half_end: sameDay ? halfStart : halfEnd,
-        reason: reason || null,
-        auto_approve: autoApprove,
-      }),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     setBusy(false);
     if (!res.ok) {
+      if (res.status === 409 && json.conflict) {
+        setConflict({ text: json.error, payload });
+        return;
+      }
       setMsg({ kind: "err", text: json.error || "Couldn't log the leave. Try again." });
       return;
     }
     setMsg({ kind: "ok", text: `Logged ${json.days} day${json.days === 1 ? "" : "s"} for that employee. They've been emailed.` });
     setReason("");
     router.refresh();
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await send({
+      user_id: userId,
+      type,
+      start_date: start,
+      end_date: end,
+      half_start: halfStart,
+      half_end: sameDay ? halfStart : halfEnd,
+      reason: reason || null,
+      auto_approve: autoApprove,
+    });
+  }
+
+  async function logAnyway() {
+    if (!conflict) return;
+    await send({ ...conflict.payload, override_conflicts: true });
   }
 
   return (
@@ -140,6 +158,20 @@ export default function AdminLogLeaveForm({
           )}
           {msg.text}
         </p>
+      )}
+
+      {conflict && (
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800 space-y-3">
+          <p>{conflict.text}</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" className="btn-danger" disabled={busy} onClick={logAnyway}>
+              {busy ? "Saving…" : "Log anyway"}
+            </button>
+            <button type="button" className="btn-secondary" disabled={busy} onClick={() => setConflict(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </form>
   );
