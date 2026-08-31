@@ -109,35 +109,26 @@ export default function DateRangePicker({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-medium text-neutral-900 tracking-tight" id="date-picker-label">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setCursor(addMonths(cursor, -1))}
+          className="inline-flex h-11 w-11 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+        <h3 className="flex-1 text-center text-base font-medium text-neutral-900 tracking-tight" id="date-picker-label">
           {format(cursor, "MMMM yyyy")}
         </h3>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setCursor(addMonths(cursor, -1))}
-            className="inline-flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
-            aria-label="Previous month"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => setCursor(new Date())}
-            className="rounded-md px-3 min-h-11 sm:min-h-0 sm:py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition"
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => setCursor(addMonths(cursor, 1))}
-            className="inline-flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
-            aria-label="Next month"
-          >
-            ›
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setCursor(addMonths(cursor, 1))}
+          className="inline-flex h-11 w-11 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
+          aria-label="Next month"
+        >
+          ›
+        </button>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-neutral-200 text-xs">
