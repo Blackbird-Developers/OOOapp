@@ -5,7 +5,7 @@ import { todayISOIn, yearBounds } from "@/lib/days";
 import { isSlackConfigured } from "@/lib/slack";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import TodayStrip from "@/components/TodayStrip";
-import SlackDigestButton from "./SlackDigestButton";
+import SlackDigestButton from "@/components/SlackDigestButton";
 
 export default async function AdminWhosOffPage() {
   const profile = await requireAdmin();

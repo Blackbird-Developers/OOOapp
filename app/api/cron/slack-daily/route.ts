@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { isWeekend, parseISO } from "date-fns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDayAvailability } from "@/lib/whos-off";
-import { buildDailyDigest, isSlackConfigured, postToSlack, slackChannel } from "@/lib/slack";
+import {
+  buildDailyDigest,
+  isSlackConfigured,
+  postToSlack,
+  slackChannel,
+  slackPostHour,
+} from "@/lib/slack";
 import { APP_TIME_ZONE, hourNowIn, todayISOIn } from "@/lib/days";
 
 export const dynamic = "force-dynamic";
-
-const DEFAULT_POST_HOUR = 6;
 
 /**
  * Daily out-of-office digest → Slack.
@@ -25,7 +29,7 @@ export async function GET(req: Request) {
   const denied = rejectIfUnauthorised(req);
   if (denied) return denied;
 
-  const targetHour = Number(process.env.SLACK_DAILY_POST_HOUR ?? DEFAULT_POST_HOUR);
+  const targetHour = slackPostHour();
   const dateISO = todayISOIn();
   const localHour = hourNowIn();
 

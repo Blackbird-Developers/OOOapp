@@ -145,9 +145,17 @@ In Supabase → **SQL Editor**, run `supabase/migrations/006_slack_daily_digest.
 
 ### 7.5 Verify it works
 
-Deploy, then go to **/admin/whos-off** and click **Post to Slack now**. It posts today's digest immediately — no waiting for 06:00, and it posts even on a quiet day so you get proof the wiring is right. Any failure shows the actual reason (bot not in channel, bad token, missing scope) rather than a generic error.
+Deploy, then go to **Integrations** in the admin nav (`/admin/integrations`) and click **Post to Slack now**. The same button is also on **/admin/whos-off**. It posts today's digest immediately — no waiting for 06:00, and it posts even on a quiet day so you get proof the wiring is right. Any failure shows the actual reason (bot not in channel, bad token, missing scope) rather than a generic error.
 
-### 7.6 Muting it
+### 7.6 Checking it from the app
+
+**Integrations** (`/admin/integrations`) lists every service Blackbird Leave connects to and whether it is currently wired up. Slack shows its channel ID, the hour it posts, and the fact that it never shares the leave type. If `SLACK_BOT_TOKEN` or `SLACK_CHANNEL_ID` is missing the card says *not connected* and lists the setup steps instead.
+
+The tab is admin-only: it is under `/admin`, whose layout calls `requireAdmin()`, the page asserts it again, and the nav link only renders for admins. Employees who type the URL are redirected to their dashboard.
+
+Connecting still happens with environment variables in Vercel, not from the page. Adding a service later means writing one builder in `lib/integrations.ts` and listing it in `listIntegrations()`; the page renders whatever the registry returns.
+
+### 7.7 Muting it
 
 Slack handles this natively, per person — nobody needs an admin to do it for them:
 
@@ -206,6 +214,7 @@ supabase/migrations/     001_init.sql … 006_slack_daily_digest.sql
 - **Allowances**: per-employee allowances live on `profiles.annual_allowance` / `sick_allowance`. Admins can edit per-person from the Employees page.
 - **Cancellations**: only admins can cancel pending or approved requests (per spec). Cancellation emails the employee.
 - **Half-days**: pick `Morning only` or `Afternoon only` on the first and/or last day of a range. Single-day requests with a half flag count as 0.5.
+- **Integrations**: `/admin/integrations` (admin-only) shows what Blackbird Leave is connected to and lets an admin fire a Slack digest on demand. The registry lives in `lib/integrations.ts`.
 - **Holidays**: admin-managed in `/admin/holidays`. Add the year's Irish public holidays each year (or as needed). Anything in this table is excluded from working-day counts.
 - **Slack digest**: weekdays at 06:00 Kosovo time, silent when nobody is off, and it never names the leave type (see section 7). If a post fails, the day's claim in `slack_daily_posts` is released so the second cron run — or a manual **Post to Slack now** — can retry.
 - **Security**: all DB access goes through Postgres Row-Level Security. The service-role key is only used in server-side route handlers (never exposed to the browser) for operations that need to bypass RLS (creating auth users, invite lookup, etc.).
