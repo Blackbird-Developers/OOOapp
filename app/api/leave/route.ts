@@ -36,8 +36,10 @@ export async function POST(req: Request) {
   const targetUserId = input.user_id && me.role === "admin" ? input.user_id : me.id;
   const isAdminAction = me.role === "admin" && targetUserId !== me.id;
 
-  // Employees can't book past dates. Admins logging on behalf can.
-  if (!isAdminAction) {
+  // Employees can't book past dates. Admins can backfill missed entries —
+  // for anyone, including their own leave — so later checks (like a
+  // hierarchy conflict) surface instead of a blanket past-dates error.
+  if (me.role !== "admin") {
     const todayISO = new Date().toISOString().slice(0, 10);
     if (input.start_date < todayISO) {
       return NextResponse.json(
