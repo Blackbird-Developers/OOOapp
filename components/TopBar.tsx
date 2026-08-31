@@ -92,6 +92,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
         { href: "/admin/whos-off", label: "Who's off" },
         { href: "/admin/requests", label: "Requests", badge: pendingCount },
         { href: "/admin/employees", label: "Employees" },
+        { href: "/admin/hierarchy", label: "Hierarchy" },
         { href: "/admin/invites", label: "Invites" },
         { href: "/admin/holidays", label: "Holidays" },
         { href: "/admin/integrations", label: "Integrations" },
@@ -151,17 +152,18 @@ export default function TopBar({ profile }: { profile: Profile }) {
   // Total count for the hamburger dot.
   const hamburgerCount = isAdmin ? pendingCount : decisionCount;
 
-  // Where the bar gives way to the drawer. The admin nav carries eight links
-  // and needs about 1030px next to the logo, which the `max-w-6xl` container
-  // only affords from `xl` up; the five-link staff nav fits from `md` as it
-  // always has. Full literal class strings, so Tailwind's scanner keeps them.
+  // Where the bar gives way to the drawer. The admin nav carries nine links
+  // and needs about 1120px next to the logo, which the `max-w-7xl` header
+  // container only affords from `xl` up; the five-link staff nav fits from
+  // `md` as it always has. Full literal class strings, so Tailwind's scanner
+  // keeps them.
   const desktopNavCls = isAdmin ? "hidden xl:flex" : "hidden md:flex";
   const drawerOnlyCls = isAdmin ? "xl:hidden" : "md:hidden";
 
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
           <Link
             href={isAdmin ? "/admin" : "/dashboard"}
             className="flex items-center gap-2.5 text-brand-ink"

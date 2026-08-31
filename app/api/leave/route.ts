@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { countLeaveDays } from "@/lib/days";
 import { getBalance } from "@/lib/balances";
 import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
+import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
 
 const schema = z.object({
@@ -17,6 +18,8 @@ const schema = z.object({
   reason: z.string().max(2000).optional().nullable(),
   // If admin is creating on behalf, they can pre-approve it.
   auto_approve: z.boolean().optional(),
+  // Admin-only: log leave even though it clashes with a conflict group.
+  override_conflicts: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -89,6 +92,23 @@ export async function POST(req: Request) {
     );
   }
 
+  // Hierarchy rule: annual leave can't overlap a conflict-group mate's
+  // approved or pending annual leave. Admins can override explicitly.
+  const canOverride = Boolean(input.override_conflicts && me.role === "admin");
+  if (input.type === "annual" && !canOverride) {
+    const conflicts = await findAnnualConflicts({
+      userId: targetUserId,
+      startDate: input.start_date,
+      endDate: input.end_date,
+    });
+    if (conflicts.length > 0) {
+      return NextResponse.json(
+        { error: describeConflict(conflicts, isAdminAction ? "they" : "you"), conflict: true },
+        { status: 409 }
+      );
+    }
+  }
+
   const willAutoApprove = Boolean(input.auto_approve && me.role === "admin");
   const status = willAutoApprove ? "approved" : "pending";
 
@@ -135,45 +155,50 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Notifications.
-  const admin = createAdminClient();
-  if (willAutoApprove || isAdminAction) {
-    // Notify the employee that leave was logged/approved for them.
-    const { data: target } = await admin
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", targetUserId)
-      .single();
-    if (target) {
-      await emailDecisionToEmployee({
-        to: target.email,
-        employeeName: target.full_name,
-        approved: true,
-        type: input.type,
-        startDate: input.start_date,
-        endDate: input.end_date,
-        days,
-        note: "Logged by admin on your behalf.",
-      });
+  // Notifications are best-effort: the request is already saved, so an email
+  // failure (e.g. Resend not configured) must not fail the response.
+  try {
+    const admin = createAdminClient();
+    if (willAutoApprove || isAdminAction) {
+      // Notify the employee that leave was logged/approved for them.
+      const { data: target } = await admin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", targetUserId)
+        .single();
+      if (target) {
+        await emailDecisionToEmployee({
+          to: target.email,
+          employeeName: target.full_name,
+          approved: true,
+          type: input.type,
+          startDate: input.start_date,
+          endDate: input.end_date,
+          days,
+          note: "Logged by admin on your behalf.",
+        });
+      }
+    } else {
+      // Employee submitted: notify all admins.
+      const { data: admins } = await admin
+        .from("profiles")
+        .select("email")
+        .eq("role", "admin");
+      const adminEmails = (admins ?? []).map((a: { email: string }) => a.email);
+      if (adminEmails.length) {
+        await emailNewRequestToAdmins({
+          adminEmails,
+          employeeName: me.full_name,
+          type: input.type,
+          startDate: input.start_date,
+          endDate: input.end_date,
+          days,
+          reason: input.reason ?? null,
+        });
+      }
     }
-  } else {
-    // Employee submitted: notify all admins.
-    const { data: admins } = await admin
-      .from("profiles")
-      .select("email")
-      .eq("role", "admin");
-    const adminEmails = (admins ?? []).map((a: { email: string }) => a.email);
-    if (adminEmails.length) {
-      await emailNewRequestToAdmins({
-        adminEmails,
-        employeeName: me.full_name,
-        type: input.type,
-        startDate: input.start_date,
-        endDate: input.end_date,
-        days,
-        reason: input.reason ?? null,
-      });
-    }
+  } catch (e) {
+    console.warn("[leave] notification email failed:", e);
   }
 
   return NextResponse.json({ ok: true, id: row.id, days });

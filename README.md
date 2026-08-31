@@ -175,6 +175,24 @@ The digest deliberately **never says why** someone is off. Everyone reads as sim
 
 ---
 
+## 8. Hierarchy — annual-leave conflict groups
+
+Admins can group people who cover for each other (e.g. the two people holding one core role) so their **annual** leave can never overlap. Sick leave is never blocked.
+
+1. Run `supabase/migrations/007_conflict_groups.sql` in the Supabase SQL editor.
+2. Go to **Admin → Hierarchy**, create a group, add members. A person can be in several groups.
+
+How it's enforced (all server-side, in the API routes):
+
+- **Requesting** annual leave that overlaps a group-mate's *pending or approved* annual leave is blocked with a message naming the colleague, their dates, and the group.
+- **Editing** a request re-runs the same check against the new dates.
+- **Approving** re-checks as a safety net (covers races and admin overrides) — the approve button explains the clash instead of approving.
+- Admins logging leave on behalf hit the same block; the API accepts `override_conflicts: true` from an admin to force it through (no UI for this yet).
+
+Until migration 007 is run the check quietly passes (fails open), so deploying the code first is safe.
+
+---
+
 ## Project layout
 
 ```
@@ -203,7 +221,7 @@ lib/
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 006_slack_daily_digest.sql
+supabase/migrations/     001_init.sql … 007_conflict_groups.sql
 ```
 
 ---

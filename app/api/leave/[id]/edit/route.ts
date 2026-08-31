@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { countLeaveDays } from "@/lib/days";
 import { getBalance } from "@/lib/balances";
 import { emailEditedRequestToAdmins } from "@/lib/email";
+import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
 
 const schema = z.object({
@@ -106,6 +107,23 @@ export async function PATCH(
     );
   }
 
+  // Hierarchy rule: annual leave can't overlap a conflict-group mate's
+  // approved or pending annual leave.
+  if (input.type === "annual") {
+    const conflicts = await findAnnualConflicts({
+      userId: me.id,
+      startDate: input.start_date,
+      endDate: input.end_date,
+      excludeRequestId: id,
+    });
+    if (conflicts.length > 0) {
+      return NextResponse.json(
+        { error: describeConflict(conflicts, "you"), conflict: true },
+        { status: 409 }
+      );
+    }
+  }
+
   // Re-check balance. The request being edited is already counted in the
   // balance, so add its current days back to the matching type before testing
   // the new size. If the type changed, the old days were counted against the
@@ -155,13 +173,42 @@ export async function PATCH(
     return NextResponse.json({ error: error?.message ?? "Could not update request." }, { status: 500 });
   }
 
-  // Notify all admins of the change.
+  // Notify all admins of the change. Best-effort: the edit is already saved,
+  // so an email failure must not fail the response.
+  try {
+    await notifyAdminsOfEdit(admin, me.full_name, existing, input, days);
+  } catch (e) {
+    console.warn("[leave] edit email failed:", e);
+  }
+
+  return NextResponse.json({ ok: true, id: row.id, days });
+}
+
+async function notifyAdminsOfEdit(
+  admin: ReturnType<typeof createAdminClient>,
+  employeeName: string,
+  existing: {
+    type: "annual" | "sick";
+    start_date: string;
+    end_date: string;
+    days_count: number;
+    reason: string | null;
+    status: string;
+  },
+  input: {
+    type: "annual" | "sick";
+    start_date: string;
+    end_date: string;
+    reason?: string | null;
+  },
+  days: number
+) {
   const { data: admins } = await admin.from("profiles").select("email").eq("role", "admin");
   const adminEmails = (admins ?? []).map((a: { email: string }) => a.email);
   if (adminEmails.length) {
     await emailEditedRequestToAdmins({
       adminEmails,
-      employeeName: me.full_name,
+      employeeName,
       wasApproved: existing.status === "approved",
       before: {
         type: existing.type,
@@ -179,6 +226,4 @@ export async function PATCH(
       },
     });
   }
-
-  return NextResponse.json({ ok: true, id: row.id, days });
 }
