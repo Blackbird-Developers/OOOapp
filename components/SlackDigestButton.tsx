@@ -6,9 +6,18 @@ type Result = { kind: "ok"; people: number } | { kind: "error"; message: string 
 
 /**
  * Fires today's digest into Slack on demand, so an admin can confirm the token,
- * channel and bot membership are right without waiting for the 09:00 cron.
+ * channel and bot membership are right without waiting for the 06:00 cron.
+ *
+ * `align` follows the surface it sits on: "end" hugs the right edge of the
+ * Who's off page header, "start" reads as a normal control in the stacked
+ * Integrations card.
  */
-export default function SlackDigestButton() {
+export default function SlackDigestButton({
+  align = "end",
+}: {
+  align?: "start" | "end";
+}) {
+  const alignEnd = align === "end";
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -31,7 +40,7 @@ export default function SlackDigestButton() {
   }
 
   return (
-    <div className="flex flex-col items-start gap-2 sm:items-end">
+    <div className={`flex flex-col items-start gap-2 ${alignEnd ? "sm:items-end" : ""}`}>
       <button type="button" className="btn-secondary" onClick={onClick} disabled={busy}>
         {busy ? "Posting…" : "Post to Slack now"}
       </button>
@@ -46,7 +55,10 @@ export default function SlackDigestButton() {
       )}
 
       {result?.kind === "error" && (
-        <p role="alert" className="max-w-xs text-xs text-rose-700 sm:text-right">
+        <p
+          role="alert"
+          className={`text-xs text-rose-700 ${alignEnd ? "max-w-xs sm:text-right" : "max-w-md"}`}
+        >
           {result.message}
         </p>
       )}

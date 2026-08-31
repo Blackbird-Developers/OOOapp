@@ -12,6 +12,23 @@ export function isSlackConfigured(): boolean {
   return !!process.env.SLACK_BOT_TOKEN && !!slackChannel();
 }
 
+const DEFAULT_POST_HOUR = 6;
+
+/**
+ * Hour of day (0-23, Kosovo time) the daily digest posts.
+ *
+ * Lives here rather than in the cron route because the Integrations page
+ * shows this number to admins, and a page that disagreed with the job it
+ * describes would be worse than no page. A missing or nonsense value falls
+ * back to the default: `Number("nine")` is NaN, and an unguarded NaN target
+ * would make the "too early" gate always false and post at whatever hour the
+ * cron happened to fire.
+ */
+export function slackPostHour(): number {
+  const raw = Number(process.env.SLACK_DAILY_POST_HOUR);
+  return Number.isInteger(raw) && raw >= 0 && raw <= 23 ? raw : DEFAULT_POST_HOUR;
+}
+
 type SlackBlock = Record<string, unknown>;
 
 /**

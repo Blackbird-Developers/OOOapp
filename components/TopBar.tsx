@@ -94,6 +94,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
         { href: "/admin/employees", label: "Employees" },
         { href: "/admin/invites", label: "Invites" },
         { href: "/admin/holidays", label: "Holidays" },
+        { href: "/admin/integrations", label: "Integrations" },
         { href: "/dashboard/account", label: "Account" },
       ]
     : [
@@ -150,6 +151,13 @@ export default function TopBar({ profile }: { profile: Profile }) {
   // Total count for the hamburger dot.
   const hamburgerCount = isAdmin ? pendingCount : decisionCount;
 
+  // Where the bar gives way to the drawer. The admin nav carries eight links
+  // and needs about 1030px next to the logo, which the `max-w-6xl` container
+  // only affords from `xl` up; the five-link staff nav fits from `md` as it
+  // always has. Full literal class strings, so Tailwind's scanner keeps them.
+  const desktopNavCls = isAdmin ? "hidden xl:flex" : "hidden md:flex";
+  const drawerOnlyCls = isAdmin ? "xl:hidden" : "md:hidden";
+
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
@@ -173,7 +181,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1 text-sm">
+          <nav className={`${desktopNavCls} items-center gap-1 text-sm`}>
             {links.map((l) => (
               <NavLink key={l.href} href={l.href} badge={l.badge}>
                 {l.label}
@@ -190,11 +198,13 @@ export default function TopBar({ profile }: { profile: Profile }) {
               >
                 {initials || "·"}
               </span>
-              <span className="hidden lg:inline text-neutral-600 text-sm">{profile.full_name}</span>
+              {!isAdmin && (
+                <span className="hidden lg:inline text-neutral-600 text-sm">{profile.full_name}</span>
+              )}
             </div>
 
             <form action="/api/auth/logout" method="post" className="ml-2">
-              <button className="rounded-md px-3 py-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition text-sm">
+              <button className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition text-sm">
                 Sign out
               </button>
             </form>
@@ -205,7 +215,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
             ref={hamburgerRef}
             type="button"
             onClick={() => setOpen(true)}
-            className="md:hidden relative inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 transition"
+            className={`${drawerOnlyCls} relative inline-flex h-11 w-11 -mr-2 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 transition`}
             aria-label="Open menu"
             aria-expanded={open}
             aria-controls="primary-mobile-nav"
@@ -220,7 +230,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
 
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-neutral-900/50 transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-0 z-40 bg-neutral-900/50 transition-opacity duration-200 ${drawerOnlyCls} ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
@@ -232,7 +242,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
       <aside
         ref={drawerRef}
         id="primary-mobile-nav"
-        className={`fixed top-0 right-0 z-50 h-dvh w-[78vw] max-w-xs bg-white border-l border-neutral-200 shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed top-0 right-0 z-50 h-dvh w-[78vw] max-w-xs bg-white border-l border-neutral-200 shadow-2xl transition-transform duration-300 ease-out ${drawerOnlyCls} ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         role="dialog"
@@ -312,7 +322,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition"
     >
       <span>{children}</span>
       {badge !== undefined && badge > 0 && <Badge count={badge} />}
