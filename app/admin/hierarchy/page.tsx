@@ -34,9 +34,10 @@ export default async function HierarchyPage() {
       <header className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Hierarchy</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Group people who cover for each other. Members of the same group can&apos;t have
-          overlapping <span className="font-medium text-neutral-700">annual</span> leave —
-          requests that clash are blocked automatically. Sick leave is never blocked.
+          Group people who cover for each other. At least one member of each group must always
+          be available — <span className="font-medium text-neutral-700">annual</span> leave that
+          would leave a group with nobody present is blocked automatically. Sick leave is never
+          blocked.
         </p>
       </header>
 

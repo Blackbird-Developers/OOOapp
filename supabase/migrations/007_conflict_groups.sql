@@ -1,9 +1,10 @@
 -- =====================================================================
 -- Hierarchy / conflict groups.
--- An admin groups people whose ANNUAL leave must never overlap
--- (e.g. two core roles that cover for each other). Membership in the
--- same group blocks overlapping annual requests at create, edit and
--- approve time. Sick leave is never blocked.
+-- An admin groups people who cover for each other (e.g. one core role).
+-- Rule (enforced in the app at create/edit/approve time): at least one
+-- member of a group must always be available — ANNUAL leave that would
+-- leave a group with nobody present on some working day is blocked.
+-- Sick leave is never blocked.
 -- Run this in the Supabase SQL editor (after 006).
 -- =====================================================================
 

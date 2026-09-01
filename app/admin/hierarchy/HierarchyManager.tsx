@@ -95,7 +95,7 @@ export default function HierarchyManager({
         <div className="card p-4 sm:p-6 mt-6">
           <EmptyState
             title="No groups yet"
-            description="Create a group and add the people who can't be on annual leave at the same time — for example everyone covering one core role."
+            description="Create a group and add everyone covering one core role — annual leave that would leave the group with nobody available gets blocked."
           />
         </div>
       ) : (
@@ -118,8 +118,8 @@ export default function HierarchyManager({
           deleting ? (
             <>
               <span className="font-medium text-neutral-900">{deleting.name}</span> will be removed
-              and its members will be free to overlap annual leave again. Existing leave requests
-              are not affected.
+              and its availability rule will no longer apply. Existing leave requests are not
+              affected.
             </>
           ) : null
         }
@@ -213,7 +213,7 @@ function GroupCard({
           <p className="text-xs text-neutral-500 mt-0.5">
             {group.members.length === 0
               ? "No members yet"
-              : `${group.members.length} member${group.members.length === 1 ? "" : "s"} — annual leave can't overlap`}
+              : `${group.members.length} member${group.members.length === 1 ? "" : "s"} — at least one must always be available`}
           </p>
         </div>
         <button

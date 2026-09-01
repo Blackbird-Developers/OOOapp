@@ -175,19 +175,19 @@ The digest deliberately **never says why** someone is off. Everyone reads as sim
 
 ---
 
-## 8. Hierarchy — annual-leave conflict groups
+## 8. Hierarchy — group availability rule
 
-Admins can group people who cover for each other (e.g. the two people holding one core role) so their **annual** leave can never overlap. Sick leave is never blocked.
+Admins can group people who cover for each other (e.g. everyone holding one core role). **At least one member of each group must always be available**: a member's **annual** leave is blocked if, on any working day of the requested range, everyone else in the group is already on approved or pending annual leave — i.e. the requester would be the last person out. In a 3-person group, two can be off together; only the third is blocked for those days. A 2-person group therefore can never overlap at all. Weekends and public holidays are skipped, and sick leave is never counted or blocked.
 
 1. Run `supabase/migrations/007_conflict_groups.sql` in the Supabase SQL editor.
 2. Go to **Admin → Hierarchy**, create a group, add members. A person can be in several groups.
 
 How it's enforced (all server-side, in the API routes):
 
-- **Requesting** annual leave that overlaps a group-mate's *pending or approved* annual leave is blocked with a message naming the colleague, their dates, and the group.
+- **Requesting** annual leave that would empty a group on some day is blocked with a message naming the day, the group, and who's already off.
 - **Editing** a request re-runs the same check against the new dates.
 - **Approving** re-checks as a safety net (covers races and admin overrides) — the approve button explains the clash instead of approving.
-- Admins logging leave on behalf hit the same block; the API accepts `override_conflicts: true` from an admin to force it through (no UI for this yet).
+- Admins logging leave on behalf hit the same block, with a **Log anyway** button that forces it through (`override_conflicts: true` in the API).
 
 Until migration 007 is run the check quietly passes (fails open), so deploying the code first is safe.
 
