@@ -9,18 +9,34 @@ import { APP_TIME_ZONE, hourNowIn, todayISOIn } from "@/lib/days";
 export const dynamic = "force-dynamic";
 
 /**
+ * How many hours, counting the target itself, the digest may still go out in.
+ *
+ * The endpoint runs hourly, so without a ceiling a morning that was quiet at
+ * 06:00 would post "out of office today" the moment somebody logged leave that
+ * afternoon. Three keeps the digest a morning thing while leaving two spare
+ * runs for a late trigger or a failed post. A target near midnight simply gets
+ * a shorter window — the window never wraps into tomorrow, which would post
+ * yesterday's digest under today's date.
+ */
+const POST_WINDOW_HOURS = 3;
+
+/**
  * Daily out-of-office digest → Slack.
  *
- * Scheduled twice in vercel.json (04:00 and 05:00 UTC) so that 06:00 Kosovo
- * time is covered in both CEST (UTC+2, so the 04:00 run lands on it) and CET
- * (UTC+1, so the 05:00 run does). Whichever run first finds the local clock at
- * or past the target hour does the post; `slack_daily_posts` makes every later
- * run for the same date a no-op.
+ * Scheduled hourly in vercel.json, every day. The schedule is deliberately
+ * dumber than the behaviour: which hour to post, whether weekends count and
+ * whether to speak on a quiet day are all integration settings an admin edits
+ * at /admin/integrations, and the runs that fall outside them cost one cheap
+ * skip each. An hourly cron is what lets those settings mean what they say —
+ * with a fixed 04:00/05:00 UTC schedule, any post hour past ~06:00 local would
+ * silently never fire and turning weekends on would do nothing.
  *
- * The hour, the weekday rule and the quiet-day rule all come from the
- * integration settings an admin edits at /admin/integrations. Moving the post
- * time later than the last cron slot is the one change that won't take effect
- * on its own — see the note on the hour gate below.
+ * Vercel Cron runs in UTC and Kosovo changes offset twice a year; running every
+ * hour and comparing against the local clock sidesteps that entirely, so there
+ * is no CET/CEST special-casing and no timezone library.
+ *
+ * `slack_daily_posts` is what keeps this to one message a day: the first run to
+ * post claims the date, and every later run that day is a no-op.
  */
 export async function GET(req: Request) {
   const denied = rejectIfUnauthorised(req);
@@ -36,12 +52,20 @@ export async function GET(req: Request) {
 
   // Vercel fires crons within the hour of their slot, so treat the target as a
   // floor rather than an exact match — otherwise a late trigger loses the day.
-  // The corollary: a target hour later than the last scheduled slot never
-  // fires, so vercel.json needs a slot at or after it.
   if (localHour < settings.postHour) {
     return skipped(
       dateISO,
       `too early (${localHour}:00 ${APP_TIME_ZONE}, posts from ${settings.postHour}:00)`
+    );
+  }
+
+  // ...and a ceiling, so that hourly scheduling buys any post hour without also
+  // turning an afternoon leave request into an afternoon digest.
+  const windowEnd = settings.postHour + POST_WINDOW_HOURS - 1;
+  if (localHour > windowEnd) {
+    return skipped(
+      dateISO,
+      `too late (${localHour}:00 ${APP_TIME_ZONE}, window was ${settings.postHour}:00–${windowEnd}:00)`
     );
   }
 

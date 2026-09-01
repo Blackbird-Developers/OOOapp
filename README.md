@@ -104,7 +104,7 @@ Just add a menu item or a button somewhere on the WordPress site that links to `
 
 ## 7. Slack daily out-of-office digest
 
-Posts one message each weekday at **06:00 Kosovo time** (`Europe/Belgrade` — CET/CEST) into a channel of your choice, listing who's off that day. It reads the same approved-leave data as the Who's off calendar, so the two can't drift.
+Posts one message each weekday at **06:00 Kosovo time** (`Europe/Belgrade` — CET/CEST) into a channel of your choice, listing who's off that day. It reads the same approved-leave data as the Who's off calendar, so the two can't drift. The channel, the hour, the weekday rule and the quiet-day rule are all editable on the Integrations page — 06:00 on weekdays is just the default.
 
 It stays **silent when nobody is off** — a channel that only speaks when it has something to say is a channel people don't mute.
 
@@ -182,9 +182,13 @@ A muted channel stops making noise and drops out of the unread bolding, but the 
 
 ### How the schedule actually works
 
-Vercel Cron runs in UTC and Kosovo changes offset twice a year, so `vercel.json` schedules the endpoint at **both 04:00 and 05:00 UTC**, Monday–Friday. In summer (CEST, UTC+2) the 04:00 run is the one that lands on 06:00 local; in winter (CET, UTC+1) it's the 05:00 run. Whichever run first finds the Kosovo clock at or past the target hour does the post; the `slack_daily_posts` table makes every later run that day a no-op. That covers both offsets without a timezone library, and it survives Vercel firing a cron late.
+`vercel.json` runs the endpoint **every hour, every day** — and the schedule is deliberately dumber than the behaviour. Which hour to post, whether weekends count and whether to speak on a quiet day are all settings on the Integrations page; the runs that fall outside them cost one cheap skip each.
 
-> **Note:** Vercel Cron only runs on **Production** deployments, and the Hobby plan allows a maximum of two cron jobs — which is exactly what this uses.
+That is what makes those settings mean what they say. On the old fixed 04:00/05:00 UTC schedule, any post hour past about 06:00 local would silently never fire, and switching weekends on did nothing because the cron itself was `Mon–Fri`. It also disposes of the timezone problem: Vercel Cron runs in UTC and Kosovo changes offset twice a year, so running hourly and comparing against the local clock means no CET/CEST special-casing and no timezone library.
+
+One message a day is enforced by `slack_daily_posts` — the first run to post claims the date and every later run that day is a no-op — and by a three-hour window starting at the target hour, so a leave request logged in the afternoon can't trigger an afternoon "out of office today".
+
+> **Note:** Vercel Cron only runs on **Production** deployments. An hourly schedule needs a **Pro** plan: Hobby allows two cron jobs and triggers each at most once a day. On Hobby, either upgrade or pin `vercel.json` back to one daily slot and treat the post-hour setting as fixed.
 
 ### Privacy
 
@@ -264,5 +268,5 @@ supabase/migrations/     001_init.sql … 009_integration_settings.sql
 - **Half-days**: pick `Morning only` or `Afternoon only` on the first and/or last day of a range. Single-day requests with a half flag count as 0.5.
 - **Integrations**: `/admin/integrations` (admin-only) shows what Blackbird Leave is connected to, and lets an admin connect it, edit its settings, fire a digest on demand, or disconnect it. The registry lives in `lib/integrations.ts`; the stored connection in `lib/slack-settings.ts`.
 - **Holidays**: admin-managed in `/admin/holidays`. Add the year's Irish public holidays each year (or as needed). Anything in this table is excluded from working-day counts.
-- **Slack digest**: by default weekdays at 06:00 Kosovo time and silent when nobody is off — all three are editable on the Integrations page, though a post hour later than the last cron slot in `vercel.json` will never fire. It never names the leave type, and that one isn't editable (see section 7). If a post fails, the day's claim in `slack_daily_posts` is released so the second cron run — or a manual **Post to Slack now** — can retry.
+- **Slack digest**: by default weekdays at 06:00 Kosovo time and silent when nobody is off — all three are editable on the Integrations page, and the cron runs hourly so any of the 24 hours actually fires. It never names the leave type, and that one isn't editable (see section 7). If a post fails, the day's claim in `slack_daily_posts` is released so a later run that morning — or a manual **Post to Slack now** — can retry.
 - **Security**: all DB access goes through Postgres Row-Level Security. The service-role key is only used in server-side route handlers (never exposed to the browser) for operations that need to bypass RLS (creating auth users, invite lookup, etc.).
