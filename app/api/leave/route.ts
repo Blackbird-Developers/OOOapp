@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { countLeaveDays } from "@/lib/days";
+import { addDays, format, parseISO } from "date-fns";
+import { countLeaveDays, todayISOIn } from "@/lib/days";
+import { getAnnualMinNoticeDays, formatNoticeDays } from "@/lib/settings";
 import { getBalance } from "@/lib/balances";
 import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
@@ -46,6 +48,25 @@ export async function POST(req: Request) {
         { error: "You can't request leave for dates that have already passed." },
         { status: 400 }
       );
+    }
+  }
+
+  // Notice-period policy: employees must request annual leave at least
+  // N calendar days before it starts (admin-configured under Settings).
+  // Admins are exempt; sick leave is inherently last-minute and never
+  // restricted.
+  if (me.role !== "admin" && input.type === "annual") {
+    const minNotice = await getAnnualMinNoticeDays();
+    if (minNotice > 0) {
+      const earliest = format(addDays(parseISO(todayISOIn()), minNotice), "yyyy-MM-dd");
+      if (input.start_date < earliest) {
+        return NextResponse.json(
+          {
+            error: `Annual leave must be requested at least ${formatNoticeDays(minNotice)} in advance. The earliest start date you can request is ${earliest}.`,
+          },
+          { status: 400 }
+        );
+      }
     }
   }
 

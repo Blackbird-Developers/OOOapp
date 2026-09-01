@@ -96,6 +96,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
         { href: "/admin/invites", label: "Invites" },
         { href: "/admin/holidays", label: "Holidays" },
         { href: "/admin/integrations", label: "Integrations" },
+        { href: "/admin/settings", label: "Settings" },
         { href: "/dashboard/account", label: "Account" },
       ]
     : [
@@ -152,8 +153,8 @@ export default function TopBar({ profile }: { profile: Profile }) {
   // Total count for the hamburger dot.
   const hamburgerCount = isAdmin ? pendingCount : decisionCount;
 
-  // Where the bar gives way to the drawer. The admin nav carries nine links
-  // and needs about 1120px next to the logo, which the `max-w-7xl` header
+  // Where the bar gives way to the drawer. The admin nav carries ten links
+  // and needs about 1200px next to the logo, which the `max-w-7xl` header
   // container only affords from `xl` up; the five-link staff nav fits from
   // `md` as it always has. Full literal class strings, so Tailwind's scanner
   // keeps them.

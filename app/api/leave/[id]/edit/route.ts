@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { countLeaveDays } from "@/lib/days";
+import { addDays, format, parseISO } from "date-fns";
+import { countLeaveDays, todayISOIn } from "@/lib/days";
+import { getAnnualMinNoticeDays, formatNoticeDays } from "@/lib/settings";
 import { getBalance } from "@/lib/balances";
 import { emailEditedRequestToAdmins } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
@@ -63,6 +65,26 @@ export async function PATCH(
       { error: "You can't move leave to dates that have already passed." },
       { status: 400 }
     );
+  }
+
+  // Notice-period policy: moving annual leave to different dates counts as a
+  // new request, so the same minimum-notice rule applies. Edits that keep the
+  // dates (e.g. changing the reason) are not blocked, and admins are exempt.
+  const datesChanged =
+    input.start_date !== existing.start_date || input.end_date !== existing.end_date;
+  if (me.role !== "admin" && input.type === "annual" && datesChanged) {
+    const minNotice = await getAnnualMinNoticeDays();
+    if (minNotice > 0) {
+      const earliest = format(addDays(parseISO(todayISOIn()), minNotice), "yyyy-MM-dd");
+      if (input.start_date < earliest) {
+        return NextResponse.json(
+          {
+            error: `Annual leave must be requested at least ${formatNoticeDays(minNotice)} in advance. The earliest start date you can request is ${earliest}.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
   }
 
   // Recompute working days over the new range.

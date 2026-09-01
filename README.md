@@ -193,6 +193,17 @@ Until migration 007 is run the check quietly passes (fails open), so deploying t
 
 ---
 
+## 9. Settings — annual leave notice period
+
+Admins can require that annual leave be requested a minimum number of calendar days in advance (**Admin → Settings**): 3 days, 1–3 weeks, or a month. Employees who try to book closer in are blocked with the earliest allowed start date. Admins are exempt (they can always log or backfill leave), sick leave is never restricted, and editing a request to *different dates* re-applies the rule while same-date edits (e.g. changing the reason) don't.
+
+1. Run `supabase/migrations/008_app_settings.sql` in the Supabase SQL editor.
+2. Go to **Admin → Settings**, pick a notice period, save. It applies to new requests immediately.
+
+Settings live in the `app_settings` key-value table (`annual_min_notice_days`). Until migration 008 is run the rule is off and saving from the Settings page reports that the migration is missing — deploying the code first is safe.
+
+---
+
 ## Project layout
 
 ```
