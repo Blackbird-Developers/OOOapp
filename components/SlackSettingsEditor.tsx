@@ -133,14 +133,13 @@ export default function SlackSettingsEditor({
           )}
         </Field>
 
-        <Field
-          label="Posts at"
-          hint={
-            settings.postHourChoices.length < 24
-              ? "Kosovo time. Limited to the hours this deployment's cron schedule can reach — widen the cron in vercel.json to offer more."
-              : "Kosovo time, on the days selected below."
-          }
-        >
+        {/*
+          The list of hours is still whatever the cron schedule can reach — see
+          postHourChoices in lib/integrations. Only the explanation is gone: an
+          admin can't act on it from here, and the constraint is documented in
+          the README where someone changing vercel.json will actually look.
+        */}
+        <Field label="Posts at" hint="Kosovo time.">
           {(p) => (
             <select
               {...p}
