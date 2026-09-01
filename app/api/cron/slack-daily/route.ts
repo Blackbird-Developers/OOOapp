@@ -5,35 +5,29 @@ import { getDayAvailability } from "@/lib/whos-off";
 import { buildDailyDigest, postToSlack } from "@/lib/slack";
 import { loadSlackSettings } from "@/lib/slack-settings";
 import { APP_TIME_ZONE, hourNowIn, todayISOIn } from "@/lib/days";
+import { POST_WINDOW_HOURS } from "@/lib/slack-schedule";
 
 export const dynamic = "force-dynamic";
 
 /**
- * How many hours, counting the target itself, the digest may still go out in.
- *
- * The endpoint runs hourly, so without a ceiling a morning that was quiet at
- * 06:00 would post "out of office today" the moment somebody logged leave that
- * afternoon. Three keeps the digest a morning thing while leaving two spare
- * runs for a late trigger or a failed post. A target near midnight simply gets
- * a shorter window — the window never wraps into tomorrow, which would post
- * yesterday's digest under today's date.
- */
-const POST_WINDOW_HOURS = 3;
-
-/**
  * Daily out-of-office digest → Slack.
  *
- * Scheduled hourly in vercel.json, every day. The schedule is deliberately
- * dumber than the behaviour: which hour to post, whether weekends count and
- * whether to speak on a quiet day are all integration settings an admin edits
- * at /admin/integrations, and the runs that fall outside them cost one cheap
- * skip each. An hourly cron is what lets those settings mean what they say —
- * with a fixed 04:00/05:00 UTC schedule, any post hour past ~06:00 local would
- * silently never fire and turning weekends on would do nothing.
+ * Scheduled in vercel.json at 04:00 and 05:00 UTC — two runs a day, every day
+ * of the week, which is all the Vercel Hobby plan allows. Kosovo is UTC+1 in
+ * winter and UTC+2 in summer, so those land at 05:00/06:00 or 06:00/07:00
+ * local; comparing against the local clock rather than hard-coding an offset
+ * is what covers both without a timezone library.
  *
- * Vercel Cron runs in UTC and Kosovo changes offset twice a year; running every
- * hour and comparing against the local clock sidesteps that entirely, so there
- * is no CET/CEST special-casing and no timezone library.
+ * The rules themselves come from the integration settings an admin edits at
+ * /admin/integrations, and runs that fall outside them cost one cheap skip.
+ * The schedule still bounds one of those settings: only the post hours in
+ * `servablePostHours()` can actually be reached, which is why the dropdown
+ * offers exactly those and no more. Widening the cron widens the dropdown —
+ * see lib/slack-schedule.ts.
+ *
+ * Running every day rather than Mon-Fri is deliberate: the weekday rule is now
+ * a setting, so it belongs in the code where it can be switched off, not baked
+ * into a schedule that can only be changed by a redeploy.
  *
  * `slack_daily_posts` is what keeps this to one message a day: the first run to
  * post claims the date, and every later run that day is a no-op.
@@ -59,8 +53,8 @@ export async function GET(req: Request) {
     );
   }
 
-  // ...and a ceiling, so that hourly scheduling buys any post hour without also
-  // turning an afternoon leave request into an afternoon digest.
+  // ...and a ceiling, so a leave request logged in the afternoon of a quiet
+  // morning can't trigger an afternoon "out of office today".
   const windowEnd = settings.postHour + POST_WINDOW_HOURS - 1;
   if (localHour > windowEnd) {
     return skipped(

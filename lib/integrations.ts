@@ -1,5 +1,6 @@
 import { APP_TIME_ZONE } from "@/lib/days";
 import { loadSlackSettings, type SlackSettings } from "@/lib/slack-settings";
+import { servablePostHours } from "@/lib/slack-schedule";
 
 /**
  * What Blackbird Leave talks to, and whether it's talking.
@@ -28,6 +29,11 @@ export type IntegrationDetail = { label: string; value: string };
 export type SlackPanel = {
   channel: string;
   postHour: number;
+  /**
+   * The post hours this deployment's cron schedule can actually deliver.
+   * Offering more would let an admin pick an hour that never fires.
+   */
+  postHourChoices: number[];
   weekdaysOnly: boolean;
   silentWhenEmpty: boolean;
   shareHalfDays: boolean;
@@ -89,6 +95,7 @@ async function slackIntegration(): Promise<Integration> {
     slack: {
       channel: settings.channel ?? "",
       postHour: settings.postHour,
+      postHourChoices: postHourChoices(settings.postHour),
       weekdaysOnly: settings.weekdaysOnly,
       silentWhenEmpty: settings.silentWhenEmpty,
       shareHalfDays: settings.shareHalfDays,
@@ -98,6 +105,19 @@ async function slackIntegration(): Promise<Integration> {
       envVarsPresent: settings.envVarsPresent,
     },
   };
+}
+
+/**
+ * What the "Posts at" dropdown may offer.
+ *
+ * Whatever is already stored is always included, even when the cron schedule
+ * can no longer serve it — narrowing vercel.json shouldn't silently rewrite a
+ * saved setting the moment an admin opens the editor. It shows up as a choice
+ * they can move away from, and the hint explains why it stopped firing.
+ */
+function postHourChoices(current: number): number[] {
+  const servable = servablePostHours();
+  return servable.includes(current) ? servable : [...servable, current].sort((a, b) => a - b);
 }
 
 function describeSchedule(s: SlackSettings): string {

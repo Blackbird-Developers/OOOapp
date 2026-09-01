@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { verifySlackToken } from "@/lib/slack";
 import { saveSlackSettings, type SlackSettingsPatch } from "@/lib/slack-settings";
+import { servablePostHours } from "@/lib/slack-schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,16 @@ const channelId = z
 // Left loose on purpose: `auth.test` is the real gate, and a length rule that
 // guessed wrong about a future token format would reject a working token.
 const botToken = z.string().trim().min(10, "That token looks too short to be a bot token.");
+
+// An hour no scheduled cron run can reach is not a preference, it is an outage
+// with a friendly label — the digest would simply stop. The dropdown already
+// hides these; this is the same rule for anything talking to the API directly.
+const SERVABLE_HOURS = servablePostHours();
+const postHour = z.number().int().refine((h) => SERVABLE_HOURS.includes(h), {
+  message: `This deployment's cron schedule never reaches that hour. Pick one of ${SERVABLE_HOURS.map(
+    (h) => `${String(h).padStart(2, "0")}:00`
+  ).join(", ")}, or widen the cron in vercel.json.`,
+});
 
 const connectSchema = z.object({
   bot_token: botToken,
@@ -57,7 +68,7 @@ export async function POST(req: Request) {
 const updateSchema = z
   .object({
     channel_id: channelId.optional(),
-    post_hour: z.number().int().min(0).max(23).optional(),
+    post_hour: postHour.optional(),
     weekdays_only: z.boolean().optional(),
     silent_when_empty: z.boolean().optional(),
     share_half_days: z.boolean().optional(),

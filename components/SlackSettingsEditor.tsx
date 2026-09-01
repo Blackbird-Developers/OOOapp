@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import Field from "@/components/Field";
 import type { IntegrationDetail, SlackPanel } from "@/lib/integrations";
 
-const HOURS = Array.from({ length: 24 }, (_, h) => h);
-
 /**
  * The Slack card's settings: read at a glance, edited in place.
  *
@@ -135,7 +133,14 @@ export default function SlackSettingsEditor({
           )}
         </Field>
 
-        <Field label="Posts at" hint="Kosovo time, on the days selected below.">
+        <Field
+          label="Posts at"
+          hint={
+            settings.postHourChoices.length < 24
+              ? "Kosovo time. Limited to the hours this deployment's cron schedule can reach — widen the cron in vercel.json to offer more."
+              : "Kosovo time, on the days selected below."
+          }
+        >
           {(p) => (
             <select
               {...p}
@@ -143,7 +148,7 @@ export default function SlackSettingsEditor({
               value={postHour}
               onChange={(e) => setPostHour(Number(e.target.value))}
             >
-              {HOURS.map((h) => (
+              {settings.postHourChoices.map((h) => (
                 <option key={h} value={h}>
                   {String(h).padStart(2, "0")}:00
                 </option>
