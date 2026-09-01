@@ -8,7 +8,7 @@ export default async function IntegrationsPage() {
   // is what stops a future refactor of the layout from quietly opening it up.
   await requireAdmin();
 
-  const integrations = listIntegrations();
+  const integrations = await listIntegrations();
   const connected = integrations.filter((i) => i.connected).length;
 
   return (

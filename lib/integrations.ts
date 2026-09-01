@@ -1,22 +1,44 @@
 import { APP_TIME_ZONE } from "@/lib/days";
-import { isSlackConfigured, slackChannel, slackPostHour } from "@/lib/slack";
+import { loadSlackSettings, type SlackSettings } from "@/lib/slack-settings";
 
 /**
  * What Blackbird Leave talks to, and whether it's talking.
  *
  * Everything here is derived from the same helpers the features themselves
- * use — the page never re-reads an env var on its own. Add a service by
+ * use — the page never re-reads a setting on its own. Add a service by
  * writing one builder and listing it in `listIntegrations`; the admin page
  * renders whatever the registry returns.
  *
- * Server-only: the builders read `process.env`, so this must never be
- * imported into a client component.
+ * Server-only: the builders reach the database and `process.env`, so this must
+ * never be imported into a client component.
  */
 
 export type IntegrationId = "slack";
 
 /** A single "Channel: C0123…" line under a connected integration. */
 export type IntegrationDetail = { label: string; value: string };
+
+/**
+ * Seed state for the in-app Slack editor.
+ *
+ * Deliberately not the bot token — only whether one is on file. This object is
+ * serialised into a client component, so anything added here is something the
+ * browser gets to see.
+ */
+export type SlackPanel = {
+  channel: string;
+  postHour: number;
+  weekdaysOnly: boolean;
+  silentWhenEmpty: boolean;
+  shareHalfDays: boolean;
+  hasToken: boolean;
+  /** The stored row supplies the token, so the environment's copy is unused. */
+  tokenFromRow: boolean;
+  /** A settings row exists, so the environment no longer decides anything. */
+  managedInApp: boolean;
+  /** Slack environment variables are still set on this deployment. */
+  envVarsPresent: boolean;
+};
 
 export type Integration = {
   id: IntegrationId;
@@ -32,36 +54,66 @@ export type Integration = {
   setupSteps: string[];
   /** Where the full instructions live. */
   docs: string;
+  /** State for the service's own editor, when it has one. */
+  slack?: SlackPanel;
 };
 
-export function listIntegrations(): Integration[] {
-  return [slackIntegration()];
+export async function listIntegrations(): Promise<Integration[]> {
+  return [await slackIntegration()];
 }
 
-function slackIntegration(): Integration {
-  const connected = isSlackConfigured();
-  const hour = String(slackPostHour()).padStart(2, "0");
+async function slackIntegration(): Promise<Integration> {
+  const settings = await loadSlackSettings();
 
   return {
     id: "slack",
     name: "Slack",
     category: "Notifications",
     summary: "Posts a daily out-of-office digest so the team knows who's away before standup.",
-    connected,
+    connected: settings.connected,
     details: [
       // The channel ID is not a credential — it's visible to everyone in the
       // workspace, and it's the one value an admin needs to check when the
       // digest lands in the wrong place. The bot token is never surfaced.
-      { label: "Channel", value: slackChannel() ?? "—" },
-      { label: "Posts at", value: `${hour}:00 Kosovo time (${APP_TIME_ZONE})` },
-      { label: "Schedule", value: "Weekdays only · silent when nobody is off" },
-      { label: "Shares", value: "Names and half-days. Never the leave type." },
+      { label: "Channel", value: settings.channel ?? "—" },
+      { label: "Posts at", value: `${pad(settings.postHour)}:00 Kosovo time (${APP_TIME_ZONE})` },
+      { label: "Schedule", value: describeSchedule(settings) },
+      { label: "Shares", value: describeSharing(settings) },
     ],
     setupSteps: [
       "Create a Slack app with the chat:write scope and install it to your workspace.",
       "Invite the bot to the channel that should receive the digest.",
-      "Set SLACK_BOT_TOKEN and SLACK_CHANNEL_ID in Vercel → Settings → Environment Variables, then redeploy.",
+      "Paste the bot token and channel ID below, then press Connect.",
     ],
     docs: "README section 7",
+    slack: {
+      channel: settings.channel ?? "",
+      postHour: settings.postHour,
+      weekdaysOnly: settings.weekdaysOnly,
+      silentWhenEmpty: settings.silentWhenEmpty,
+      shareHalfDays: settings.shareHalfDays,
+      hasToken: settings.hasToken,
+      tokenFromRow: settings.tokenFromRow,
+      managedInApp: settings.managedInApp,
+      envVarsPresent: settings.envVarsPresent,
+    },
   };
+}
+
+function describeSchedule(s: SlackSettings): string {
+  return [
+    s.weekdaysOnly ? "Weekdays only" : "Every day",
+    s.silentWhenEmpty ? "silent when nobody is off" : "posts even on quiet days",
+  ].join(" · ");
+}
+
+function describeSharing(s: SlackSettings): string {
+  // The second sentence is a guarantee, not a setting — see buildDailyDigest.
+  return s.shareHalfDays
+    ? "Names and half-days. Never the leave type."
+    : "Names only. Never the leave type.";
+}
+
+function pad(hour: number): string {
+  return String(hour).padStart(2, "0");
 }

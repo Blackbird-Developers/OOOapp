@@ -1,5 +1,9 @@
 import type { Integration, IntegrationId } from "@/lib/integrations";
 import SlackDigestButton from "@/components/SlackDigestButton";
+import SlackSettingsEditor from "@/components/SlackSettingsEditor";
+import SlackConnectForm from "@/components/SlackConnectForm";
+import SlackDisconnectButton from "@/components/SlackDisconnectButton";
+import SlackMark from "@/components/SlackMark";
 
 /**
  * One service on the Integrations page: what it does, whether it's wired up,
@@ -33,18 +37,24 @@ export default function IntegrationCard({ integration }: { integration: Integrat
 
       <div className="mt-5 border-t border-neutral-200 pt-5">
         {connected ? (
-          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-            {details.map((d) => (
-              <div key={d.label}>
-                <dt className="label">{d.label}</dt>
-                <dd className="text-sm text-neutral-800">{d.value}</dd>
-              </div>
-            ))}
-          </dl>
+          // Slack's settings are editable in place; anything else falls back to
+          // the read-only list the registry describes.
+          integration.slack ? (
+            <SlackSettingsEditor details={details} settings={integration.slack} />
+          ) : (
+            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+              {details.map((d) => (
+                <div key={d.label}>
+                  <dt className="label">{d.label}</dt>
+                  <dd className="text-sm text-neutral-800">{d.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )
         ) : (
           <div>
             <p className="text-sm text-neutral-800">
-              Set up outside the app, with environment variables rather than a button here.
+              Do the Slack-side setup once, then connect it here.
             </p>
             <ol className="mt-3 space-y-2 text-sm leading-relaxed text-neutral-500">
               {setupSteps.map((step, i) => (
@@ -60,6 +70,8 @@ export default function IntegrationCard({ integration }: { integration: Integrat
               ))}
             </ol>
             <p className="mt-3 text-xs text-neutral-500">Full instructions: {docs}.</p>
+
+            {integration.slack && <SlackConnectForm initialChannel={integration.slack.channel} />}
           </div>
         )}
       </div>
@@ -70,20 +82,30 @@ export default function IntegrationCard({ integration }: { integration: Integrat
 }
 
 /**
- * The per-integration control panel. Slack's is a manual digest post, which is
+ * The per-integration control panel. Slack's is a manual digest post — which is
  * how an admin proves the token, channel and bot membership are right without
- * waiting for tomorrow morning.
+ * waiting for tomorrow morning — plus the way back out.
  */
 function IntegrationActions({ integration }: { integration: Integration }) {
-  if (integration.id !== "slack") return null;
+  if (integration.id !== "slack" || !integration.slack) return null;
+  const { envVarsPresent, managedInApp } = integration.slack;
 
   return (
     <div className="mt-5 border-t border-neutral-200 pt-5">
-      <SlackDigestButton align="start" />
-      <p className="mt-2 text-xs leading-relaxed text-neutral-500">
-        Sends today's digest to the channel immediately, even on a quiet day, so you get proof the
-        wiring is right. If it fails, the reason is shown here.
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <SlackDigestButton align="start" />
+        <SlackDisconnectButton envVarsPresent={envVarsPresent} />
+      </div>
+      <p className="mt-2 max-w-xl text-xs leading-relaxed text-neutral-500">
+        Sends today&rsquo;s digest to the channel immediately, even on a quiet day, so you get proof
+        the wiring is right. If it fails, the reason is shown here.
       </p>
+      {envVarsPresent && managedInApp && (
+        <p className="mt-2 max-w-xl text-xs leading-relaxed text-neutral-500">
+          These settings are stored in the app and override the <code>SLACK_</code> environment
+          variables still set on this deployment.
+        </p>
+      )}
     </div>
   );
 }
@@ -112,33 +134,35 @@ function StatusPill({ connected }: { connected: boolean }) {
   );
 }
 
+/**
+ * A service with a brand mark gets a white tile, because that's the background
+ * those logos are drawn for; one without keeps the ink tile and a line icon.
+ * Disconnected desaturates rather than swapping the artwork, so the card reads
+ * as the same service either way.
+ */
 function IconTile({ id, connected }: { id: IntegrationId; connected: boolean }) {
+  const tile = "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl";
+
+  if (id === "slack") {
+    return (
+      <span
+        aria-hidden
+        className={`${tile} bg-white ring-1 ring-neutral-200 ${
+          connected ? "" : "opacity-40 grayscale"
+        }`}
+      >
+        <SlackMark className="h-5 w-5" />
+      </span>
+    );
+  }
+
   return (
     <span
       aria-hidden
-      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-        connected ? "bg-brand-ink text-white" : "bg-neutral-100 text-neutral-400"
-      }`}
+      className={`${tile} ${connected ? "bg-brand-ink text-white" : "bg-neutral-100 text-neutral-400"}`}
     >
-      <IntegrationIcon id={id} />
+      <PlugIcon />
     </span>
-  );
-}
-
-function IntegrationIcon({ id }: { id: IntegrationId }) {
-  if (id === "slack") return <HashIcon />;
-  return <PlugIcon />;
-}
-
-/** A channel hash, which is what the Slack integration actually writes into. */
-function HashIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-      <line x1="9.5" y1="3.5" x2="7.5" y2="20.5" />
-      <line x1="16.5" y1="3.5" x2="14.5" y2="20.5" />
-      <line x1="3.5" y1="9" x2="20.5" y2="9" />
-      <line x1="3.5" y1="15" x2="20.5" y2="15" />
-    </svg>
   );
 }
 
