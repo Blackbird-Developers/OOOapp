@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { todayISOIn, yearBounds } from "@/lib/days";
-import { isSlackConfigured } from "@/lib/slack";
+import { loadSlackSettings } from "@/lib/slack-settings";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import TodayStrip from "@/components/TodayStrip";
 import SlackDigestButton from "@/components/SlackDigestButton";
@@ -16,6 +16,7 @@ export default async function AdminWhosOffPage() {
   // "yesterday" during the small hours of Irish summer time — and the Slack
   // digest has to agree with this page about what "today" means.
   const todayISO = todayISOIn();
+  const slack = await loadSlackSettings();
 
   const [{ data: holidays }, { data: teamRows }] = await Promise.all([
     supabase.from("public_holidays").select("date, name").order("date"),
@@ -68,7 +69,7 @@ export default async function AdminWhosOffPage() {
           </h1>
           <p className="mt-1 text-sm text-neutral-500">{format(now, "EEEE, d MMMM yyyy")}</p>
         </div>
-        {isSlackConfigured() && <SlackDigestButton />}
+        {slack.connected && <SlackDigestButton />}
       </header>
 
       <TodayStrip

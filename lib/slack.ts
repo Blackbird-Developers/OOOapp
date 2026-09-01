@@ -1,33 +1,10 @@
 import { format, parseISO } from "date-fns";
 import type { DayAvailability, PersonOff } from "@/lib/whos-off";
+import { loadSlackCredentials } from "@/lib/slack-settings";
 
 const POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
+const AUTH_TEST_URL = "https://slack.com/api/auth.test";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-
-export function slackChannel(): string | null {
-  return process.env.SLACK_CHANNEL_ID || null;
-}
-
-export function isSlackConfigured(): boolean {
-  return !!process.env.SLACK_BOT_TOKEN && !!slackChannel();
-}
-
-const DEFAULT_POST_HOUR = 6;
-
-/**
- * Hour of day (0-23, Kosovo time) the daily digest posts.
- *
- * Lives here rather than in the cron route because the Integrations page
- * shows this number to admins, and a page that disagreed with the job it
- * describes would be worse than no page. A missing or nonsense value falls
- * back to the default: `Number("nine")` is NaN, and an unguarded NaN target
- * would make the "too early" gate always false and post at whatever hour the
- * cron happened to fire.
- */
-export function slackPostHour(): number {
-  const raw = Number(process.env.SLACK_DAILY_POST_HOUR);
-  return Number.isInteger(raw) && raw >= 0 && raw <= 23 ? raw : DEFAULT_POST_HOUR;
-}
 
 type SlackBlock = Record<string, unknown>;
 
@@ -39,22 +16,21 @@ type SlackBlock = Record<string, unknown>;
  * Resend in lib/email.ts.
  */
 export async function postToSlack(opts: { text: string; blocks: SlackBlock[] }): Promise<void> {
-  const token = process.env.SLACK_BOT_TOKEN;
-  const channel = slackChannel();
+  const creds = await loadSlackCredentials();
 
-  if (!token || !channel) {
-    console.warn("[slack] SLACK_BOT_TOKEN or SLACK_CHANNEL_ID not set; skipping post");
-    throw new Error("Slack is not configured (SLACK_BOT_TOKEN / SLACK_CHANNEL_ID missing).");
+  if (!creds) {
+    console.warn("[slack] not connected; skipping post");
+    throw new Error("Slack isn't connected. Connect it on the Integrations page.");
   }
 
   const res = await fetch(POST_MESSAGE_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${creds.token}`,
       "Content-Type": "application/json; charset=utf-8",
     },
     body: JSON.stringify({
-      channel,
+      channel: creds.channel,
       text: opts.text, // fallback for notifications and screen readers
       blocks: opts.blocks,
       unfurl_links: false,
@@ -71,35 +47,78 @@ export async function postToSlack(opts: { text: string; blocks: SlackBlock[] }):
   }
 }
 
+export type SlackTokenCheck =
+  | { ok: true; team: string | null; bot: string | null }
+  | { ok: false; message: string };
+
+/**
+ * Confirm a bot token before storing it, so Connect fails at the moment the
+ * admin can still fix the paste rather than silently at 06:00 tomorrow.
+ *
+ * `auth.test` is deliberately the only call made here: it needs no scope
+ * beyond what the token already carries, so verifying costs nothing and can't
+ * fail for a reason the admin can't act on. Whether the bot can actually write
+ * to the channel is proved separately by "Post to Slack now" — checking it
+ * here would demand `channels:read`, a scope this app has never asked for.
+ */
+export async function verifySlackToken(token: string): Promise<SlackTokenCheck> {
+  let json: { ok?: boolean; error?: string; team?: string; user?: string } | null = null;
+
+  try {
+    const res = await fetch(AUTH_TEST_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    json = await res.json().catch(() => null);
+  } catch {
+    return { ok: false, message: "Couldn't reach Slack to check the token. Try again." };
+  }
+
+  if (!json?.ok) return { ok: false, message: explainSlackError(json?.error ?? "invalid_auth") };
+  return { ok: true, team: json.team ?? null, bot: json.user ?? null };
+}
+
 /** Turn Slack's error codes into something an admin can act on. */
 function explainSlackError(code: string): string {
   switch (code) {
     case "not_in_channel":
       return "The bot isn't a member of that channel. Invite it with /invite @Blackbird Leave in the channel.";
     case "channel_not_found":
-      return "SLACK_CHANNEL_ID doesn't match a channel this bot can see. Check the ID and that the bot is installed.";
+      return "That channel ID doesn't match a channel this bot can see. Check the ID and that the app is installed.";
     case "invalid_auth":
+    case "not_authed":
     case "token_revoked":
     case "account_inactive":
-      return "SLACK_BOT_TOKEN is invalid or was revoked. Reinstall the app and copy the new bot token.";
+      return "That bot token is invalid or was revoked. Reinstall the Slack app and copy the new bot token.";
     case "missing_scope":
       return "The Slack app is missing the chat:write scope. Add it under OAuth & Permissions, then reinstall.";
     case "is_archived":
-      return "That channel is archived. Unarchive it or point SLACK_CHANNEL_ID at a live channel.";
+      return "That channel is archived. Unarchive it or point the integration at a live channel.";
     case "ratelimited":
       return "Slack rate-limited the request. Try again in a minute.";
     default:
-      return `Slack rejected the message (${code}).`;
+      return `Slack rejected the request (${code}).`;
   }
 }
+
+/** What the digest is allowed to say about the people in it. */
+export type DigestOptions = {
+  /** Append "morning only" / "afternoon only". The leave type is never shared. */
+  shareHalfDays?: boolean;
+};
 
 /**
  * The daily digest.
  *
  * Carries no leave type on purpose — this lands in a company-wide channel and
- * sick leave is health data. Everyone reads as simply "out".
+ * sick leave is health data. Everyone reads as simply "out". That is not a
+ * setting: there is no admin toggle for it anywhere, by design.
  */
-export function buildDailyDigest(day: DayAvailability): { text: string; blocks: SlackBlock[] } {
+export function buildDailyDigest(
+  day: DayAvailability,
+  options: DigestOptions = {}
+): { text: string; blocks: SlackBlock[] } {
+  const { shareHalfDays = true } = options;
   const pretty = format(parseISO(day.dateISO), "EEEE, d MMMM");
 
   if (day.holiday) {
@@ -120,7 +139,9 @@ export function buildDailyDigest(day: DayAvailability): { text: string; blocks: 
     };
   }
 
-  const list = day.people.map((p) => `• ${esc(p.name)}${portionSuffix(p)}`).join("\n");
+  const list = day.people
+    .map((p) => `• ${esc(p.name)}${shareHalfDays ? portionSuffix(p) : ""}`)
+    .join("\n");
   const count = day.people.length;
   const countLabel = `${count} ${count === 1 ? "person" : "people"} out`;
 

@@ -2,50 +2,70 @@ import { NextResponse } from "next/server";
 import { isWeekend, parseISO } from "date-fns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDayAvailability } from "@/lib/whos-off";
-import {
-  buildDailyDigest,
-  isSlackConfigured,
-  postToSlack,
-  slackChannel,
-  slackPostHour,
-} from "@/lib/slack";
+import { buildDailyDigest, postToSlack } from "@/lib/slack";
+import { loadSlackSettings } from "@/lib/slack-settings";
 import { APP_TIME_ZONE, hourNowIn, todayISOIn } from "@/lib/days";
+import { POST_WINDOW_HOURS } from "@/lib/slack-schedule";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Daily out-of-office digest → Slack.
  *
- * Scheduled twice in vercel.json (04:00 and 05:00 UTC) so that 06:00 Kosovo
- * time is covered in both CEST (UTC+2, so the 04:00 run lands on it) and CET
- * (UTC+1, so the 05:00 run does). Whichever run first finds the local clock at
- * or past the target hour does the post; `slack_daily_posts` makes every later
- * run for the same date a no-op.
+ * Scheduled in vercel.json at 04:00 and 05:00 UTC — two runs a day, every day
+ * of the week, which is all the Vercel Hobby plan allows. Kosovo is UTC+1 in
+ * winter and UTC+2 in summer, so those land at 05:00/06:00 or 06:00/07:00
+ * local; comparing against the local clock rather than hard-coding an offset
+ * is what covers both without a timezone library.
  *
- * Silent when nobody is off — a channel that only speaks when it has something
- * to say is a channel people don't mute.
+ * The rules themselves come from the integration settings an admin edits at
+ * /admin/integrations, and runs that fall outside them cost one cheap skip.
+ * The schedule still bounds one of those settings: only the post hours in
+ * `servablePostHours()` can actually be reached, which is why the dropdown
+ * offers exactly those and no more. Widening the cron widens the dropdown —
+ * see lib/slack-schedule.ts.
+ *
+ * Running every day rather than Mon-Fri is deliberate: the weekday rule is now
+ * a setting, so it belongs in the code where it can be switched off, not baked
+ * into a schedule that can only be changed by a redeploy.
+ *
+ * `slack_daily_posts` is what keeps this to one message a day: the first run to
+ * post claims the date, and every later run that day is a no-op.
  */
 export async function GET(req: Request) {
   const denied = rejectIfUnauthorised(req);
   if (denied) return denied;
 
-  const targetHour = slackPostHour();
+  const settings = await loadSlackSettings();
   const dateISO = todayISOIn();
   const localHour = hourNowIn();
 
-  if (isWeekend(parseISO(dateISO))) {
+  if (settings.weekdaysOnly && isWeekend(parseISO(dateISO))) {
     return skipped(dateISO, "weekend");
   }
 
   // Vercel fires crons within the hour of their slot, so treat the target as a
   // floor rather than an exact match — otherwise a late trigger loses the day.
-  if (localHour < targetHour) {
-    return skipped(dateISO, `too early (${localHour}:00 ${APP_TIME_ZONE}, posts from ${targetHour}:00)`);
+  if (localHour < settings.postHour) {
+    return skipped(
+      dateISO,
+      `too early (${localHour}:00 ${APP_TIME_ZONE}, posts from ${settings.postHour}:00)`
+    );
   }
 
-  if (!isSlackConfigured()) {
+  // ...and a ceiling, so a leave request logged in the afternoon of a quiet
+  // morning can't trigger an afternoon "out of office today".
+  const windowEnd = settings.postHour + POST_WINDOW_HOURS - 1;
+  if (localHour > windowEnd) {
+    return skipped(
+      dateISO,
+      `too late (${localHour}:00 ${APP_TIME_ZONE}, window was ${settings.postHour}:00–${windowEnd}:00)`
+    );
+  }
+
+  if (!settings.connected) {
     return NextResponse.json(
-      { ok: false, date: dateISO, error: "Slack is not configured (SLACK_BOT_TOKEN / SLACK_CHANNEL_ID missing)." },
+      { ok: false, date: dateISO, error: "Slack isn't connected." },
       { status: 503 }
     );
   }
@@ -53,14 +73,14 @@ export async function GET(req: Request) {
   const supabase = createAdminClient();
   const day = await getDayAvailability(supabase, dateISO);
 
-  if (!day.holiday && day.people.length === 0) {
+  if (settings.silentWhenEmpty && !day.holiday && day.people.length === 0) {
     return skipped(dateISO, "nobody off");
   }
 
   // Claim the day before posting. The primary key on post_date is what makes
   // the second cron run — or a retry, or a redelivery — a no-op instead of a
   // duplicate message.
-  const channel = slackChannel()!;
+  const channel = settings.channel!;
   const { error: claimError } = await supabase
     .from("slack_daily_posts")
     .insert({ post_date: dateISO, channel, people_count: day.people.length });
@@ -72,7 +92,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    await postToSlack(buildDailyDigest(day));
+    await postToSlack(buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays }));
   } catch (err) {
     // Release the claim so the next run — or a manual retry — can try again.
     await supabase.from("slack_daily_posts").delete().eq("post_date", dateISO);
