@@ -9,6 +9,7 @@ import { getBalance } from "@/lib/balances";
 import { emailEditedRequestToAdmins } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
+import { withdrawCalendarEvent } from "@/lib/calendar";
 
 const schema = z.object({
   type: z.enum(["annual", "sick"]),
@@ -193,6 +194,19 @@ export async function PATCH(
 
   if (error || !row) {
     return NextResponse.json({ error: error?.message ?? "Could not update request." }, { status: 500 });
+  }
+
+  // Editing approved leave sends it back to pending, so the day off already
+  // sitting in the employee's calendar is no longer true and has to come out
+  // now. Waiting for a re-approval that may never arrive would leave them
+  // blocked out for dates nobody has agreed to.
+  if (existing.status === "approved") {
+    // The dates the entry was actually filed under — the row already carries
+    // the new ones by this point.
+    await withdrawCalendarEvent(id, {
+      startDate: existing.start_date,
+      endDate: existing.end_date,
+    });
   }
 
   // Notify all admins of the change. Best-effort: the edit is already saved,

@@ -5,13 +5,46 @@ const FROM = process.env.RESEND_FROM ?? "Blackbird Leave <onboarding@resend.dev>
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const SUBJECT_PREFIX = "Blackbird Leave";
 
-async function send(to: string | string[], subject: string, html: string) {
+/**
+ * An iCalendar document travelling with an email.
+ *
+ * The `method` is not decoration: it is what tells Gmail, Outlook and Apple
+ * Mail to treat the attachment as an invitation to file rather than a
+ * document to download, and it has to agree with the METHOD line inside the
+ * body of the .ics itself.
+ */
+export type CalendarAttachment = { ics: string; method: "REQUEST" | "CANCEL" };
+
+function calendarAttachment(cal: CalendarAttachment) {
+  return {
+    filename: cal.method === "CANCEL" ? "cancel.ics" : "invite.ics",
+    content: Buffer.from(cal.ics, "utf8").toString("base64"),
+    // Spelling this out rather than letting Resend infer text/calendar from
+    // the .ics extension. Without the method parameter the major clients fall
+    // back to showing a downloadable file, which is exactly the manual step
+    // this feature exists to remove.
+    contentType: `text/calendar; charset=utf-8; method=${cal.method}`,
+  };
+}
+
+async function send(
+  to: string | string[],
+  subject: string,
+  html: string,
+  calendar?: CalendarAttachment
+) {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not set; skipping email:", subject);
     throw new Error("Email is not configured (RESEND_API_KEY missing).");
   }
   const fullSubject = `${SUBJECT_PREFIX}: ${subject}`;
-  const { error } = await resend.emails.send({ from: FROM, to, subject: fullSubject, html });
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: fullSubject,
+    html,
+    ...(calendar ? { attachments: [calendarAttachment(calendar)] } : {}),
+  });
   if (error) {
     // Resend returns errors in the response body rather than throwing.
     console.error("[email] send failed:", error);
@@ -115,9 +148,21 @@ export async function emailDecisionToEmployee(opts: {
   endDate: string;
   days: number;
   note?: string | null;
+  /**
+   * Rides along with the decision the employee is already being told about,
+   * rather than arriving as a second email. An approval carries a REQUEST
+   * that files the day off; an admin cancelling approved leave carries a
+   * CANCEL that takes it back out.
+   */
+  calendar?: CalendarAttachment;
 }) {
   const verb = opts.approved ? "approved" : "rejected";
   const color = opts.approved ? "#059669" : "#dc2626";
+  const calendarNote = opts.calendar
+    ? opts.calendar.method === "REQUEST"
+      ? `<p style="font-size:13px;color:#475569">An out-of-office entry is attached. Most calendar apps add it automatically — if yours asks, open the attachment once and it will appear in Google Calendar, Outlook, Teams or Apple Calendar.</p>`
+      : `<p style="font-size:13px;color:#475569">The matching entry has been removed from your calendar. If it is still showing, open the attachment once to clear it.</p>`
+    : "";
   const body = `
     <p>Hi ${escapeHtml(opts.employeeName)},</p>
     <p>Your ${opts.type} leave request has been <strong style="color:${color}">${verb}</strong>.</p>
@@ -126,9 +171,51 @@ export async function emailDecisionToEmployee(opts: {
       <li><strong>Days:</strong> ${opts.days}</li>
       ${opts.note ? `<li><strong>Note from admin:</strong> ${escapeHtml(opts.note)}</li>` : ""}
     </ul>
+    ${calendarNote}
     <p><a href="${SITE}/dashboard" style="color:#6366f1">View your dashboard</a></p>
   `;
-  await send(opts.to, `Leave ${verb}: ${opts.startDate} to ${opts.endDate}`, wrap(body));
+  await send(
+    opts.to,
+    `Leave ${verb}: ${opts.startDate} to ${opts.endDate}`,
+    wrap(body),
+    opts.calendar
+  );
+}
+
+/**
+ * Withdraw a calendar entry when there is no decision email to attach it to.
+ *
+ * The one case: an employee edits their own already-approved leave. That sends
+ * the request back to pending, so the day off in their calendar is no longer
+ * true and has to come out immediately — waiting for a re-approval that might
+ * never come would leave a phantom block on their availability.
+ */
+export async function emailCalendarWithdrawn(opts: {
+  to: string;
+  employeeName: string;
+  startDate: string;
+  endDate: string;
+  calendar: CalendarAttachment;
+}) {
+  const body = `
+    <p>Hi ${escapeHtml(opts.employeeName)},</p>
+    <p>
+      You changed leave that had already been approved, so it is waiting on an
+      admin again. The out-of-office entry for
+      <strong>${opts.startDate} → ${opts.endDate}</strong> has been taken off your calendar in
+      the meantime.
+    </p>
+    <p style="font-size:13px;color:#475569">
+      You will get a fresh calendar entry as soon as the new dates are approved.
+    </p>
+    <p><a href="${SITE}/dashboard/my-requests" style="color:#6366f1">View your requests</a></p>
+  `;
+  await send(
+    opts.to,
+    `Calendar entry removed while your change is reviewed`,
+    wrap(body),
+    opts.calendar
+  );
 }
 
 export async function emailInvite(opts: {

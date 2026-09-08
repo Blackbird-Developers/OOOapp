@@ -12,6 +12,10 @@ const PUBLIC_PATHS = [
   // Vercel Cron has no session. The route authenticates itself with
   // CRON_SECRET instead — see app/api/cron/slack-daily/route.ts.
   "/api/cron",
+  // Calendar apps subscribing to a feed cannot hold a session either. The
+  // secret token in the path is the credential — see
+  // app/api/calendar/[token]/route.ts.
+  "/api/calendar",
   "/_next",
   "/favicon.ico",
 ];
