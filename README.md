@@ -233,6 +233,71 @@ Settings live in the `app_settings` key-value table (`annual_min_notice_days`). 
 
 ---
 
+## 10. Calendar — approved leave in everyone's own calendar
+
+When leave is approved, the employee gets a calendar entry marking them out of office, in whichever calendar they already use: **Google Calendar, Apple Calendar, Outlook, or Teams**. It blocks their availability, so colleagues stop booking meetings over their days off.
+
+### 10.1 Turning it on
+
+1. Run `supabase/migrations/010_calendar_integration.sql` in the Supabase SQL editor.
+2. Go to **Admin → Integrations → Calendar** and press **Connect**.
+
+That is the whole setup. There is no Google Cloud project, no Azure app registration, no OAuth consent screen and no per-user sign-in, because the integration does not call any vendor's API — see 10.4 for why that turned out to be the better design rather than a compromise.
+
+It applies to leave approved from then on. Bookings already approved are not back-filled; the people affected can pick them up from the subscription link below.
+
+### 10.2 The two ways an entry arrives
+
+Both are on by default, and either can be switched off under **Edit** on the card. They fail in opposite directions, which is the reason for having both.
+
+**A calendar invitation, on approval.** The approval email the employee already receives carries an `.ics` attachment. Google, Outlook, Teams and Apple Mail all recognise it and file the event themselves. This is the fast path — the entry appears within seconds — but it is one-shot: if the mail is deleted before the client processes it, nothing lands.
+
+**A private subscription link.** Every employee has one on their **Account** page. They subscribe once and their calendar re-checks it forever, which repairs anything a missed invitation left behind. This is the slow path: Google refreshes subscribed calendars on its own schedule and can take several hours, Outlook likewise; Apple can be set to hourly.
+
+Subscribing instructions per app are on the Account page itself. The link is a bearer credential — anyone holding it can see when that person is off — so it is 32 random bytes, and **Create a new link** on the same page revokes the old one instantly.
+
+### 10.3 What happens when leave changes
+
+| Event | What the calendar does |
+|---|---|
+| Request approved | Entry appears |
+| Request rejected | Nothing — no entry was ever created |
+| Approved leave cancelled by an admin | Entry is withdrawn |
+| Approved leave edited by the employee | Entry is withdrawn immediately, because the request has gone back to pending. A fresh one is sent when it is approved again |
+| Pending request cancelled | Nothing |
+
+Updates work because every event carries a stable `UID` and a `SEQUENCE` that only ever increases (`leave_requests.ics_sequence`). A calendar replaces an existing entry only when it sees the same UID with a higher sequence, so the count has to survive redeploys — which is why it lives in the database rather than being recomputed.
+
+**Disconnecting does not remove entries already in people's calendars.** New approvals stop producing them and subscription links stop resolving, but mass-cancelling every future booking across the company is not something one click should do. Existing entries have to be removed by hand.
+
+### 10.4 Why iCalendar rather than the Google and Microsoft APIs
+
+This looks like the place for three vendor integrations. It is not, for two reasons that are worth writing down so nobody re-litigates it later:
+
+- **Apple publishes no server-side write API for iCloud Calendar.** There is no equivalent of the Google Calendar API. The only ways in are CalDAV, which requires every employee to generate an app-specific password by hand, or the iCalendar format. A push-based design would simply have left iPhone and Mac users out.
+- **Teams has no calendar of its own.** It renders the Microsoft 365 calendar, so anything that reaches Outlook reaches Teams. There was never a third integration to build.
+
+So the vendor-API route would have been more code, three sets of credentials to hold and rotate, per-user OAuth tokens that expire, and *still* no Apple support. iCalendar is the one language all four speak, and it needs no credential at all.
+
+The one thing given up is instant delivery on the subscription path — a feed refreshes on the client's schedule. The invitation email covers that, which is why both exist.
+
+### 10.5 Privacy
+
+Entries say **"Out of office"** and never the leave type, exactly as the Slack digest does, and for the same reason: a work calendar is rarely as private as it looks. Inside a Google Workspace or Microsoft 365 tenant colleagues routinely see event *titles*, not just busy blocks, so writing "Sick leave" into one would broadcast health data to everyone who can open that calendar.
+
+Half-days are named in words ("half day", "morning only on the first day") because an all-day event cannot express a half day. Over-blocking half a morning is a smaller error than silently hiding it.
+
+Invitations are sent as `PARTSTAT=ACCEPTED` with `RSVP=FALSE` — approved leave is not a meeting anyone may decline — and carry `X-MICROSOFT-CDO-BUSYSTATUS:OOF`, which is what turns Teams presence and Outlook availability to *Out of Office* rather than a plain *Busy*.
+
+### 10.6 If nothing arrives
+
+- **No invitation email.** Invitations travel over Resend, so `RESEND_API_KEY` must be set. The Integrations card says so plainly when it isn't. Subscription links still work without it.
+- **The feed URL 404s.** Either the integration is disconnected, subscription links are switched off, or the link was regenerated — get the current one from the Account page.
+- **Everything 404s and the logs say `column integration_settings.config does not exist`.** Migration 010 hasn't been run. Deploying the code first is safe; the feature stays off until the migration lands.
+- **The entry is a day short.** It shouldn't be — all-day `DTEND` is exclusive and there are tests for the single-day, year-boundary and leap-year cases — but that is the shape of the classic iCalendar bug if it ever resurfaces.
+
+---
+
 ## Project layout
 
 ```
@@ -251,6 +316,9 @@ app/
     cron/slack-daily/    daily Slack digest, triggered by Vercel Cron
     slack/test/          admin-only "post the digest right now"
     integrations/slack/  connect / edit / disconnect Slack
+    integrations/calendar/ connect / edit / disconnect calendars
+    calendar/[token]/    public ICS feed, authenticated by the token itself
+    me/calendar-feed/    the caller's own feed URL (+ regenerate)
 lib/
   supabase/              browser / server / admin (service-role) clients
   auth.ts                requireUser / requireAdmin helpers
@@ -259,11 +327,14 @@ lib/
   email.ts               Resend wrapper + email templates
   slack.ts               Slack wrapper + digest message builder
   slack-settings.ts      where the Slack connection is stored and resolved
+  ics.ts                 iCalendar generation (invites, cancellations, feeds)
+  calendar.ts            sends and withdraws entries; mints feed tokens
+  calendar-settings.ts   where the calendar configuration is stored
   whos-off.ts            who's on approved leave on a given date
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 009_integration_settings.sql
+supabase/migrations/     001_init.sql … 010_calendar_integration.sql
 ```
 
 ---

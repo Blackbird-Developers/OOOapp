@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailDecisionToEmployee, emailCancelledRequestToAdmins } from "@/lib/email";
 import { requireUser } from "@/lib/auth";
+import { buildCancellationCalendarAttachment } from "@/lib/calendar";
 
 export async function POST(
   _req: Request,
@@ -61,6 +62,10 @@ async function cancelAsAdmin(
     .single();
 
   if (employee) {
+    // Takes the day off back out of their calendar. Returns null when the
+    // request was still pending, because no event was ever sent for it.
+    const calendar = await buildCancellationCalendarAttachment(id);
+
     await emailDecisionToEmployee({
       to: employee.email,
       employeeName: employee.full_name,
@@ -70,6 +75,7 @@ async function cancelAsAdmin(
       endDate: row.end_date,
       days: Number(row.days_count),
       note: "Cancelled by admin.",
+      calendar: calendar ?? undefined,
     });
   }
 

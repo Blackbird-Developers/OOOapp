@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireAdmin } from "@/lib/auth";
+import { buildApprovalCalendarAttachment } from "@/lib/calendar";
 
 const schema = z.object({
   action: z.enum(["approve", "reject"]),
@@ -79,6 +80,12 @@ export async function POST(
   // must not fail the response.
   try {
     if (employee) {
+      // An approval puts the day off in the employee's own calendar, riding
+      // along with the email they are already getting. A rejection carries
+      // nothing: no event was ever created, so there is nothing to withdraw.
+      const calendar =
+        status === "approved" ? await buildApprovalCalendarAttachment(id) : null;
+
       await emailDecisionToEmployee({
         to: employee.email,
         employeeName: employee.full_name,
@@ -88,6 +95,7 @@ export async function POST(
         endDate: row.end_date,
         days: Number(row.days_count),
         note: parsed.data.note ?? null,
+        calendar: calendar ?? undefined,
       });
     }
   } catch (e) {
