@@ -96,7 +96,7 @@ export async function POST(req: Request) {
   // overlaps the new range, for the same user.
   const { data: overlapping } = await supabase
     .from("leave_requests")
-    .select("start_date, end_date")
+    .select("start_date, end_date, status")
     .eq("user_id", targetUserId)
     .in("status", ["approved", "pending"])
     .lte("start_date", input.end_date)
@@ -104,15 +104,19 @@ export async function POST(req: Request) {
 
   if (overlapping && overlapping.length > 0) {
     const o = overlapping[0];
-    const sameRow = o.start_date === o.end_date;
-    return NextResponse.json(
-      {
-        error: sameRow
-          ? `You already have a leave request for ${o.start_date}. Cancel it first if you want to change it.`
-          : `Your selection overlaps an existing request (${o.start_date} → ${o.end_date}). Cancel it first if you want to change it.`,
-      },
-      { status: 400 }
-    );
+    const clash =
+      o.start_date === o.end_date
+        ? `${isAdminAction ? "They" : "You"} already have a leave request for ${o.start_date}.`
+        : `${isAdminAction ? "Their" : "Your"} selection overlaps an existing request (${o.start_date} → ${o.end_date}).`;
+    // Point at the fix that actually exists: an employee can withdraw their own
+    // request while it's still pending, but approved leave has to go back
+    // through an admin.
+    const fix = isAdminAction
+      ? "Cancel it from the admin requests page first if you want to change it."
+      : o.status === "pending"
+        ? "Cancel it under My requests first if you want to change it."
+        : "Edit it under My requests, or ask an admin to cancel it.";
+    return NextResponse.json({ error: `${clash} ${fix}` }, { status: 400 });
   }
 
   // Hierarchy rule: annual leave can't overlap a conflict-group mate's
