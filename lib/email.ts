@@ -80,6 +80,32 @@ export async function emailEditedRequestToAdmins(opts: {
   await send(opts.adminEmails, `Leave request edited by ${opts.employeeName} (${after.days}d)`, wrap(body));
 }
 
+export async function emailCancelledRequestToAdmins(opts: {
+  adminEmails: string[];
+  employeeName: string;
+  type: "annual" | "sick";
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason?: string | null;
+}) {
+  const body = `
+    <p><strong>${escapeHtml(opts.employeeName)}</strong> cancelled their pending ${opts.type} leave request.</p>
+    <p>No decision is needed — it has been removed from your queue.</p>
+    <ul>
+      <li><strong>Dates:</strong> ${opts.startDate} &rarr; ${opts.endDate}</li>
+      <li><strong>Days:</strong> ${opts.days}</li>
+      ${opts.reason ? `<li><strong>Original reason:</strong> ${escapeHtml(opts.reason)}</li>` : ""}
+    </ul>
+    <p><a href="${SITE}/admin" style="color:#6366f1">View requests</a></p>
+  `;
+  await send(
+    opts.adminEmails,
+    `Leave request cancelled by ${opts.employeeName} (${opts.days}d)`,
+    wrap(body)
+  );
+}
+
 export async function emailDecisionToEmployee(opts: {
   to: string;
   employeeName: string;

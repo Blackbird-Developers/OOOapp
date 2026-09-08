@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import StatusBadge from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
+import CancelRequestButton from "./CancelRequestButton";
 
 type Request = {
   id: string;
@@ -20,6 +21,12 @@ type Request = {
 // Pending or approved leave that hasn't started yet can still be edited.
 function isEditable(r: Request, todayISO: string) {
   return (r.status === "pending" || r.status === "approved") && r.start_date >= todayISO;
+}
+
+// You can withdraw your own request while it is still awaiting a decision.
+// Once an admin has approved it, cancelling is their call.
+function isCancellable(r: Request) {
+  return r.status === "pending";
 }
 
 export default function MyRequestsList({ requests }: { requests: Request[] }) {
@@ -66,6 +73,7 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
                   isRejected={isRejected}
                   isOpen={isOpen}
                   editable={isEditable(r, todayISO)}
+                  cancellable={isCancellable(r)}
                   toggle={() => setOpenId(isOpen ? null : r.id)}
                 />
               );
@@ -86,6 +94,7 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
               isRejected={isRejected}
               isOpen={isOpen}
               editable={isEditable(r, todayISO)}
+              cancellable={isCancellable(r)}
               toggle={() => setOpenId(isOpen ? null : r.id)}
             />
           );
@@ -96,12 +105,13 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
 }
 
 function DesktopRow({
-  r, isRejected, isOpen, editable, toggle,
+  r, isRejected, isOpen, editable, cancellable, toggle,
 }: {
   r: Request;
   isRejected: boolean;
   isOpen: boolean;
   editable: boolean;
+  cancellable: boolean;
   toggle: () => void;
 }) {
   return (
@@ -119,19 +129,29 @@ function DesktopRow({
         <td className="py-3 px-4 text-neutral-700">{r.days_count}</td>
         <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
         <td className="py-3 px-4 text-right">
-          {editable && (
-            <Link
-              href={`/dashboard/my-requests/${r.id}/edit`}
-              className="text-xs font-medium text-neutral-600 transition hover:text-brand-ink"
-            >
-              Edit
-            </Link>
-          )}
-          {isRejected && (
-            <span className="text-xs font-medium text-rose-700">
-              {isOpen ? "Hide" : "View"} reason {isOpen ? "↑" : "↓"}
-            </span>
-          )}
+          <div className="flex items-center justify-end gap-3">
+            {editable && (
+              <Link
+                href={`/dashboard/my-requests/${r.id}/edit`}
+                className="text-xs font-medium text-neutral-600 transition hover:text-brand-ink"
+              >
+                Edit
+              </Link>
+            )}
+            {cancellable && (
+              <CancelRequestButton
+                id={r.id}
+                startDate={r.start_date}
+                endDate={r.end_date}
+                days={r.days_count}
+              />
+            )}
+            {isRejected && (
+              <span className="text-xs font-medium text-rose-700">
+                {isOpen ? "Hide" : "View"} reason {isOpen ? "↑" : "↓"}
+              </span>
+            )}
+          </div>
         </td>
       </tr>
       {isOpen && isRejected && (
@@ -146,12 +166,13 @@ function DesktopRow({
 }
 
 function MobileCard({
-  r, isRejected, isOpen, editable, toggle,
+  r, isRejected, isOpen, editable, cancellable, toggle,
 }: {
   r: Request;
   isRejected: boolean;
   isOpen: boolean;
   editable: boolean;
+  cancellable: boolean;
   toggle: () => void;
 }) {
   return (
@@ -174,20 +195,30 @@ function MobileCard({
             {r.days_count} {r.days_count === 1 ? "day" : "days"}
           </div>
         </div>
-        {editable && (
-          <Link
-            href={`/dashboard/my-requests/${r.id}/edit`}
-            onClick={(e) => e.stopPropagation()}
-            className="text-xs font-medium text-neutral-600 transition hover:text-brand-ink shrink-0"
-          >
-            Edit
-          </Link>
-        )}
-        {isRejected && (
-          <span className="text-xs font-medium text-rose-700 shrink-0">
-            {isOpen ? "Hide ↑" : "View ↓"}
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-3">
+          {editable && (
+            <Link
+              href={`/dashboard/my-requests/${r.id}/edit`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs font-medium text-neutral-600 transition hover:text-brand-ink"
+            >
+              Edit
+            </Link>
+          )}
+          {cancellable && (
+            <CancelRequestButton
+              id={r.id}
+              startDate={r.start_date}
+              endDate={r.end_date}
+              days={r.days_count}
+            />
+          )}
+          {isRejected && (
+            <span className="text-xs font-medium text-rose-700">
+              {isOpen ? "Hide ↑" : "View ↓"}
+            </span>
+          )}
+        </div>
       </div>
       {isOpen && isRejected && (
         <div className="mt-3 pt-3 border-t border-rose-100">

@@ -77,7 +77,7 @@ export default function RequestLeaveForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (conflict) {
-      setError(`You already have a leave request that covers ${conflict}. Pick different dates or cancel the existing one first.`);
+      setError(`You already have a leave request that covers ${conflict}. Pick different dates, or edit or cancel the existing one under My requests.`);
       return;
     }
     if (overBalance) {
@@ -169,7 +169,7 @@ export default function RequestLeaveForm({
       {conflict && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           <strong>Date already booked.</strong>{" "}
-          You already have a leave request that covers <strong>{conflict}</strong>. Pick different dates or cancel the existing request first.
+          You already have a leave request that covers <strong>{conflict}</strong>. Pick different dates, or edit or cancel the existing request under <strong>My requests</strong>.
         </div>
       )}
 
