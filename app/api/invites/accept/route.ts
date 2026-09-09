@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { feedUrl, getOrCreateFeedToken } from "@/lib/calendar";
+import { loadCalendarSettings } from "@/lib/calendar-settings";
+import { emailCalendarSetup } from "@/lib/email";
 import { z } from "zod";
 
 const schema = z.object({
@@ -49,6 +52,29 @@ export async function POST(req: Request) {
     });
 
   await admin.from("invites").update({ used_at: new Date().toISOString() }).eq("id", invite.id);
+
+  // Day one is the moment to connect a calendar, while somebody is already
+  // setting the account up — and it is the earliest one available, because the
+  // profile that owns a feed token did not exist until a few lines ago.
+  //
+  // Best-effort throughout: the account is created and usable, so a mail
+  // failure must not turn a successful sign-up into an error the new employee
+  // sees. They can always subscribe from the account page instead.
+  try {
+    const settings = await loadCalendarSettings();
+    if (settings.connected && settings.personalFeeds) {
+      const token = await getOrCreateFeedToken(created.user.id);
+      if (token) {
+        await emailCalendarSetup({
+          to: invite.email,
+          fullName: invite.full_name,
+          feedUrl: feedUrl(token),
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("[invites] calendar setup email failed:", e);
+  }
 
   return NextResponse.json({ ok: true });
 }

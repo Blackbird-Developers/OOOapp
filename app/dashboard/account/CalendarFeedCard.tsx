@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { subscribeLinks } from "@/lib/calendar-links";
 
 /**
  * The employee's own calendar subscription link.
@@ -85,8 +86,35 @@ export default function CalendarFeedCard() {
     );
   }
 
+  const links = subscribeLinks(url);
+
   return (
     <div className="space-y-4">
+      {/*
+        Apple and Google only. They are the two with an unambiguous one-click
+        URL — Outlook has separate hosts for personal and work accounts with no
+        way to tell which a person holds, so sending them to the wrong one
+        would land them on a sign-in page for an account they do not have. It
+        is served by the copyable address below instead.
+      */}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <a href={links.webcal} className="btn-primary px-4 text-sm">
+          Add to Apple Calendar
+        </a>
+        <a
+          href={links.google}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-secondary px-4 text-sm"
+        >
+          Add to Google Calendar
+        </a>
+      </div>
+
+      <p className="text-xs leading-relaxed text-neutral-500">
+        On Outlook, Teams or anything else, add the address below by hand.
+      </p>
+
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           className="input font-mono text-xs sm:flex-1"
@@ -128,31 +156,32 @@ export default function CalendarFeedCard() {
             >
               <path d="M4.5 2.5 8 6l-3.5 3.5" />
             </svg>
-            How to subscribe
+            Subscribing by hand
           </span>
         </summary>
 
         <dl className="mt-3 space-y-3 border-l border-neutral-200 pl-4 text-sm leading-relaxed">
           <div>
-            <dt className="font-medium text-neutral-800">Google Calendar</dt>
+            <dt className="font-medium text-neutral-800">Outlook / Teams</dt>
             <dd className="text-neutral-500">
-              Other calendars → <strong className="font-medium">From URL</strong> → paste → Add
-              calendar. Google refreshes subscribed calendars on its own schedule, which can take
-              several hours.
+              Add calendar → <strong className="font-medium">Subscribe from web</strong> → paste →
+              Import. Teams shows the same calendar as Outlook, so it appears in both.
             </dd>
           </div>
           <div>
             <dt className="font-medium text-neutral-800">Apple Calendar</dt>
             <dd className="text-neutral-500">
-              File → <strong className="font-medium">New Calendar Subscription</strong> → paste. Set
+              The button above does this for you. By hand: File →{" "}
+              <strong className="font-medium">New Calendar Subscription</strong> → paste. Set
               auto-refresh to every hour when it asks.
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-neutral-800">Outlook / Teams</dt>
+            <dt className="font-medium text-neutral-800">Google Calendar</dt>
             <dd className="text-neutral-500">
-              Add calendar → <strong className="font-medium">Subscribe from web</strong> → paste →
-              Import. Teams shows the same calendar as Outlook, so it appears in both.
+              The button above does this for you. By hand: Other calendars →{" "}
+              <strong className="font-medium">From URL</strong> → paste → Add calendar. Google
+              refreshes subscribed calendars on its own schedule, which can take several hours.
             </dd>
           </div>
         </dl>
