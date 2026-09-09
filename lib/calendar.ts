@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildInvite, buildCancellation, type LeaveEvent } from "@/lib/ics";
 import { loadCalendarSettings, organizerIdentity } from "@/lib/calendar-settings";
-import { emailCalendarWithdrawn } from "@/lib/email";
+import { emailCalendarWithdrawn, type CalendarAttachment } from "@/lib/email";
 import type { HalfKind } from "@/lib/days";
 
 /**
@@ -110,7 +110,7 @@ function toEvent(leave: LeaveRow, person: { full_name: string; email: string }, 
  */
 export async function buildApprovalCalendarAttachment(
   leaveId: string
-): Promise<{ ics: string; method: "REQUEST" } | null> {
+): Promise<CalendarAttachment | null> {
   try {
     const settings = await loadCalendarSettings();
     if (!settings.connected || !settings.sendInvites) return null;
@@ -122,7 +122,16 @@ export async function buildApprovalCalendarAttachment(
     if (sequence < 0) return null;
 
     const event = toEvent(loaded.leave, loaded.person, sequence);
-    return { ics: buildInvite(event, organizerIdentity()), method: "REQUEST" };
+    return {
+      ics: buildInvite(event, organizerIdentity()),
+      method: "REQUEST",
+      // Lets the email offer one-click subscribe buttons, but only when that
+      // half of the integration is switched on — otherwise it would advertise
+      // a feed the route would answer 404 for.
+      subscribeUrl: settings.personalFeeds
+        ? await feedUrlForUser(loaded.leave.user_id)
+        : undefined,
+    };
   } catch (e) {
     console.warn("[calendar] could not build approval invite:", e);
     return null;
@@ -153,7 +162,7 @@ async function prepareCancellation(
   leaveId: string,
   occurrence?: Occurrence
 ): Promise<{
-  calendar: { ics: string; method: "CANCEL" };
+  calendar: CalendarAttachment & { method: "CANCEL" };
   person: { full_name: string; email: string };
   leave: LeaveRow;
 } | null> {
@@ -177,6 +186,8 @@ async function prepareCancellation(
   }
 
   return {
+    // No subscribe offer on a withdrawal: the email is telling somebody their
+    // day off has gone, which is the wrong moment to sell them a feature.
     calendar: { ics: buildCancellation(event, organizerIdentity()), method: "CANCEL" },
     person: loaded.person,
     leave: loaded.leave,
@@ -190,7 +201,7 @@ async function prepareCancellation(
 export async function buildCancellationCalendarAttachment(
   leaveId: string,
   occurrence?: Occurrence
-): Promise<{ ics: string; method: "CANCEL" } | null> {
+): Promise<CalendarAttachment | null> {
   try {
     const prepared = await prepareCancellation(leaveId, occurrence);
     return prepared?.calendar ?? null;
@@ -232,6 +243,31 @@ export async function withdrawCalendarEvent(
 // ---------------------------------------------------------------------------
 // Subscription feed
 // ---------------------------------------------------------------------------
+
+/**
+ * The address of a feed, given its token.
+ *
+ * Lives here rather than in the route that first needed it, because the
+ * approval email now builds the same URL and two spellings of it would drift.
+ */
+export function feedUrl(token: string): string {
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  return `${site.replace(/\/$/, "")}/api/calendar/${token}`;
+}
+
+/**
+ * A person's own feed URL, for an email that is about to offer them a
+ * one-click subscribe button.
+ *
+ * Mints a token if they have never had one. That is a deliberate departure
+ * from the account page, which waits to be asked: by the time somebody's leave
+ * is approved they are plainly an active user, and a button that cannot be
+ * built is worse than a token that is never used.
+ */
+async function feedUrlForUser(userId: string): Promise<string | undefined> {
+  const token = await getOrCreateFeedToken(userId);
+  return token ? feedUrl(token) : undefined;
+}
 
 /**
  * The secret in a feed URL.

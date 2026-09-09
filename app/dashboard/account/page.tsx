@@ -40,8 +40,12 @@ export default async function AccountPage() {
               Your leave in your calendar
             </h2>
             <p className="mt-1 text-sm text-neutral-500">
-              Approved leave is emailed to you as a calendar invitation. Subscribe to this link as
-              well and your calendar will keep itself in step, even if you miss one.
+              Approved leave is emailed to you as a calendar invitation, and{" "}
+              <span className="text-neutral-700">Google Calendar</span>,{" "}
+              <span className="text-neutral-700">Apple Calendar</span> and{" "}
+              <span className="text-neutral-700">Outlook&nbsp;/&nbsp;Teams</span> all file it on
+              their own. Subscribe to the link below as well and your calendar keeps itself in
+              step, even if you miss an email.
             </p>
           </header>
 

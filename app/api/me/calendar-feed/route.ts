@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { getOrCreateFeedToken, regenerateFeedToken } from "@/lib/calendar";
+import { feedUrl, getOrCreateFeedToken, regenerateFeedToken } from "@/lib/calendar";
 import { loadCalendarSettings } from "@/lib/calendar-settings";
 
 export const dynamic = "force-dynamic";
@@ -14,11 +14,6 @@ export const dynamic = "force-dynamic";
  * for one person's leave, so handing it to the wrong caller would be handing
  * over the data itself.
  */
-
-function feedUrl(token: string): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  return `${site.replace(/\/$/, "")}/api/calendar/${token}`;
-}
 
 /** Fetch the URL, minting a token the first time it is asked for. */
 export async function GET() {
