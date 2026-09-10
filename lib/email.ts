@@ -1,5 +1,9 @@
 import { format, parseISO } from "date-fns";
 import { subscribeLinks } from "@/lib/calendar-links";
+import {
+  calendarSmtpConfigured,
+  sendCalendarMailOverSmtp,
+} from "@/lib/email-calendar-transport";
 import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -49,6 +53,33 @@ async function send(
     throw new Error("Email is not configured (RESEND_API_KEY missing).");
   }
   const fullSubject = `${SUBJECT_PREFIX}: ${subject}`;
+
+  // Anything carrying a calendar goes over SMTP, where the .ics can be an
+  // alternative body part rather than a file hanging off the message. That
+  // distinction is the entire difference between Outlook filing an event and
+  // Outlook showing an attachment nobody opens — see
+  // lib/email-calendar-transport.ts. Every other email keeps using the HTTP
+  // API, which is simpler and has nothing to gain from the change.
+  if (calendar && calendarSmtpConfigured()) {
+    try {
+      await sendCalendarMailOverSmtp({
+        from: FROM,
+        to,
+        subject: fullSubject,
+        html,
+        ics: calendar.ics,
+        method: calendar.method,
+      });
+      return;
+    } catch (e) {
+      // Fall through to the API rather than lose the mail. The recipient then
+      // gets the same email with the .ics attached, which is exactly where
+      // this feature stood before — a worse calendar experience, not a missing
+      // approval.
+      console.warn("[email] calendar SMTP send failed, falling back to API:", e);
+    }
+  }
+
   const { error } = await resend.emails.send({
     from: FROM,
     to,
