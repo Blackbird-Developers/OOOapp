@@ -102,20 +102,6 @@ function generationOf(leave: LeaveRow): number {
   return leave.ics_generation ?? 0;
 }
 
-/**
- * Whether any calendar has ever been shown this request.
- *
- * The sequence is the honest record of it, now that publishing advances the
- * sequence whether or not an invitation was emailed: zero means no feed and no
- * invite has ever carried this request, so there is nothing out there to
- * update and — more to the point — nothing to withdraw. The feed leans on this
- * so it does not tombstone requests that were rejected while still pending,
- * which no calendar has ever seen.
- */
-function everPublished(leave: LeaveRow): boolean {
-  return leave.ics_sequence > 0;
-}
-
 type QueryError = { code?: string; message?: string } | null;
 
 /**
@@ -356,10 +342,18 @@ export type Occurrence = { startDate: string; endDate: string };
 /**
  * Everything a withdrawal needs, or null when there is nothing to withdraw.
  *
- * Returns null when the integration is disconnected, or when no calendar has
- * ever been shown this request — a CANCEL for a UID the client has never seen
- * is harmless but confusing, and it would put a stray attachment on the
- * rejection email for every pending request an admin turns down.
+ * Returns null when the integration is disconnected, or when the request was
+ * not approved a moment ago — the caller's `wasApproved` is the whole test,
+ * and it is what keeps a stray attachment off the rejection email for every
+ * pending request an admin turns down.
+ *
+ * It deliberately does NOT also require that a sequence was ever advanced.
+ * That extra condition was here, and it was a bug: leave approved during any
+ * period when the sequence was not being advanced — before invitations were
+ * switched on, or before the integration was connected — was still published
+ * by the feed, so a calendar was holding it. Refusing to withdraw it because
+ * the counter said zero left exactly that entry stranded forever, which is the
+ * one outcome this whole file exists to prevent.
  *
  * Deliberately *not* gated on `sendInvites`, unlike the invitation path. That
  * switch governs whether new entries are created; a cancellation is cleanup
@@ -397,9 +391,6 @@ async function prepareCancellation(
 
   const loaded = await loadLeave(leaveId);
   if (!loaded) return null;
-  // Approved, but approved while the integration was switched off — so no feed
-  // ever carried it and no invitation was ever sent.
-  if (!everPublished(loaded.leave)) return null;
 
   const revision = await advanceEvent(loaded.leave, { withdrawing: true });
   if (revision === null) return null;
@@ -633,35 +624,71 @@ export async function loadFeedByToken(token: string): Promise<{
 
 /**
  * One request, as the calendar should see it: at most one live event, plus a
- * tombstone for every other identity it has ever been filed under.
+ * withdrawal for every identity it has been filed under that is no longer
+ * true.
+ *
+ * How far to go depends entirely on the status, and each of the three answers
+ * is different for a reason worth stating.
  */
 function feedEntriesFor(
   row: LeaveRow,
   person: { full_name: string; email: string }
 ): FeedEntry[] {
-  if (!everPublished(row)) return [];
+  const generation = generationOf(row);
+  const revision = currentRevision(row);
+  const event = toEvent(row, person, revision);
 
-  const live = row.status === "approved";
-  const event = toEvent(row, person, currentRevision(row));
-  const entries: FeedEntry[] = live ? [event] : [];
-
-  // The generation counter moves on at the moment an entry is withdrawn, so a
-  // request that is no longer approved has already been stepped past the
-  // generation the calendar is holding — hence the inclusive bound here and
-  // the exclusive one for a live booking, whose own generation must not be
-  // cancelled out from under it.
-  const highest = live ? generationOf(row) - 1 : generationOf(row);
-  for (let generation = 0; generation <= highest; generation++) {
-    entries.push({
-      ...event,
-      generation,
-      cancelled: true,
-      // The dates are whatever the request says now, which for an edited
-      // booking is not where the old entry was filed. That is fine and cannot
-      // be otherwise: clients match a cancellation on UID alone, and the dates
-      // an abandoned generation was filed under are not recorded anywhere.
-    });
+  // Approved: the booking itself, published under the generation it now
+  // carries, and every generation it has left behind on the way here. Note
+  // there is no test on the sequence — an approved request is in this feed
+  // unconditionally, which is what makes "the calendar is holding it" a
+  // question the rest of this function can answer from the status alone.
+  if (row.status === "approved") {
+    return [event, ...withdrawals(event, revision.sequence, generation - 1)];
   }
 
+  // Pending: withdrawn for now, but `generation` is reserved for the approval
+  // that may still be coming, so the tombstones stop one short of it.
+  //
+  // Reaching one generation further would be the worst bug in this file. A
+  // calendar that has seen a cancellation for a UID tombstones it and drops
+  // any later invitation carrying it, rather than re-creating the event — so
+  // cancelling the generation the next approval is going to arrive under
+  // means re-approved leave silently never comes back. That is precisely the
+  // failure migration 011 exists to prevent, and the feed can reintroduce it
+  // from this line if the bound is wrong.
+  if (row.status === "pending") {
+    return withdrawals(event, revision.sequence, generation - 1);
+  }
+
+  // Cancelled or rejected. Terminal: no path in the app moves a request out of
+  // either status, so nothing will ever be published under it again and every
+  // generation can safely be withdrawn — including the current one, which is
+  // the generation the calendar is still holding whenever the withdrawal path
+  // did not run at all.
+  //
+  // The sequence is advanced by one purely for this rendering. A withdrawal
+  // only lands if it out-ranks the booking it revokes, and a request that was
+  // published but never withdrawn still sits at the sequence its own
+  // CONFIRMED went out under — so emitting the tombstone at that same number
+  // would be ignored as stale by every client, and the entry would stay put.
+  // Nothing else is ever published for this request, so there is no later copy
+  // for the bump to collide with.
+  return withdrawals(event, revision.sequence + 1, generation);
+}
+
+/**
+ * Withdrawals for generations 0 through `upTo`, all carrying `sequence`.
+ *
+ * The dates are whatever the request says now, which for an edited booking is
+ * not where the abandoned entry was filed. That is fine and cannot be
+ * otherwise: clients match a cancellation on UID alone, and the dates a
+ * superseded generation went out under are not recorded anywhere.
+ */
+function withdrawals(event: LeaveEvent, sequence: number, upTo: number): FeedEntry[] {
+  const entries: FeedEntry[] = [];
+  for (let generation = 0; generation <= upTo; generation++) {
+    entries.push({ ...event, generation, sequence, cancelled: true });
+  }
   return entries;
 }
