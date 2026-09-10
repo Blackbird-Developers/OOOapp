@@ -25,6 +25,32 @@ export default function CalendarSettingsEditor({
   const [personalFeeds, setPersonalFeeds] = useState(settings.personalFeeds);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [check, setCheck] = useState<{ ok: boolean; detail: string; reason?: string } | null>(null);
+
+  /**
+   * Ask the server whether invitations can be delivered as real invitations.
+   *
+   * Worth a button because the failure is invisible otherwise: mail still
+   * arrives, and only Outlook notices the difference.
+   */
+  async function runCheck() {
+    setChecking(true);
+    setCheck(null);
+    try {
+      const res = await fetch("/api/integrations/calendar/test", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok && !json.detail) {
+        setCheck({ ok: false, detail: json.error || "Couldn't run the check." });
+        return;
+      }
+      setCheck({ ok: !!json.ok, detail: json.detail, reason: json.smtp?.error });
+    } catch {
+      setCheck({ ok: false, detail: "Couldn't reach the server." });
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -82,6 +108,37 @@ export default function CalendarSettingsEditor({
               then have anyone already subscribed take a fresh link from their account page.
             </p>
           )}
+
+          <div className="mt-5 border-t border-neutral-200 pt-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={runCheck}
+                disabled={checking}
+                className="btn-secondary px-3 text-xs"
+              >
+                {checking ? "Checking…" : "Check delivery"}
+              </button>
+              <p className="text-xs text-neutral-500">
+                Confirms invitations can file themselves. Sends nothing.
+              </p>
+            </div>
+
+            {check && (
+              <p
+                role="status"
+                className={`mt-3 text-xs leading-relaxed ${check.ok ? "text-emerald-700" : "text-amber-700"}`}
+              >
+                {check.ok ? "Working — " : "Degraded — "}
+                {check.detail}
+                {check.reason && (
+                  <span className="mt-1 block font-mono text-[11px] text-neutral-500">
+                    {check.reason}
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
         </div>
 
         <button
