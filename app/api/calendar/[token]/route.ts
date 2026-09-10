@@ -10,6 +10,12 @@ import { buildFeed } from "@/lib/ics";
  * integration: an invitation email that was deleted, missed or never accepted
  * is corrected the next time the client fetches this document.
  *
+ * The document is a mirror, not a list of bookings. It carries cancelled and
+ * moved leave as explicit withdrawals alongside the live entries, because a
+ * subscribed Outlook calendar never removes an event that merely stops being
+ * published — see `loadFeedByToken`. Subscribing once is therefore enough,
+ * permanently, on every client.
+ *
  * Unauthenticated by necessity — a calendar client has no session and cannot
  * be asked to log in — so the token in the path IS the credential. It is 32
  * bytes of CSPRNG output on a unique column, it is the only thing checked, and
@@ -35,7 +41,7 @@ export async function GET(
   const feed = await loadFeedByToken(token);
   if (!feed) return notFound();
 
-  const ics = buildFeed(feed.events, {
+  const ics = buildFeed(feed.entries, {
     organizer: organizerIdentity(),
     calendarName: `${feed.person.full_name} — Out of office`,
     // A personal feed goes into the owner's own calendar, where every entry is

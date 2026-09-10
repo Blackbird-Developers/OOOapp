@@ -70,6 +70,23 @@ export type OrganizerIdentity = {
   email: string;
 };
 
+/**
+ * One line in a published feed: either a live booking, or the withdrawal of
+ * one that used to be there.
+ *
+ * The withdrawal half exists because a subscribed calendar cannot be trusted
+ * to notice an absence. Google and Apple re-read the whole document and drop
+ * whatever is no longer in it; Outlook merges instead — it adds and updates,
+ * and an event that simply stops appearing stays in the calendar forever,
+ * still blocking the person's availability for a day off that was cancelled
+ * weeks ago. The only thing that removes it is being told, in the feed, that
+ * the event it is holding is cancelled.
+ */
+export type FeedEntry = LeaveEvent & {
+  /** Publish as a STATUS:CANCELLED tombstone rather than a live event. */
+  cancelled?: boolean;
+};
+
 const PRODID = "-//Blackbird Marketing//Blackbird Leave//EN";
 
 /**
@@ -277,6 +294,8 @@ function timestampLines(e: LeaveEvent): string[] {
 }
 
 function vevent(e: LeaveEvent, opts: EventOptions): string[] {
+  const cancelled = opts.status === "CANCELLED";
+
   const lines: string[] = [
     "BEGIN:VEVENT",
     `UID:${eventUID(e.id, e.generation)}`,
@@ -292,7 +311,12 @@ function vevent(e: LeaveEvent, opts: EventOptions): string[] {
     ...timestampLines(e),
     // OPAQUE means the time counts as busy. That is the point of the whole
     // feature: a day off should stop a colleague booking a meeting over it.
-    "TRANSP:OPAQUE",
+    //
+    // A withdrawn entry flips to TRANSPARENT, which matters more than it
+    // looks: if a client is stubborn enough to keep the row on screen after
+    // being told it is cancelled, this at least stops it going on blocking
+    // the person's availability for a day off that no longer exists.
+    `TRANSP:${cancelled ? "TRANSPARENT" : "OPAQUE"}`,
     `ORGANIZER;CN=${escapeParam(opts.organizer.name)}:mailto:${opts.organizer.email}`,
   ];
 
@@ -309,8 +333,9 @@ function vevent(e: LeaveEvent, opts: EventOptions): string[] {
   lines.push(
     // Microsoft reads these two rather than TRANSP. OOF is what turns the
     // person's Teams presence and Outlook availability to "Out of Office"
-    // instead of a plain "Busy" — the difference the team actually sees.
-    "X-MICROSOFT-CDO-BUSYSTATUS:OOF",
+    // instead of a plain "Busy" — the difference the team actually sees, and
+    // FREE is what gives it back the moment the leave is withdrawn.
+    `X-MICROSOFT-CDO-BUSYSTATUS:${cancelled ? "FREE" : "OOF"}`,
     "X-MICROSOFT-CDO-ALLDAYEVENT:TRUE",
     "END:VEVENT"
   );
@@ -378,14 +403,15 @@ export function buildCancellation(e: LeaveEvent, organizer: OrganizerIdentity): 
  * name the subscription after its URL, which is unreadable.
  */
 export function buildFeed(
-  events: LeaveEvent[],
+  entries: FeedEntry[],
   opts: { organizer: OrganizerIdentity; calendarName: string; includeNames: boolean }
 ): string {
-  const body = events.flatMap((e) =>
+  const body = entries.flatMap((e) =>
     vevent(e, {
       organizer: opts.organizer,
       includeName: opts.includeNames,
-      status: "CONFIRMED",
+      // A cancelled entry is still published, not omitted. See {@link FeedEntry}.
+      status: e.cancelled ? "CANCELLED" : "CONFIRMED",
       withAttendee: false,
     })
   );

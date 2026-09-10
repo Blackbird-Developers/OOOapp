@@ -9,7 +9,7 @@ import { getBalance } from "@/lib/balances";
 import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
-import { buildApprovalCalendarAttachment } from "@/lib/calendar";
+import { publishApprovedLeave } from "@/lib/calendar";
 
 const schema = z.object({
   user_id: z.string().uuid().optional(), // admin can act on behalf
@@ -203,9 +203,7 @@ export async function POST(req: Request) {
         // Gated on willAutoApprove rather than the branch condition: an admin
         // logging leave that still needs approval leaves a *pending* row, and
         // only an approved day off belongs in a calendar.
-        const calendar = willAutoApprove
-          ? await buildApprovalCalendarAttachment(row.id)
-          : null;
+        const calendar = willAutoApprove ? await publishApprovedLeave(row.id) : null;
 
         await emailDecisionToEmployee({
           to: target.email,

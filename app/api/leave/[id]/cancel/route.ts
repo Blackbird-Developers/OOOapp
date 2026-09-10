@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailDecisionToEmployee, emailCancelledRequestToAdmins } from "@/lib/email";
 import { requireUser } from "@/lib/auth";
-import { buildCancellationCalendarAttachment } from "@/lib/calendar";
+import { withdrawApprovedLeave } from "@/lib/calendar";
 
 export async function POST(
   _req: Request,
@@ -27,7 +27,7 @@ export async function POST(
 
   // An admin acts as an admin even on their own leave, so they keep the
   // wider powers below (cancelling approved leave, notifying the employee).
-  if (me.role === "admin") return cancelAsAdmin(supabase, id);
+  if (me.role === "admin") return cancelAsAdmin(supabase, id, existing.status);
 
   if (existing.user_id !== me.id) {
     return NextResponse.json({ error: "Request not found." }, { status: 404 });
@@ -38,16 +38,29 @@ export async function POST(
 /**
  * Admin cancellation: works on pending *or* approved leave, and tells the
  * employee their time off is gone.
+ *
+ * `previousStatus` is the status read a moment ago, and it is what the update
+ * is filtered on rather than the looser "pending or approved". Two things come
+ * of that: a request somebody else decided in between matches nothing and is
+ * reported as already finalised, exactly as before — and because the filter
+ * pinned it, the status is now known rather than guessed, which is what the
+ * calendar needs to tell "withdraw the entry that is out there" apart from
+ * "there was never an entry".
  */
 async function cancelAsAdmin(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
-  id: string
+  id: string,
+  previousStatus: string
 ) {
+  if (previousStatus !== "pending" && previousStatus !== "approved") {
+    return NextResponse.json({ error: "Request not found or already finalised" }, { status: 404 });
+  }
+
   const { data: row, error } = await supabase
     .from("leave_requests")
     .update({ status: "cancelled" })
     .eq("id", id)
-    .in("status", ["pending", "approved"])
+    .eq("status", previousStatus)
     .select("user_id, type, start_date, end_date, days_count")
     .single();
 
@@ -67,9 +80,13 @@ async function cancelAsAdmin(
   // send left unguarded.
   try {
     if (employee) {
-      // Takes the day off back out of their calendar. Returns null when the
-      // request was still pending, because no event was ever sent for it.
-      const calendar = await buildCancellationCalendarAttachment(id);
+      // Takes the day off back out of their calendar — out of the subscription
+      // feed as well as out of any invitation they were emailed. Returns null
+      // when the request was still pending, because no event was ever sent
+      // for it and there is nothing to withdraw.
+      const calendar = await withdrawApprovedLeave(id, {
+        wasApproved: previousStatus === "approved",
+      });
 
       await emailDecisionToEmployee({
         to: employee.email,
