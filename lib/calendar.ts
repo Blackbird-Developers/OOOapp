@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildInvite, buildCancellation, type LeaveEvent } from "@/lib/ics";
+import { buildInvite, buildCancellation, type FeedEntry, type LeaveEvent } from "@/lib/ics";
 import { loadCalendarSettings, organizerIdentity } from "@/lib/calendar-settings";
 import { emailCalendarWithdrawn, type CalendarAttachment } from "@/lib/email";
 import type { HalfKind } from "@/lib/days";
@@ -29,6 +29,11 @@ type LeaveRow = {
   ics_sequence: number;
   /** Undefined when migration 011 has not been run — treated as 0 throughout. */
   ics_generation?: number;
+  /**
+   * When the calendar copy of this request last changed. Undefined when
+   * migration 012 has not been run; null on rows that predate it.
+   */
+  ics_updated_at?: string | null;
   created_at: string | null;
   decided_at: string | null;
 };
@@ -37,25 +42,59 @@ const BASE_LEAVE_COLUMNS =
   "id, user_id, start_date, end_date, half_start, half_end, days_count, status, ics_sequence, created_at, decided_at";
 
 /**
- * Whether `leave_requests.ics_generation` exists yet.
+ * Columns added by a migration that is run by hand in the Supabase SQL editor,
+ * and so may not exist yet on any given deployment.
  *
- * Null until the first query answers the question. Migration 011 is run by
- * hand in the Supabase SQL editor, exactly as 010 was, so the code has to work
- * either side of it: deploying first and migrating later must not silently
- * stop every calendar entry, which is what an unguarded select on a missing
- * column would do.
+ * The code has to work either side of each one: deploying first and migrating
+ * later must not silently stop every calendar entry, which is what an
+ * unguarded select on a missing column would do.
  */
-let hasGenerationColumn: boolean | null = null;
+const OPTIONAL_LEAVE_COLUMNS = ["ics_generation", "ics_updated_at"] as const;
+type OptionalColumn = (typeof OPTIONAL_LEAVE_COLUMNS)[number];
 
-function leaveColumns(): string {
-  return hasGenerationColumn === false
-    ? BASE_LEAVE_COLUMNS
-    : `${BASE_LEAVE_COLUMNS}, ics_generation`;
+/**
+ * What the database has actually got, learned from the first query that
+ * mentions each column and remembered for the life of the process.
+ *
+ * Three states, and the difference matters. A column missing from this map is
+ * *unknown*: worth selecting, because the select is what answers the question,
+ * but never worth writing — an update naming a column that does not exist
+ * fails whole, taking the sequence bump down with it. Only a column confirmed
+ * present is safe to write.
+ */
+const optionalColumns = new Map<OptionalColumn, boolean>();
+
+/** Whether a column is known to exist. Unknown counts as no. */
+function columnPresent(column: OptionalColumn): boolean {
+  return optionalColumns.get(column) === true;
 }
 
-/** Postgres `undefined_column`. The one error we retry rather than report. */
-function isMissingColumn(error: { code?: string; message?: string }): boolean {
-  return error.code === "42703" || /ics_generation/.test(error.message ?? "");
+function selectableColumns(): OptionalColumn[] {
+  return OPTIONAL_LEAVE_COLUMNS.filter((c) => optionalColumns.get(c) !== false);
+}
+
+function leaveColumns(): string {
+  return [BASE_LEAVE_COLUMNS, ...selectableColumns()].join(", ");
+}
+
+/** Postgres `undefined_column`, however the layer above chose to word it. */
+function isUndefinedColumn(error: { code?: string; message?: string }): boolean {
+  return error.code === "42703" || /does not exist/i.test(error.message ?? "");
+}
+
+/**
+ * The optional column a failed select is complaining about, or null when the
+ * error does not name one.
+ *
+ * PostgREST spells it out — `column leave_requests.ics_updated_at does not
+ * exist` — which is what lets a single missing column be dropped while the
+ * others are kept. A `42703` that names nothing recognisable falls back to
+ * dropping all of them; see {@link readLeave}.
+ */
+function missingColumnFrom(error: { code?: string; message?: string }): OptionalColumn | null {
+  if (!isUndefinedColumn(error)) return null;
+  const message = error.message ?? "";
+  return OPTIONAL_LEAVE_COLUMNS.find((c) => message.includes(c)) ?? null;
 }
 
 /** A request's generation, with the pre-migration default. */
@@ -63,15 +102,29 @@ function generationOf(leave: LeaveRow): number {
   return leave.ics_generation ?? 0;
 }
 
+/**
+ * Whether any calendar has ever been shown this request.
+ *
+ * The sequence is the honest record of it, now that publishing advances the
+ * sequence whether or not an invitation was emailed: zero means no feed and no
+ * invite has ever carried this request, so there is nothing out there to
+ * update and — more to the point — nothing to withdraw. The feed leans on this
+ * so it does not tombstone requests that were rejected while still pending,
+ * which no calendar has ever seen.
+ */
+function everPublished(leave: LeaveRow): boolean {
+  return leave.ics_sequence > 0;
+}
+
 type QueryError = { code?: string; message?: string } | null;
 
 /**
- * Run a `leave_requests` select, retrying once without `ics_generation` if the
- * column turns out not to exist yet.
+ * Run a `leave_requests` select, dropping any optional column that turns out
+ * not to exist yet and trying again.
  *
- * The answer is remembered, so the retry happens at most once per process
- * rather than on every read. Both readers below go through here for the same
- * reason: either could be the first query after a deploy.
+ * Each answer is remembered, so a retry happens at most once per column per
+ * process rather than on every read. Every reader below goes through here for
+ * the same reason: any one of them could be the first query after a deploy.
  *
  * The row type is asserted rather than inferred: the column list is chosen at
  * runtime, so the client cannot know the shape, exactly as it could not when
@@ -80,30 +133,61 @@ type QueryError = { code?: string; message?: string } | null;
 async function readLeave<T>(
   run: (columns: string) => PromiseLike<{ data: unknown; error: QueryError }>
 ): Promise<{ data: T | null; error: QueryError }> {
-  let result = await run(leaveColumns());
+  // Bounded by construction: every retry marks one more column absent, and
+  // there are only ever OPTIONAL_LEAVE_COLUMNS.length of them to lose.
+  for (;;) {
+    const selected = selectableColumns();
+    const result = await run(leaveColumns());
 
-  if (result.error && hasGenerationColumn === null && isMissingColumn(result.error)) {
-    hasGenerationColumn = false;
-    result = await run(leaveColumns());
-  } else if (!result.error && hasGenerationColumn === null) {
-    hasGenerationColumn = true;
+    if (!result.error) {
+      // A select that came back is proof of every column it named.
+      for (const column of selected) optionalColumns.set(column, true);
+      return { data: (result.data as T | null) ?? null, error: null };
+    }
+
+    const missing = missingColumnFrom(result.error);
+    if (missing && optionalColumns.get(missing) !== false) {
+      optionalColumns.set(missing, false);
+      continue;
+    }
+
+    // An undefined-column error that names none of them. Which one is beyond
+    // reach, so fall back to the base list — the same degradation this had
+    // when there was only one optional column to lose. `selected` being empty
+    // means they have all been dropped already and the error is something
+    // else, which terminates the loop.
+    if (!missing && isUndefinedColumn(result.error) && selected.length > 0) {
+      for (const column of selected) optionalColumns.set(column, false);
+      continue;
+    }
+
+    return { data: null, error: result.error };
   }
-
-  return { data: (result.data as T | null) ?? null, error: result.error };
 }
 
 /**
+ * What one copy of an event is stamped with: the SEQUENCE it goes out at, and
+ * the moment it changed.
+ */
+type Revision = { sequence: number; updatedAt: string };
+
+/**
  * Move a request's SEQUENCE forward, and its generation too when the event is
- * being withdrawn. Returns the sequence to send at, or null to abort.
+ * being withdrawn. Returns the revision to send at, or null to abort.
  *
- * Every outgoing copy of an event — invitation, update, cancellation — must
- * carry a strictly higher sequence than the last one, or calendar clients
- * treat it as a stale duplicate and ignore it. Because it is persisted, a
- * sequence survives redeploys and cannot go backwards.
+ * Every outgoing copy of an event — invitation, update, cancellation, and
+ * every line of the subscription feed — must carry a strictly higher sequence
+ * than the last one, or calendar clients treat it as a stale duplicate and
+ * ignore it. Because it is persisted, a sequence survives redeploys and cannot
+ * go backwards.
+ *
+ * This runs on every publication and every withdrawal, including when
+ * invitation emails are switched off. That is what keeps the guarantee the
+ * feed depends on: the cancellation of a booking always out-ranks the booking
+ * itself, whichever route each of them travelled.
  *
  * A side effect of that rule doubles as useful state: a sequence of 0 means
- * nothing has ever been sent for this request, so there is no event out there
- * to cancel.
+ * this request has never been published anywhere — see {@link everPublished}.
  *
  * The generation moves only on withdrawal, and only the *stored* value moves —
  * the cancellation being built still has to address the event the calendar is
@@ -114,14 +198,18 @@ async function readLeave<T>(
 async function advanceEvent(
   leave: LeaveRow,
   opts: { withdrawing: boolean }
-): Promise<number | null> {
+): Promise<Revision | null> {
   const next = leave.ics_sequence + 1;
-  const patch: Record<string, number> = { ics_sequence: next };
+  const updatedAt = new Date().toISOString();
+  const patch: Record<string, number | string> = { ics_sequence: next };
 
   // Only written when the column is known to exist. Including it otherwise
   // would fail the whole update and take the sequence bump down with it.
-  if (opts.withdrawing && hasGenerationColumn) {
+  if (opts.withdrawing && columnPresent("ics_generation")) {
     patch.ics_generation = generationOf(leave) + 1;
+  }
+  if (columnPresent("ics_updated_at")) {
+    patch.ics_updated_at = updatedAt;
   }
 
   const supabase = createAdminClient();
@@ -132,7 +220,7 @@ async function advanceEvent(
     // already seen, which silently does nothing. Better to abort the send.
     return null;
   }
-  return next;
+  return { sequence: next, updatedAt };
 }
 
 async function loadLeave(leaveId: string): Promise<{
@@ -160,7 +248,11 @@ async function loadLeave(leaveId: string): Promise<{
   return { leave: leave as LeaveRow, person };
 }
 
-function toEvent(leave: LeaveRow, person: { full_name: string; email: string }, sequence: number): LeaveEvent {
+function toEvent(
+  leave: LeaveRow,
+  person: { full_name: string; email: string },
+  revision: Revision
+): LeaveEvent {
   return {
     id: leave.id,
     personName: person.full_name,
@@ -170,43 +262,70 @@ function toEvent(leave: LeaveRow, person: { full_name: string; email: string }, 
     halfStart: leave.half_start,
     halfEnd: leave.half_end,
     days: Number(leave.days_count),
-    sequence,
+    sequence: revision.sequence,
     // Always the generation the calendar is currently holding — including on a
     // cancellation, which has to address the event that exists rather than the
     // one the next approval will create.
     generation: generationOf(leave),
     createdAt: leave.created_at,
-    // The decision is the last thing that happens to an approved request, and
-    // it moves again on every re-approval — so it is the honest answer to
-    // "when did this event last change" for a subscribed calendar deciding
-    // whether to replace the copy it holds. Falls back to creation for a row
-    // that somehow has no decision recorded.
-    lastModified: leave.decided_at ?? leave.created_at,
+    // The moment this event last changed, which is what a subscribed calendar
+    // reads to decide whether to replace the copy it holds. It has to be the
+    // *calendar's* clock rather than decided_at: an admin cancelling approved
+    // leave leaves the decision timestamp exactly where it was, so the entry
+    // that most needed to look changed was the one that looked untouched.
+    lastModified: revision.updatedAt,
   };
 }
 
 /**
- * Build the invitation for approved leave and hand it back for the approval
- * email to carry.
+ * The revision a row is currently published at, for reading rather than
+ * sending — the feed's view, where nothing is being advanced.
  *
- * Returns null whenever the integration is switched off, invites are disabled,
- * or the sequence bump failed — every one of which means "send the ordinary
- * email without an attachment", not "fail".
+ * Falls back through decided_at to created_at for rows written before
+ * migration 012, which is exactly the LAST-MODIFIED those rows carry today, so
+ * nothing already sitting correctly in a calendar is disturbed by the upgrade.
  */
-export async function buildApprovalCalendarAttachment(
+function currentRevision(leave: LeaveRow): Revision {
+  return {
+    sequence: leave.ics_sequence,
+    updatedAt: leave.ics_updated_at ?? leave.decided_at ?? leave.created_at ?? new Date().toISOString(),
+  };
+}
+
+/**
+ * Record that approved leave is now published, and hand back the invitation
+ * for the approval email to carry.
+ *
+ * Two jobs rather than one, and the order matters. The bookkeeping — advancing
+ * the sequence — happens whenever the integration is connected, *including*
+ * when invitation emails are switched off, because the subscription feed
+ * publishes this request at that same sequence and the withdrawal that may
+ * follow has to out-rank it. Gating the bump on `sendInvites`, as this used
+ * to, left feed-only workspaces stuck at sequence 0 forever: every booking and
+ * its own cancellation carried the same number, so no client would ever act on
+ * the cancellation.
+ *
+ * Returns null whenever the integration is switched off, invitations are
+ * disabled, or the sequence bump failed — every one of which means "send the
+ * ordinary email without an attachment", not "fail". The feed still carries
+ * the booking in all three cases.
+ */
+export async function publishApprovedLeave(
   leaveId: string
 ): Promise<CalendarAttachment | null> {
   try {
     const settings = await loadCalendarSettings();
-    if (!settings.connected || !settings.sendInvites) return null;
+    if (!settings.connected) return null;
 
     const loaded = await loadLeave(leaveId);
     if (!loaded) return null;
 
-    const sequence = await advanceEvent(loaded.leave, { withdrawing: false });
-    if (sequence === null) return null;
+    const revision = await advanceEvent(loaded.leave, { withdrawing: false });
+    if (revision === null) return null;
 
-    const event = toEvent(loaded.leave, loaded.person, sequence);
+    if (!settings.sendInvites) return null;
+
+    const event = toEvent(loaded.leave, loaded.person, revision);
     return {
       ics: buildInvite(event, organizerIdentity()),
       method: "REQUEST",
@@ -218,7 +337,7 @@ export async function buildApprovalCalendarAttachment(
         : undefined,
     };
   } catch (e) {
-    console.warn("[calendar] could not build approval invite:", e);
+    console.warn("[calendar] could not publish approved leave:", e);
     return null;
   }
 }
@@ -237,18 +356,21 @@ export type Occurrence = { startDate: string; endDate: string };
 /**
  * Everything a withdrawal needs, or null when there is nothing to withdraw.
  *
- * Returns null when the integration is disconnected, or when nothing was ever
- * sent for this request (sequence 0) — a CANCEL for a UID the client has never
- * seen is harmless but confusing, and it would put a stray attachment on the
+ * Returns null when the integration is disconnected, or when no calendar has
+ * ever been shown this request — a CANCEL for a UID the client has never seen
+ * is harmless but confusing, and it would put a stray attachment on the
  * rejection email for every pending request an admin turns down.
  *
  * Deliberately *not* gated on `sendInvites`, unlike the invitation path. That
  * switch governs whether new entries are created; a cancellation is cleanup
- * for one that already exists, proven by the non-zero sequence. Skipping it
- * because the switch has since been turned off would strand a day off in
- * somebody's calendar for leave that has been cancelled or moved — blocking
- * their availability for dates nobody has agreed to, with nothing in the app
- * to explain it.
+ * for one that already exists. Skipping it because the switch has since been
+ * turned off would strand a day off in somebody's calendar for leave that has
+ * been cancelled or moved — blocking their availability for dates nobody has
+ * agreed to, with nothing in the app to explain it.
+ *
+ * The sequence bump this performs is what the *feed* leans on too, and it
+ * happens even when no email is sent: from here on the request publishes as a
+ * tombstone, at a sequence that out-ranks the booking it revokes.
  *
  * Disconnecting the integration entirely is the one case that does stop this,
  * because the disconnect dialog explicitly promises entries already filed are
@@ -256,29 +378,39 @@ export type Occurrence = { startDate: string; endDate: string };
  */
 async function prepareCancellation(
   leaveId: string,
-  occurrence?: Occurrence
+  opts: { wasApproved: boolean; occurrence?: Occurrence }
 ): Promise<{
   calendar: CalendarAttachment & { method: "CANCEL" };
   person: { full_name: string; email: string };
   leave: LeaveRow;
 } | null> {
+  // Whether an event exists to withdraw is a question about the status this
+  // request held a moment ago, which only the caller knows — by the time this
+  // runs the row already says "cancelled". Asking the row would either miss a
+  // live entry or invent one: a request edited out of approved has already had
+  // its entry withdrawn, and cancelling it again would attach the revocation
+  // of an event nobody was ever sent.
+  if (!opts.wasApproved) return null;
+
   const settings = await loadCalendarSettings();
   if (!settings.connected) return null;
 
   const loaded = await loadLeave(leaveId);
   if (!loaded) return null;
-  if (loaded.leave.ics_sequence === 0) return null;
+  // Approved, but approved while the integration was switched off — so no feed
+  // ever carried it and no invitation was ever sent.
+  if (!everPublished(loaded.leave)) return null;
 
-  const sequence = await advanceEvent(loaded.leave, { withdrawing: true });
-  if (sequence === null) return null;
+  const revision = await advanceEvent(loaded.leave, { withdrawing: true });
+  if (revision === null) return null;
 
-  const event = toEvent(loaded.leave, loaded.person, sequence);
+  const event = toEvent(loaded.leave, loaded.person, revision);
   // Clients match a cancellation on UID, so this is not what makes the event
   // disappear — but a CANCEL should still mirror the event it revokes, and the
   // same dates go into the email the employee reads.
-  if (occurrence) {
-    event.startDate = occurrence.startDate;
-    event.endDate = occurrence.endDate;
+  if (opts.occurrence) {
+    event.startDate = opts.occurrence.startDate;
+    event.endDate = opts.occurrence.endDate;
   }
 
   return {
@@ -291,15 +423,21 @@ async function prepareCancellation(
 }
 
 /**
- * The cancellation attachment for an email that is going out anyway — an admin
- * cancelling approved leave, where the employee is already being told.
+ * Withdraw published leave, and hand back the cancellation for an email that
+ * is going out anyway — an admin cancelling approved leave, where the employee
+ * is already being told.
+ *
+ * Like its opposite number {@link publishApprovedLeave}, the bookkeeping is
+ * the part that always happens: the feed stops carrying this request as a
+ * booking and starts carrying it as a tombstone whether or not the returned
+ * attachment is used.
  */
-export async function buildCancellationCalendarAttachment(
+export async function withdrawApprovedLeave(
   leaveId: string,
-  occurrence?: Occurrence
+  opts: { wasApproved: boolean; occurrence?: Occurrence }
 ): Promise<CalendarAttachment | null> {
   try {
-    const prepared = await prepareCancellation(leaveId, occurrence);
+    const prepared = await prepareCancellation(leaveId, opts);
     return prepared?.calendar ?? null;
   } catch (e) {
     console.warn("[calendar] could not build cancellation:", e);
@@ -319,7 +457,9 @@ export async function withdrawCalendarEvent(
   occurrence: Occurrence
 ): Promise<void> {
   try {
-    const prepared = await prepareCancellation(leaveId, occurrence);
+    // Only ever called for leave that was approved a moment ago — editing a
+    // pending request changes nothing any calendar has seen.
+    const prepared = await prepareCancellation(leaveId, { wasApproved: true, occurrence });
     if (!prepared) return;
 
     await emailCalendarWithdrawn({
@@ -412,7 +552,38 @@ export async function regenerateFeedToken(userId: string): Promise<string | null
 }
 
 /**
- * Resolve a feed token to the person it belongs to, plus their approved leave.
+ * Resolve a feed token to the person it belongs to, plus every entry their
+ * calendar should be holding — and, just as importantly, every entry it should
+ * no longer be holding.
+ *
+ * Why cancellations are published rather than simply left out
+ * -----------------------------------------------------------
+ * This used to select approved leave and nothing else, so a cancelled day off
+ * was expressed as an absence: the event stopped appearing and each client was
+ * left to work out what that meant. Google Calendar and Apple Calendar
+ * reconcile against the whole document and delete what has gone, so they were
+ * right within a refresh. Outlook merges — it adds events it has not seen and
+ * updates ones it has, and an event that vanishes from the source is left in
+ * place indefinitely. The employee stayed marked out of office in Outlook and
+ * Teams for leave that had been cancelled, and re-subscribing was the only fix.
+ *
+ * So the feed now says it out loud. Anything the calendar might be holding
+ * that is no longer true is published as a STATUS:CANCELLED entry under the
+ * UID it was filed as, which is the one statement all three clients act on.
+ *
+ * Which UIDs get a tombstone
+ * --------------------------
+ * A request can have been filed under more than one UID over its life: every
+ * withdrawal moves its generation on, so an edited-and-re-approved booking is
+ * a genuinely new event and the old identity is left behind. Rather than track
+ * which of them a given client saw, the rule is simply that exactly one UID
+ * per request may be live and every other one is cancelled. Cancelling a UID a
+ * client never held is a no-op everywhere; missing one it does hold is the bug
+ * this exists to fix.
+ *
+ * Requests no calendar has ever seen — rejected while still pending, never
+ * approved — are left out entirely rather than tombstoned, so the document
+ * does not fill up with the withdrawal of things that never existed.
  *
  * The token is matched with a plain equality filter on a unique column, so a
  * wrong one finds nothing and the route answers 404 — no distinction is drawn
@@ -421,7 +592,7 @@ export async function regenerateFeedToken(userId: string): Promise<string | null
  */
 export async function loadFeedByToken(token: string): Promise<{
   person: { full_name: string };
-  events: LeaveEvent[];
+  entries: FeedEntry[];
 } | null> {
   const supabase = createAdminClient();
 
@@ -436,21 +607,61 @@ export async function loadFeedByToken(token: string): Promise<{
   // A rolling window rather than everything ever booked. Calendar clients
   // re-download the whole document on every poll, so last year onwards keeps
   // it small while still covering anything a person can still see or edit.
+  //
+  // It doubles as the retention period for tombstones, which is the reason to
+  // keep it this generous: a cancellation has to stay in the document long
+  // enough for every subscriber to poll at least once, and a laptop that was
+  // shut for a fortnight still has to hear about it.
   const from = `${new Date().getFullYear() - 1}-01-01`;
 
   const { data: rows } = await readLeave<LeaveRow[]>((columns) =>
     supabase
       .from("leave_requests")
+      // Every status, not just approved — a cancelled request is exactly the
+      // one this feed has something to say about.
       .select(columns)
       .eq("user_id", person.id)
-      .eq("status", "approved")
       .gte("end_date", from)
       .order("start_date", { ascending: true })
   );
 
-  const events = (rows ?? []).map((r) =>
-    toEvent(r, { full_name: person.full_name, email: person.email }, r.ics_sequence)
-  );
+  const identity = { full_name: person.full_name, email: person.email };
+  const entries = (rows ?? []).flatMap((row) => feedEntriesFor(row, identity));
 
-  return { person: { full_name: person.full_name }, events };
+  return { person: { full_name: person.full_name }, entries };
+}
+
+/**
+ * One request, as the calendar should see it: at most one live event, plus a
+ * tombstone for every other identity it has ever been filed under.
+ */
+function feedEntriesFor(
+  row: LeaveRow,
+  person: { full_name: string; email: string }
+): FeedEntry[] {
+  if (!everPublished(row)) return [];
+
+  const live = row.status === "approved";
+  const event = toEvent(row, person, currentRevision(row));
+  const entries: FeedEntry[] = live ? [event] : [];
+
+  // The generation counter moves on at the moment an entry is withdrawn, so a
+  // request that is no longer approved has already been stepped past the
+  // generation the calendar is holding — hence the inclusive bound here and
+  // the exclusive one for a live booking, whose own generation must not be
+  // cancelled out from under it.
+  const highest = live ? generationOf(row) - 1 : generationOf(row);
+  for (let generation = 0; generation <= highest; generation++) {
+    entries.push({
+      ...event,
+      generation,
+      cancelled: true,
+      // The dates are whatever the request says now, which for an edited
+      // booking is not where the old entry was filed. That is fine and cannot
+      // be otherwise: clients match a cancellation on UID alone, and the dates
+      // an abandoned generation was filed under are not recorded anywhere.
+    });
+  }
+
+  return entries;
 }

@@ -239,7 +239,7 @@ When leave is approved, the employee gets a calendar entry marking them out of o
 
 ### 10.1 Turning it on
 
-1. Run `supabase/migrations/010_calendar_integration.sql` and `011_calendar_event_generation.sql` in the Supabase SQL editor.
+1. Run `supabase/migrations/010_calendar_integration.sql`, `011_calendar_event_generation.sql` and `012_calendar_feed_mirror.sql` in the Supabase SQL editor.
 2. Set `NEXT_PUBLIC_SITE_URL` to the deployment's real address. Subscription links are built from it, so on a deploy where it still says `localhost` every link handed out is dead — the Integrations card warns when it spots this.
 3. Go to **Admin → Integrations → Calendar** and press **Connect**.
 
@@ -253,7 +253,7 @@ Both are on by default, and either can be switched off under **Edit** on the car
 
 **A calendar invitation, on approval.** The approval email the employee already receives carries the event as an iCalendar part. Google, Outlook, Teams and Apple Mail all recognise it and file the event themselves. This is the fast path — the entry appears within seconds — but it is one-shot: if the mail is deleted before the client processes it, nothing lands.
 
-Those emails go out over **SMTP** rather than Resend's HTTP API, and the reason is Outlook. Apple Mail and Gmail will act on a `text/calendar` *file attachment*; Outlook will not. Outlook only auto-processes an invitation or cancellation when the calendar document is an **alternative body part** of the message carrying `method=REQUEST` or `method=CANCEL` in its own `Content-Type`. Delivered as an attachment it is a file called `invite.ics` that somebody has to notice and open, which nobody does — so Outlook users were only ever being served by the subscription feed, and wondered why their leave took hours to appear and cancellations never removed anything.
+Those emails go out over **SMTP** rather than Resend's HTTP API, and the reason is Outlook. Apple Mail and Gmail will act on a `text/calendar` *file attachment*; Outlook will not. Outlook only auto-processes an invitation or cancellation when the calendar document is an **alternative body part** of the message carrying `method=REQUEST` or `method=CANCEL` in its own `Content-Type`. Delivered as an attachment it is a file called `invite.ics` that somebody has to notice and open, which nobody does — so Outlook users were only ever being served by the subscription feed, and wondered why their leave took hours to appear.
 
 Resend's send API accepts `attachments` and nothing else, so that structure cannot be expressed through it. Resend also speaks SMTP, where it can, so `lib/email-calendar-transport.ts` sends the three calendar-bearing emails through Nodemailer over `smtp.resend.com` — same provider, same `RESEND_API_KEY`, same verified sender, no new configuration. The `.ics` is still attached by name as well as inlined, so nothing is taken away from the clients that were already working. If SMTP fails for any reason the send falls back to the HTTP API, which is exactly where this stood before: a worse calendar experience, never a missing approval.
 
@@ -275,6 +275,8 @@ The link is a bearer credential — anyone holding it can see when that person i
 | Approved leave edited by the employee | Entry is withdrawn immediately, because the request has gone back to pending. A fresh one is sent when it is approved again |
 | Pending request cancelled | Nothing |
 
+Every one of those reaches a subscribed calendar as well as the mailbox, including the withdrawals — see *Why the feed publishes cancellations* below.
+
 Updates work because every event carries a `UID` and a `SEQUENCE` that only ever increases (`leave_requests.ics_sequence`). A calendar replaces an existing entry only when it sees the same UID with a higher sequence, so the count has to survive redeploys — which is why it lives in the database rather than being recomputed.
 
 The UID is stable *within one incarnation of an entry*, not for the life of the request, and the difference matters. A UID that has been cancelled is tombstoned by calendar clients: Google and Outlook both drop a later invitation carrying a UID they have already seen a cancellation for, rather than re-creating the entry. Re-using it meant the fourth row of that table quietly did not work — the withdrawal landed, and the fresh entry that should have followed re-approval never appeared.
@@ -282,6 +284,28 @@ The UID is stable *within one incarnation of an entry*, not for the life of the 
 So a second counter, `leave_requests.ics_generation`, moves forward every time an entry is withdrawn and forms part of the UID (`leave-<id>-r2@host`). Withdraw-and-return therefore describes a genuinely new event instead of trying to revive a dead one, while an ordinary in-place update keeps the UID it had. Generation 0 has no suffix on purpose: entries filed before this existed went out under that exact UID, and changing it would leave them beyond the reach of any future cancellation.
 
 Withdrawals are *not* gated on the **invitation** switch, unlike new entries. That switch governs whether entries are created; a withdrawal is cleanup for one that already exists. Skipping it because the switch had since been turned off would leave a day off blocking somebody's calendar for leave that had been cancelled or moved, with nothing in the app to explain it.
+
+The **sequence** is not gated on it either, and that is load-bearing rather than tidy. Advancing it is what guarantees a withdrawal out-ranks the booking it revokes, and the feed publishes at the same number the invitation would have. When it was bumped only on the invitation path, a workspace with invitations switched off left every request sitting at sequence 0 forever: the booking and its own cancellation carried the same number, so no client would ever act on the cancellation.
+
+#### Why the feed publishes cancellations instead of dropping them
+
+A subscribed calendar cannot be trusted to notice an absence, and the three clients disagree about it completely:
+
+| Client | An event that stops appearing in the feed |
+|---|---|
+| Google Calendar | Reconciled against the document and deleted |
+| Apple Calendar | Reconciled against the document and deleted |
+| Outlook / Teams | **Left in place indefinitely** — the sync merges, it does not replace |
+
+The feed used to contain approved leave and nothing else, so cancelling was expressed as an absence — the one signal Outlook does not read. Google and Apple were right within a refresh; Outlook kept the day off forever, still marking the person out of office for dates nobody had agreed to, and unsubscribing and re-subscribing was the only cure.
+
+So the feed states it instead. Anything a calendar might be holding that is no longer true is published as a `STATUS:CANCELLED` entry under the UID it was filed as, which is the one statement all three clients act on. A withdrawn entry also flips to `TRANSP:TRANSPARENT` and `X-MICROSOFT-CDO-BUSYSTATUS:FREE`, so a client stubborn enough to keep the row on screen at least stops blocking the person's availability with it.
+
+Because a request can be filed under more than one UID over its life — every withdrawal moves the generation on — the rule is simply that **exactly one UID per request may be live, and every other one is cancelled**. Cancelling a UID a client never held is a no-op everywhere; missing one it does hold is the bug. Requests no calendar has ever seen, rejected while still pending, are left out entirely rather than tombstoned.
+
+Tombstones stay for as long as the feed's rolling window — last year onwards — because a cancellation has to survive long enough for every subscriber to poll at least once, and a laptop that was shut for a fortnight still has to hear about it.
+
+The practical result is the one that matters: **subscribing once is permanent.** The feed is a mirror of what Blackbird Leave says, not a list of bookings, so an employee never has to re-subscribe to clear something stale.
 
 **Disconnecting does not remove entries already in people's calendars.** New approvals stop producing them and subscription links stop resolving, but mass-cancelling every future booking across the company is not something one click should do. Existing entries have to be removed by hand.
 
@@ -310,7 +334,8 @@ Invitations are sent as `PARTSTAT=ACCEPTED` with `RSVP=FALSE` — approved leave
 - **Invitations arrive in Outlook as an `invite.ics` attachment instead of filing themselves.** The SMTP path is not being used — check the logs for `calendar SMTP send failed, falling back to API`. Outbound port 465 has to be reachable from wherever the app runs. Everything still gets delivered; the event just has to be opened by hand, as it did before.
 - **The feed URL 404s.** Either the integration is disconnected, subscription links are switched off, or the link was regenerated — get the current one from the Account page.
 - **New leave doesn't show up in a subscribed Outlook calendar.** Almost always Outlook's refresh schedule rather than the feed. Microsoft syncs internet calendars on its own cadence — commonly a few hours, sometimes up to a day — and ignores the `REFRESH-INTERVAL` the feed asks for, so there is no way to push from this end. To tell the two apart, open the feed URL in a browser: if the leave is in that document, the app has done its job and Outlook simply hasn't re-read it. The invitation on approval is the path that reaches Outlook in seconds, which is why both exist and both default on.
-- **Leave that moved still shows at its old dates in Outlook.** That one *was* ours. Feed events now carry `CREATED` and `LAST-MODIFIED`; without them Outlook had no per-event reason to replace the copy it fetched first time, because a feed event's `SEQUENCE` never moves. Apple and Google diff the document itself, which is why it only ever showed up on Outlook.
+- **Leave that moved still shows at its old dates in Outlook.** That one *was* ours, twice over. Feed events carry `CREATED` and `LAST-MODIFIED` so Outlook has a per-event reason to replace the copy it fetched first time; `LAST-MODIFIED` comes from `leave_requests.ics_updated_at`, which moves whenever the calendar copy changes, rather than from `decided_at`, which stands still through a cancellation. And moved leave is a *withdrawal plus a new entry*, so the old one is now explicitly cancelled in the feed instead of being silently dropped.
+- **Cancelled leave is gone from Google and Apple but still blocks the day in Outlook.** Fixed. Outlook's internet-calendar sync merges rather than replaces, so an event that merely stopped being published stayed put forever; the feed now publishes an explicit cancellation for it. If it recurs, open the feed URL in a browser and look for a `STATUS:CANCELLED` block carrying that leave's `UID` — if it is there, the app has done its job and Outlook has not re-read the feed yet. Employees never need to re-subscribe to clear one.
 - **The feed link points at `localhost`.** `NEXT_PUBLIC_SITE_URL` isn't set to the deployment's address. Fix it in the Vercel project settings and redeploy; anyone already subscribed needs a fresh link from their account page, because the dead one fails quietly rather than reporting an error.
 - **Everything 404s and the logs say `column integration_settings.config does not exist`.** Migration 010 hasn't been run. Deploying the code first is safe; the feature stays off until the migration lands.
 - **Re-approved leave doesn't come back after an edit.** Migration 011 hasn't been run. The app falls back to the old single-UID behaviour rather than failing, which is exactly the behaviour that has this symptom.
@@ -348,13 +373,13 @@ lib/
   slack.ts               Slack wrapper + digest message builder
   slack-settings.ts      where the Slack connection is stored and resolved
   ics.ts                 iCalendar generation (invites, cancellations, feeds)
-  calendar.ts            sends and withdraws entries; mints feed tokens
+  calendar.ts            publishes and withdraws entries; builds the feed; mints feed tokens
   calendar-settings.ts   where the calendar configuration is stored
   whos-off.ts            who's on approved leave on a given date
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 011_calendar_event_generation.sql
+supabase/migrations/     001_init.sql … 012_calendar_feed_mirror.sql
 ```
 
 ---

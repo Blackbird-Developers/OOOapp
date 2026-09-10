@@ -45,7 +45,8 @@ export default async function AccountPage() {
               <span className="text-neutral-700">Apple Calendar</span> and{" "}
               <span className="text-neutral-700">Outlook&nbsp;/&nbsp;Teams</span> all file it on
               their own. Subscribe to the link below as well and your calendar keeps itself in
-              step, even if you miss an email.
+              step, even if you miss an email — leave that is later cancelled or moved clears
+              itself too. You only ever have to subscribe once.
             </p>
           </header>
 
