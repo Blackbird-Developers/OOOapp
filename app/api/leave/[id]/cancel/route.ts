@@ -61,22 +61,30 @@ async function cancelAsAdmin(
     .eq("id", row.user_id)
     .single();
 
-  if (employee) {
-    // Takes the day off back out of their calendar. Returns null when the
-    // request was still pending, because no event was ever sent for it.
-    const calendar = await buildCancellationCalendarAttachment(id);
+  // Best-effort, like every other mail in the app: the cancellation is already
+  // saved by this point, so a mail failure must not report it as a 500 the
+  // admin will read as "that didn't work" and try again. This was the one
+  // send left unguarded.
+  try {
+    if (employee) {
+      // Takes the day off back out of their calendar. Returns null when the
+      // request was still pending, because no event was ever sent for it.
+      const calendar = await buildCancellationCalendarAttachment(id);
 
-    await emailDecisionToEmployee({
-      to: employee.email,
-      employeeName: employee.full_name,
-      approved: false,
-      type: row.type,
-      startDate: row.start_date,
-      endDate: row.end_date,
-      days: Number(row.days_count),
-      note: "Cancelled by admin.",
-      calendar: calendar ?? undefined,
-    });
+      await emailDecisionToEmployee({
+        to: employee.email,
+        employeeName: employee.full_name,
+        approved: false,
+        type: row.type,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        days: Number(row.days_count),
+        note: "Cancelled by admin.",
+        calendar: calendar ?? undefined,
+      });
+    }
+  } catch (e) {
+    console.warn("[leave] admin cancellation email failed:", e);
   }
 
   return NextResponse.json({ ok: true });
