@@ -239,8 +239,9 @@ When leave is approved, the employee gets a calendar entry marking them out of o
 
 ### 10.1 Turning it on
 
-1. Run `supabase/migrations/010_calendar_integration.sql` in the Supabase SQL editor.
-2. Go to **Admin → Integrations → Calendar** and press **Connect**.
+1. Run `supabase/migrations/010_calendar_integration.sql` and `011_calendar_event_generation.sql` in the Supabase SQL editor.
+2. Set `NEXT_PUBLIC_SITE_URL` to the deployment's real address. Subscription links are built from it, so on a deploy where it still says `localhost` every link handed out is dead — the Integrations card warns when it spots this.
+3. Go to **Admin → Integrations → Calendar** and press **Connect**.
 
 That is the whole setup. There is no Google Cloud project, no Azure app registration, no OAuth consent screen and no per-user sign-in, because the integration does not call any vendor's API — see 10.4 for why that turned out to be the better design rather than a compromise.
 
@@ -266,7 +267,13 @@ Subscribing instructions per app are on the Account page itself. The link is a b
 | Approved leave edited by the employee | Entry is withdrawn immediately, because the request has gone back to pending. A fresh one is sent when it is approved again |
 | Pending request cancelled | Nothing |
 
-Updates work because every event carries a stable `UID` and a `SEQUENCE` that only ever increases (`leave_requests.ics_sequence`). A calendar replaces an existing entry only when it sees the same UID with a higher sequence, so the count has to survive redeploys — which is why it lives in the database rather than being recomputed.
+Updates work because every event carries a `UID` and a `SEQUENCE` that only ever increases (`leave_requests.ics_sequence`). A calendar replaces an existing entry only when it sees the same UID with a higher sequence, so the count has to survive redeploys — which is why it lives in the database rather than being recomputed.
+
+The UID is stable *within one incarnation of an entry*, not for the life of the request, and the difference matters. A UID that has been cancelled is tombstoned by calendar clients: Google and Outlook both drop a later invitation carrying a UID they have already seen a cancellation for, rather than re-creating the entry. Re-using it meant the fourth row of that table quietly did not work — the withdrawal landed, and the fresh entry that should have followed re-approval never appeared.
+
+So a second counter, `leave_requests.ics_generation`, moves forward every time an entry is withdrawn and forms part of the UID (`leave-<id>-r2@host`). Withdraw-and-return therefore describes a genuinely new event instead of trying to revive a dead one, while an ordinary in-place update keeps the UID it had. Generation 0 has no suffix on purpose: entries filed before this existed went out under that exact UID, and changing it would leave them beyond the reach of any future cancellation.
+
+Withdrawals are *not* gated on the **invitation** switch, unlike new entries. That switch governs whether entries are created; a withdrawal is cleanup for one that already exists. Skipping it because the switch had since been turned off would leave a day off blocking somebody's calendar for leave that had been cancelled or moved, with nothing in the app to explain it.
 
 **Disconnecting does not remove entries already in people's calendars.** New approvals stop producing them and subscription links stop resolving, but mass-cancelling every future booking across the company is not something one click should do. Existing entries have to be removed by hand.
 
@@ -293,8 +300,10 @@ Invitations are sent as `PARTSTAT=ACCEPTED` with `RSVP=FALSE` — approved leave
 
 - **No invitation email.** Invitations travel over Resend, so `RESEND_API_KEY` must be set. The Integrations card says so plainly when it isn't. Subscription links still work without it.
 - **The feed URL 404s.** Either the integration is disconnected, subscription links are switched off, or the link was regenerated — get the current one from the Account page.
+- **The feed link points at `localhost`.** `NEXT_PUBLIC_SITE_URL` isn't set to the deployment's address. Fix it in the Vercel project settings and redeploy; anyone already subscribed needs a fresh link from their account page, because the dead one fails quietly rather than reporting an error.
 - **Everything 404s and the logs say `column integration_settings.config does not exist`.** Migration 010 hasn't been run. Deploying the code first is safe; the feature stays off until the migration lands.
-- **The entry is a day short.** It shouldn't be — all-day `DTEND` is exclusive and there are tests for the single-day, year-boundary and leap-year cases — but that is the shape of the classic iCalendar bug if it ever resurfaces.
+- **Re-approved leave doesn't come back after an edit.** Migration 011 hasn't been run. The app falls back to the old single-UID behaviour rather than failing, which is exactly the behaviour that has this symptom.
+- **The entry is a day short.** It shouldn't be — all-day `DTEND` is exclusive, including across the single-day, year-boundary and leap-year cases — but that is the shape of the classic iCalendar bug if it ever resurfaces.
 
 ---
 
@@ -334,7 +343,7 @@ lib/
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 010_calendar_integration.sql
+supabase/migrations/     001_init.sql … 011_calendar_event_generation.sql
 ```
 
 ---

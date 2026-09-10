@@ -1,0 +1,57 @@
+-- =====================================================================
+-- Calendar: let a withdrawn entry come back.
+--
+-- The bug this fixes
+-- ------------------
+-- Editing approved leave sends it back to pending, and the entry sitting in
+-- the employee calendar is withdrawn with an iCalendar CANCEL. When an admin
+-- approves the new dates, a fresh invitation goes out -- carrying the same UID
+-- as the one just cancelled, because the UID was derived from the leave
+-- request id alone.
+--
+-- Calendar clients do not treat that as a new event. A UID that has been
+-- cancelled is tombstoned: Google Calendar and Outlook both drop a later
+-- REQUEST for it rather than re-creating the entry. So the withdrawal worked
+-- and the return silently did not, and the employee ended up with re-approved
+-- leave that never went back in their calendar.
+--
+-- The fix
+-- -------
+-- A generation counter per request. It moves forward every time an entry is
+-- withdrawn, and it is part of the UID, so the invitation that follows a
+-- cancellation describes a genuinely new event rather than trying to revive a
+-- dead one.
+--
+-- Column notes:
+--   leave_requests.ics_generation
+--                      Which incarnation of this request the calendar is
+--                      currently holding. Starts at 0 and is incremented at
+--                      the moment a CANCEL is built, never anywhere else.
+--
+--                      Generation 0 deliberately keeps the historical UID
+--                      spelling (leave-<id>@host, with no suffix). Entries
+--                      already filed in peoples calendars were sent under
+--                      that exact UID, and changing it would leave them
+--                      permanently unreachable -- no future cancellation
+--                      could ever address them again. Only generation 1 and
+--                      up carry the -rN suffix.
+--
+--                      Distinct from ics_sequence, which counts every copy of
+--                      an event ever sent, including in-place updates.
+--                      SEQUENCE says "this is a newer version of that event";
+--                      generation says "that event is gone, here is a
+--                      different one".
+--
+-- Safe to run on a live database: one nullable-free default, no rewrite of
+-- existing behaviour, and the app treats a missing column as generation 0, so
+-- deploying the code before running this is fine.
+--
+-- No apostrophes in these comments, on purpose -- the Supabase SQL editor
+-- splits statements client-side and reads a lone apostrophe as opening a
+-- string literal, which turns a harmless comment into a syntax error.
+--
+-- Run this in the Supabase SQL editor (after 010).
+-- =====================================================================
+
+alter table public.leave_requests
+  add column if not exists ics_generation integer not null default 0;

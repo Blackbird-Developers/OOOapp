@@ -77,7 +77,10 @@ export default function IntegrationCard({ integration }: { integration: Integrat
 
             {integration.slack && <SlackConnectForm initialChannel={integration.slack.channel} />}
             {integration.calendar && (
-              <CalendarConnectButton emailConfigured={integration.calendar.emailConfigured} />
+              <CalendarConnectButton
+                emailConfigured={integration.calendar.emailConfigured}
+                siteUrlUnset={integration.calendar.siteUrlUnset}
+              />
             )}
           </div>
         )}

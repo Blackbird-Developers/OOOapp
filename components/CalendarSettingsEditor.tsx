@@ -72,6 +72,16 @@ export default function CalendarSettingsEditor({
               <code>RESEND_API_KEY</code>, so none can be sent. Subscription feeds still work.
             </p>
           )}
+
+          {settings.siteUrlUnset && (
+            <p role="alert" className="mt-4 text-xs leading-relaxed text-amber-700">
+              <code>NEXT_PUBLIC_SITE_URL</code> isn&rsquo;t set to this deployment&rsquo;s address,
+              so subscription links are being handed out pointing at <code>localhost</code>. They
+              won&rsquo;t work for anyone, and a calendar already subscribed to one fails quietly
+              rather than reporting an error. Set it in the Vercel project settings and redeploy,
+              then have anyone already subscribed take a fresh link from their account page.
+            </p>
+          )}
         </div>
 
         <button

@@ -10,7 +10,13 @@ import { useRouter } from "next/navigation";
  * paste: no bot token, no cloud project, no OAuth handshake. The whole feature
  * rides on the iCalendar format and the mail transport the app already uses.
  */
-export default function CalendarConnectButton({ emailConfigured }: { emailConfigured: boolean }) {
+export default function CalendarConnectButton({
+  emailConfigured,
+  siteUrlUnset,
+}: {
+  emailConfigured: boolean;
+  siteUrlUnset: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +57,14 @@ export default function CalendarConnectButton({ emailConfigured }: { emailConfig
         <p className="text-xs leading-relaxed text-amber-700">
           This deployment has no <code>RESEND_API_KEY</code>, so invitation emails can&rsquo;t be
           sent. Subscription links will still work.
+        </p>
+      )}
+
+      {siteUrlUnset && (
+        <p className="text-xs leading-relaxed text-amber-700">
+          <code>NEXT_PUBLIC_SITE_URL</code> isn&rsquo;t set to this deployment&rsquo;s address, so
+          subscription links would point at <code>localhost</code> and reach nobody. Worth setting
+          it in the Vercel project settings before switching this on.
         </p>
       )}
 

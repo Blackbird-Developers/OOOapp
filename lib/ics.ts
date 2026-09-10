@@ -42,6 +42,12 @@ export type LeaveEvent = {
    * comes from the database rather than being recomputed.
    */
   sequence: number;
+  /**
+   * Which incarnation of this request the calendar is holding, from
+   * `leave_requests.ics_generation`. Part of the UID — see {@link eventUID}.
+   * Absent means 0, which is the historical UID spelling.
+   */
+  generation?: number;
 };
 
 export type OrganizerIdentity = {
@@ -68,9 +74,27 @@ function uidDomain(): string {
   }
 }
 
-/** Stable, collision-free identity for one leave request's event. */
-export function eventUID(leaveId: string): string {
-  return `leave-${leaveId}@${uidDomain()}`;
+/**
+ * Stable, collision-free identity for one leave request's event.
+ *
+ * Stable *within one incarnation*, which is the part that matters and the part
+ * that used to be wrong. A UID that has been cancelled is tombstoned by
+ * calendar clients: Google and Outlook both drop a later REQUEST carrying a
+ * UID they have already seen a CANCEL for, rather than re-creating the entry.
+ * So an edited-then-re-approved booking, which is withdrawn and then re-sent,
+ * needs a UID of its own or it silently never comes back.
+ *
+ * `generation` supplies that. It moves forward only when an entry is
+ * withdrawn, so an ordinary update — same event, higher SEQUENCE — still
+ * lands in place, and only a genuine re-creation gets a new identity.
+ *
+ * Generation 0 keeps the original spelling with no suffix, because entries
+ * already filed in people's calendars went out under exactly that UID and
+ * would become unreachable by any future cancellation if it changed.
+ */
+export function eventUID(leaveId: string, generation = 0): string {
+  const local = generation > 0 ? `leave-${leaveId}-r${generation}` : `leave-${leaveId}`;
+  return `${local}@${uidDomain()}`;
 }
 
 /**
@@ -219,7 +243,7 @@ type EventOptions = {
 function vevent(e: LeaveEvent, opts: EventOptions): string[] {
   const lines: string[] = [
     "BEGIN:VEVENT",
-    `UID:${eventUID(e.id)}`,
+    `UID:${eventUID(e.id, e.generation)}`,
     `DTSTAMP:${icsTimestamp(opts.stamp)}`,
     `DTSTART;VALUE=DATE:${toICSDate(e.startDate)}`,
     `DTEND;VALUE=DATE:${exclusiveEnd(e.endDate)}`,
