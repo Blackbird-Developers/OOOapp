@@ -73,6 +73,31 @@ function getTransport(): Transporter | null {
   return transport;
 }
 
+/**
+ * Can this deployment actually reach Resend over SMTP?
+ *
+ * Opens a connection and authenticates, then hangs up — no mail is sent. It
+ * exists because the failure this guards against is silent by design: a broken
+ * SMTP path falls back to the HTTP API, approvals keep arriving, and the only
+ * visible symptom is Outlook quietly ignoring the calendar again. Somebody
+ * would have to read the function logs to find out, so the Integrations page
+ * asks the question directly instead.
+ *
+ * Exercises the same module loading and egress as a real send, so it also
+ * catches Nodemailer having been mangled by the bundler rather than only a
+ * blocked port.
+ */
+export async function verifyCalendarSmtp(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const tx = getTransport();
+    if (!tx) return { ok: false, error: "RESEND_API_KEY is not set." };
+    await tx.verify();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export type CalendarMail = {
   from: string;
   to: string | string[];
