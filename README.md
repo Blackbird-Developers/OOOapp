@@ -255,7 +255,11 @@ Both are on by default, and either can be switched off under **Edit** on the car
 
 **A private subscription link.** Every employee has one on their **Account** page. They subscribe once and their calendar re-checks it forever, which repairs anything a missed invitation left behind. This is the slow path: Google refreshes subscribed calendars on its own schedule and can take several hours, Outlook likewise; Apple can be set to hourly.
 
-Subscribing instructions per app are on the Account page itself. The link is a bearer credential — anyone holding it can see when that person is off — so it is 32 random bytes, and **Create a new link** on the same page revokes the old one instantly.
+One click covers **Apple Calendar**, **Google Calendar** and **Outlook / Teams**, from the Account page and from the emails alike. A fourth link handles personal Outlook.com accounts, which live on a different Microsoft host that cannot be detected from our side — so both are offered rather than one being guessed at. Anything else is served by the copyable address, with per-app instructions on the Account page.
+
+Those buttons are all ordinary `https://` links back to `/api/calendar/<token>/subscribe?app=…`, which redirects to whatever the chosen app actually wants. The indirection is load-bearing: Apple needs a `webcal://` URL, and a `webcal://` href does not survive email. Gmail and most clients sanitise anchors whose scheme they do not recognise, so the button arrives as dead text — which is exactly why the Apple button used to work on the Account page and do nothing in the approval email. Keeping the vendor URL formats server-side has a second benefit: they can be corrected without reissuing emails that have already gone out.
+
+The link is a bearer credential — anyone holding it can see when that person is off — so it is 32 random bytes, and **Create a new link** on the same page revokes the old one instantly.
 
 ### 10.3 What happens when leave changes
 
@@ -300,6 +304,8 @@ Invitations are sent as `PARTSTAT=ACCEPTED` with `RSVP=FALSE` — approved leave
 
 - **No invitation email.** Invitations travel over Resend, so `RESEND_API_KEY` must be set. The Integrations card says so plainly when it isn't. Subscription links still work without it.
 - **The feed URL 404s.** Either the integration is disconnected, subscription links are switched off, or the link was regenerated — get the current one from the Account page.
+- **New leave doesn't show up in a subscribed Outlook calendar.** Almost always Outlook's refresh schedule rather than the feed. Microsoft syncs internet calendars on its own cadence — commonly a few hours, sometimes up to a day — and ignores the `REFRESH-INTERVAL` the feed asks for, so there is no way to push from this end. To tell the two apart, open the feed URL in a browser: if the leave is in that document, the app has done its job and Outlook simply hasn't re-read it. The invitation on approval is the path that reaches Outlook in seconds, which is why both exist and both default on.
+- **Leave that moved still shows at its old dates in Outlook.** That one *was* ours. Feed events now carry `CREATED` and `LAST-MODIFIED`; without them Outlook had no per-event reason to replace the copy it fetched first time, because a feed event's `SEQUENCE` never moves. Apple and Google diff the document itself, which is why it only ever showed up on Outlook.
 - **The feed link points at `localhost`.** `NEXT_PUBLIC_SITE_URL` isn't set to the deployment's address. Fix it in the Vercel project settings and redeploy; anyone already subscribed needs a fresh link from their account page, because the dead one fails quietly rather than reporting an error.
 - **Everything 404s and the logs say `column integration_settings.config does not exist`.** Migration 010 hasn't been run. Deploying the code first is safe; the feature stays off until the migration lands.
 - **Re-approved leave doesn't come back after an edit.** Migration 011 hasn't been run. The app falls back to the old single-UID behaviour rather than failing, which is exactly the behaviour that has this symptom.

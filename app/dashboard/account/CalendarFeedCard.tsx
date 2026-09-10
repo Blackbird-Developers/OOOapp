@@ -91,15 +91,20 @@ export default function CalendarFeedCard() {
   return (
     <div className="space-y-4">
       {/*
-        Apple and Google only. They are the two with an unambiguous one-click
-        URL — Outlook has separate hosts for personal and work accounts with no
-        way to tell which a person holds, so sending them to the wrong one
-        would land them on a sign-in page for an account they do not have. It
-        is served by the copyable address below instead.
+        Every href here is an ordinary https link back to this app, which
+        redirects to the vendor after the click. Linking to webcal:// directly
+        would work here and be stripped by mail clients, and having the account
+        page and the emails disagree about what a subscribe button is has
+        already cost one bug — see lib/calendar-links.ts.
+
+        Outlook gets the work-or-school host, which is what a company leave
+        tracker overwhelmingly lands on. Personal Outlook.com accounts are on a
+        different host that cannot be detected from here, so they are named
+        below rather than guessed at.
       */}
       <div className="flex flex-col gap-2 sm:flex-row">
-        <a href={links.webcal} className="btn-primary px-4 text-sm">
-          Add to Apple Calendar
+        <a href={links.apple} className="btn-primary px-4 text-sm">
+          Apple Calendar
         </a>
         <a
           href={links.google}
@@ -107,12 +112,30 @@ export default function CalendarFeedCard() {
           rel="noopener noreferrer"
           className="btn-secondary px-4 text-sm"
         >
-          Add to Google Calendar
+          Google Calendar
+        </a>
+        <a
+          href={links.outlook}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-secondary px-4 text-sm"
+        >
+          Outlook / Teams
         </a>
       </div>
 
       <p className="text-xs leading-relaxed text-neutral-500">
-        On Outlook, Teams or anything else, add the address below by hand.
+        The Outlook button is for a work or school account, which is also what Teams shows. On a
+        personal{" "}
+        <a
+          href={links.outlookPersonal}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-neutral-700 underline underline-offset-2 hover:text-neutral-900"
+        >
+          Outlook.com account
+        </a>{" "}
+        use this instead. Anywhere else, add the address below by hand.
       </p>
 
       <div className="flex flex-col gap-2 sm:flex-row">

@@ -48,6 +48,19 @@ export type LeaveEvent = {
    * Absent means 0, which is the historical UID spelling.
    */
   generation?: number;
+  /** When the request was first made. Emitted as CREATED. */
+  createdAt?: string | null;
+  /**
+   * When the request last changed, emitted as LAST-MODIFIED.
+   *
+   * How a subscribed calendar tells that an event it already holds has moved.
+   * Outlook in particular re-reads the whole feed and needs a per-event reason
+   * to replace what it has; with no LAST-MODIFIED and a SEQUENCE that never
+   * changes on the feed path, an edited booking can sit there at its old dates
+   * indefinitely. Apple and Google are more willing to diff the document
+   * itself, which is why this went unnoticed on those two.
+   */
+  lastModified?: string | null;
 };
 
 export type OrganizerIdentity = {
@@ -225,6 +238,19 @@ function icsTimestamp(d: Date = new Date()): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
+/**
+ * The same, from a database timestamp that may be null or unparseable.
+ *
+ * Returns null rather than throwing or emitting `Invalid Date`: these two
+ * properties are an optimisation for clients that use them, and one bad row
+ * must not take the whole feed down with it.
+ */
+function icsTimestampFrom(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : icsTimestamp(d);
+}
+
 // ---------------------------------------------------------------------------
 // VEVENT
 // ---------------------------------------------------------------------------
@@ -240,6 +266,16 @@ type EventOptions = {
   stamp?: Date;
 };
 
+/** CREATED and LAST-MODIFIED, for whichever of the two the row can supply. */
+function timestampLines(e: LeaveEvent): string[] {
+  const lines: string[] = [];
+  const created = icsTimestampFrom(e.createdAt);
+  if (created) lines.push(`CREATED:${created}`);
+  const modified = icsTimestampFrom(e.lastModified);
+  if (modified) lines.push(`LAST-MODIFIED:${modified}`);
+  return lines;
+}
+
 function vevent(e: LeaveEvent, opts: EventOptions): string[] {
   const lines: string[] = [
     "BEGIN:VEVENT",
@@ -251,6 +287,9 @@ function vevent(e: LeaveEvent, opts: EventOptions): string[] {
     `DESCRIPTION:${escapeText(descriptionFor(e))}`,
     `SEQUENCE:${e.sequence}`,
     `STATUS:${opts.status}`,
+    // How a subscribed calendar notices an event it already holds has moved.
+    // Without it Outlook keeps the copy it fetched the first time.
+    ...timestampLines(e),
     // OPAQUE means the time counts as busy. That is the point of the whole
     // feature: a day off should stop a colleague booking a meeting over it.
     "TRANSP:OPAQUE",

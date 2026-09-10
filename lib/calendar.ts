@@ -29,10 +29,12 @@ type LeaveRow = {
   ics_sequence: number;
   /** Undefined when migration 011 has not been run — treated as 0 throughout. */
   ics_generation?: number;
+  created_at: string | null;
+  decided_at: string | null;
 };
 
 const BASE_LEAVE_COLUMNS =
-  "id, user_id, start_date, end_date, half_start, half_end, days_count, status, ics_sequence";
+  "id, user_id, start_date, end_date, half_start, half_end, days_count, status, ics_sequence, created_at, decided_at";
 
 /**
  * Whether `leave_requests.ics_generation` exists yet.
@@ -173,6 +175,13 @@ function toEvent(leave: LeaveRow, person: { full_name: string; email: string }, 
     // cancellation, which has to address the event that exists rather than the
     // one the next approval will create.
     generation: generationOf(leave),
+    createdAt: leave.created_at,
+    // The decision is the last thing that happens to an approved request, and
+    // it moves again on every re-approval — so it is the honest answer to
+    // "when did this event last change" for a subscribed calendar deciding
+    // whether to replace the copy it holds. Falls back to creation for a row
+    // that somehow has no decision recorded.
+    lastModified: leave.decided_at ?? leave.created_at,
   };
 }
 
