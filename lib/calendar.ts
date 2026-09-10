@@ -27,13 +27,74 @@ type LeaveRow = {
   days_count: number;
   status: string;
   ics_sequence: number;
+  /** Undefined when migration 011 has not been run — treated as 0 throughout. */
+  ics_generation?: number;
+  created_at: string | null;
+  decided_at: string | null;
 };
 
-const LEAVE_COLUMNS =
-  "id, user_id, start_date, end_date, half_start, half_end, days_count, status, ics_sequence";
+const BASE_LEAVE_COLUMNS =
+  "id, user_id, start_date, end_date, half_start, half_end, days_count, status, ics_sequence, created_at, decided_at";
 
 /**
- * Move a request's SEQUENCE forward and return the new value.
+ * Whether `leave_requests.ics_generation` exists yet.
+ *
+ * Null until the first query answers the question. Migration 011 is run by
+ * hand in the Supabase SQL editor, exactly as 010 was, so the code has to work
+ * either side of it: deploying first and migrating later must not silently
+ * stop every calendar entry, which is what an unguarded select on a missing
+ * column would do.
+ */
+let hasGenerationColumn: boolean | null = null;
+
+function leaveColumns(): string {
+  return hasGenerationColumn === false
+    ? BASE_LEAVE_COLUMNS
+    : `${BASE_LEAVE_COLUMNS}, ics_generation`;
+}
+
+/** Postgres `undefined_column`. The one error we retry rather than report. */
+function isMissingColumn(error: { code?: string; message?: string }): boolean {
+  return error.code === "42703" || /ics_generation/.test(error.message ?? "");
+}
+
+/** A request's generation, with the pre-migration default. */
+function generationOf(leave: LeaveRow): number {
+  return leave.ics_generation ?? 0;
+}
+
+type QueryError = { code?: string; message?: string } | null;
+
+/**
+ * Run a `leave_requests` select, retrying once without `ics_generation` if the
+ * column turns out not to exist yet.
+ *
+ * The answer is remembered, so the retry happens at most once per process
+ * rather than on every read. Both readers below go through here for the same
+ * reason: either could be the first query after a deploy.
+ *
+ * The row type is asserted rather than inferred: the column list is chosen at
+ * runtime, so the client cannot know the shape, exactly as it could not when
+ * the list was a constant.
+ */
+async function readLeave<T>(
+  run: (columns: string) => PromiseLike<{ data: unknown; error: QueryError }>
+): Promise<{ data: T | null; error: QueryError }> {
+  let result = await run(leaveColumns());
+
+  if (result.error && hasGenerationColumn === null && isMissingColumn(result.error)) {
+    hasGenerationColumn = false;
+    result = await run(leaveColumns());
+  } else if (!result.error && hasGenerationColumn === null) {
+    hasGenerationColumn = true;
+  }
+
+  return { data: (result.data as T | null) ?? null, error: result.error };
+}
+
+/**
+ * Move a request's SEQUENCE forward, and its generation too when the event is
+ * being withdrawn. Returns the sequence to send at, or null to abort.
  *
  * Every outgoing copy of an event — invitation, update, cancellation — must
  * carry a strictly higher sequence than the last one, or calendar clients
@@ -43,19 +104,33 @@ const LEAVE_COLUMNS =
  * A side effect of that rule doubles as useful state: a sequence of 0 means
  * nothing has ever been sent for this request, so there is no event out there
  * to cancel.
+ *
+ * The generation moves only on withdrawal, and only the *stored* value moves —
+ * the cancellation being built still has to address the event the calendar is
+ * holding, so it goes out under the current generation. The next invitation
+ * then picks up the new one and describes a new event rather than trying to
+ * revive a UID the client has tombstoned.
  */
-async function bumpSequence(leaveId: string, current: number): Promise<number> {
-  const next = current + 1;
+async function advanceEvent(
+  leave: LeaveRow,
+  opts: { withdrawing: boolean }
+): Promise<number | null> {
+  const next = leave.ics_sequence + 1;
+  const patch: Record<string, number> = { ics_sequence: next };
+
+  // Only written when the column is known to exist. Including it otherwise
+  // would fail the whole update and take the sequence bump down with it.
+  if (opts.withdrawing && hasGenerationColumn) {
+    patch.ics_generation = generationOf(leave) + 1;
+  }
+
   const supabase = createAdminClient();
-  const { error } = await supabase
-    .from("leave_requests")
-    .update({ ics_sequence: next })
-    .eq("id", leaveId);
+  const { error } = await supabase.from("leave_requests").update(patch).eq("id", leave.id);
   if (error) {
-    console.error("[calendar] could not bump ics_sequence:", error.message);
+    console.error("[calendar] could not advance the event:", error.message);
     // Returning the un-bumped value would re-send at a sequence the client has
     // already seen, which silently does nothing. Better to abort the send.
-    return -1;
+    return null;
   }
   return next;
 }
@@ -65,11 +140,10 @@ async function loadLeave(leaveId: string): Promise<{
   person: { full_name: string; email: string };
 } | null> {
   const supabase = createAdminClient();
-  const { data: leave, error } = await supabase
-    .from("leave_requests")
-    .select(LEAVE_COLUMNS)
-    .eq("id", leaveId)
-    .maybeSingle();
+
+  const { data: leave, error } = await readLeave<LeaveRow>((columns) =>
+    supabase.from("leave_requests").select(columns).eq("id", leaveId).maybeSingle()
+  );
 
   if (error || !leave) {
     if (error) console.error("[calendar] could not read leave request:", error.message);
@@ -97,6 +171,17 @@ function toEvent(leave: LeaveRow, person: { full_name: string; email: string }, 
     halfEnd: leave.half_end,
     days: Number(leave.days_count),
     sequence,
+    // Always the generation the calendar is currently holding — including on a
+    // cancellation, which has to address the event that exists rather than the
+    // one the next approval will create.
+    generation: generationOf(leave),
+    createdAt: leave.created_at,
+    // The decision is the last thing that happens to an approved request, and
+    // it moves again on every re-approval — so it is the honest answer to
+    // "when did this event last change" for a subscribed calendar deciding
+    // whether to replace the copy it holds. Falls back to creation for a row
+    // that somehow has no decision recorded.
+    lastModified: leave.decided_at ?? leave.created_at,
   };
 }
 
@@ -118,8 +203,8 @@ export async function buildApprovalCalendarAttachment(
     const loaded = await loadLeave(leaveId);
     if (!loaded) return null;
 
-    const sequence = await bumpSequence(leaveId, loaded.leave.ics_sequence);
-    if (sequence < 0) return null;
+    const sequence = await advanceEvent(loaded.leave, { withdrawing: false });
+    if (sequence === null) return null;
 
     const event = toEvent(loaded.leave, loaded.person, sequence);
     return {
@@ -152,11 +237,22 @@ export type Occurrence = { startDate: string; endDate: string };
 /**
  * Everything a withdrawal needs, or null when there is nothing to withdraw.
  *
- * Returns null when the integration is off, when invitations are disabled, or
- * when nothing was ever sent for this request (sequence 0) — a CANCEL for a
- * UID the client has never seen is harmless but confusing, and it would put a
- * stray attachment on the rejection email for every pending request an admin
- * turns down.
+ * Returns null when the integration is disconnected, or when nothing was ever
+ * sent for this request (sequence 0) — a CANCEL for a UID the client has never
+ * seen is harmless but confusing, and it would put a stray attachment on the
+ * rejection email for every pending request an admin turns down.
+ *
+ * Deliberately *not* gated on `sendInvites`, unlike the invitation path. That
+ * switch governs whether new entries are created; a cancellation is cleanup
+ * for one that already exists, proven by the non-zero sequence. Skipping it
+ * because the switch has since been turned off would strand a day off in
+ * somebody's calendar for leave that has been cancelled or moved — blocking
+ * their availability for dates nobody has agreed to, with nothing in the app
+ * to explain it.
+ *
+ * Disconnecting the integration entirely is the one case that does stop this,
+ * because the disconnect dialog explicitly promises entries already filed are
+ * left alone.
  */
 async function prepareCancellation(
   leaveId: string,
@@ -167,14 +263,14 @@ async function prepareCancellation(
   leave: LeaveRow;
 } | null> {
   const settings = await loadCalendarSettings();
-  if (!settings.connected || !settings.sendInvites) return null;
+  if (!settings.connected) return null;
 
   const loaded = await loadLeave(leaveId);
   if (!loaded) return null;
   if (loaded.leave.ics_sequence === 0) return null;
 
-  const sequence = await bumpSequence(leaveId, loaded.leave.ics_sequence);
-  if (sequence < 0) return null;
+  const sequence = await advanceEvent(loaded.leave, { withdrawing: true });
+  if (sequence === null) return null;
 
   const event = toEvent(loaded.leave, loaded.person, sequence);
   // Clients match a cancellation on UID, so this is not what makes the event
@@ -342,15 +438,17 @@ export async function loadFeedByToken(token: string): Promise<{
   // it small while still covering anything a person can still see or edit.
   const from = `${new Date().getFullYear() - 1}-01-01`;
 
-  const { data: rows } = await supabase
-    .from("leave_requests")
-    .select(LEAVE_COLUMNS)
-    .eq("user_id", person.id)
-    .eq("status", "approved")
-    .gte("end_date", from)
-    .order("start_date", { ascending: true });
+  const { data: rows } = await readLeave<LeaveRow[]>((columns) =>
+    supabase
+      .from("leave_requests")
+      .select(columns)
+      .eq("user_id", person.id)
+      .eq("status", "approved")
+      .gte("end_date", from)
+      .order("start_date", { ascending: true })
+  );
 
-  const events = ((rows ?? []) as LeaveRow[]).map((r) =>
+  const events = (rows ?? []).map((r) =>
     toEvent(r, { full_name: person.full_name, email: person.email }, r.ics_sequence)
   );
 

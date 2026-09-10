@@ -42,6 +42,25 @@ export type LeaveEvent = {
    * comes from the database rather than being recomputed.
    */
   sequence: number;
+  /**
+   * Which incarnation of this request the calendar is holding, from
+   * `leave_requests.ics_generation`. Part of the UID — see {@link eventUID}.
+   * Absent means 0, which is the historical UID spelling.
+   */
+  generation?: number;
+  /** When the request was first made. Emitted as CREATED. */
+  createdAt?: string | null;
+  /**
+   * When the request last changed, emitted as LAST-MODIFIED.
+   *
+   * How a subscribed calendar tells that an event it already holds has moved.
+   * Outlook in particular re-reads the whole feed and needs a per-event reason
+   * to replace what it has; with no LAST-MODIFIED and a SEQUENCE that never
+   * changes on the feed path, an edited booking can sit there at its old dates
+   * indefinitely. Apple and Google are more willing to diff the document
+   * itself, which is why this went unnoticed on those two.
+   */
+  lastModified?: string | null;
 };
 
 export type OrganizerIdentity = {
@@ -68,9 +87,27 @@ function uidDomain(): string {
   }
 }
 
-/** Stable, collision-free identity for one leave request's event. */
-export function eventUID(leaveId: string): string {
-  return `leave-${leaveId}@${uidDomain()}`;
+/**
+ * Stable, collision-free identity for one leave request's event.
+ *
+ * Stable *within one incarnation*, which is the part that matters and the part
+ * that used to be wrong. A UID that has been cancelled is tombstoned by
+ * calendar clients: Google and Outlook both drop a later REQUEST carrying a
+ * UID they have already seen a CANCEL for, rather than re-creating the entry.
+ * So an edited-then-re-approved booking, which is withdrawn and then re-sent,
+ * needs a UID of its own or it silently never comes back.
+ *
+ * `generation` supplies that. It moves forward only when an entry is
+ * withdrawn, so an ordinary update — same event, higher SEQUENCE — still
+ * lands in place, and only a genuine re-creation gets a new identity.
+ *
+ * Generation 0 keeps the original spelling with no suffix, because entries
+ * already filed in people's calendars went out under exactly that UID and
+ * would become unreachable by any future cancellation if it changed.
+ */
+export function eventUID(leaveId: string, generation = 0): string {
+  const local = generation > 0 ? `leave-${leaveId}-r${generation}` : `leave-${leaveId}`;
+  return `${local}@${uidDomain()}`;
 }
 
 /**
@@ -201,6 +238,19 @@ function icsTimestamp(d: Date = new Date()): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
+/**
+ * The same, from a database timestamp that may be null or unparseable.
+ *
+ * Returns null rather than throwing or emitting `Invalid Date`: these two
+ * properties are an optimisation for clients that use them, and one bad row
+ * must not take the whole feed down with it.
+ */
+function icsTimestampFrom(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : icsTimestamp(d);
+}
+
 // ---------------------------------------------------------------------------
 // VEVENT
 // ---------------------------------------------------------------------------
@@ -216,10 +266,20 @@ type EventOptions = {
   stamp?: Date;
 };
 
+/** CREATED and LAST-MODIFIED, for whichever of the two the row can supply. */
+function timestampLines(e: LeaveEvent): string[] {
+  const lines: string[] = [];
+  const created = icsTimestampFrom(e.createdAt);
+  if (created) lines.push(`CREATED:${created}`);
+  const modified = icsTimestampFrom(e.lastModified);
+  if (modified) lines.push(`LAST-MODIFIED:${modified}`);
+  return lines;
+}
+
 function vevent(e: LeaveEvent, opts: EventOptions): string[] {
   const lines: string[] = [
     "BEGIN:VEVENT",
-    `UID:${eventUID(e.id)}`,
+    `UID:${eventUID(e.id, e.generation)}`,
     `DTSTAMP:${icsTimestamp(opts.stamp)}`,
     `DTSTART;VALUE=DATE:${toICSDate(e.startDate)}`,
     `DTEND;VALUE=DATE:${exclusiveEnd(e.endDate)}`,
@@ -227,6 +287,9 @@ function vevent(e: LeaveEvent, opts: EventOptions): string[] {
     `DESCRIPTION:${escapeText(descriptionFor(e))}`,
     `SEQUENCE:${e.sequence}`,
     `STATUS:${opts.status}`,
+    // How a subscribed calendar notices an event it already holds has moved.
+    // Without it Outlook keeps the copy it fetched the first time.
+    ...timestampLines(e),
     // OPAQUE means the time counts as busy. That is the point of the whole
     // feature: a day off should stop a colleague booking a meeting over it.
     "TRANSP:OPAQUE",

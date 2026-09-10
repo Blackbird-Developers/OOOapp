@@ -239,8 +239,9 @@ When leave is approved, the employee gets a calendar entry marking them out of o
 
 ### 10.1 Turning it on
 
-1. Run `supabase/migrations/010_calendar_integration.sql` in the Supabase SQL editor.
-2. Go to **Admin → Integrations → Calendar** and press **Connect**.
+1. Run `supabase/migrations/010_calendar_integration.sql` and `011_calendar_event_generation.sql` in the Supabase SQL editor.
+2. Set `NEXT_PUBLIC_SITE_URL` to the deployment's real address. Subscription links are built from it, so on a deploy where it still says `localhost` every link handed out is dead — the Integrations card warns when it spots this.
+3. Go to **Admin → Integrations → Calendar** and press **Connect**.
 
 That is the whole setup. There is no Google Cloud project, no Azure app registration, no OAuth consent screen and no per-user sign-in, because the integration does not call any vendor's API — see 10.4 for why that turned out to be the better design rather than a compromise.
 
@@ -254,7 +255,11 @@ Both are on by default, and either can be switched off under **Edit** on the car
 
 **A private subscription link.** Every employee has one on their **Account** page. They subscribe once and their calendar re-checks it forever, which repairs anything a missed invitation left behind. This is the slow path: Google refreshes subscribed calendars on its own schedule and can take several hours, Outlook likewise; Apple can be set to hourly.
 
-Subscribing instructions per app are on the Account page itself. The link is a bearer credential — anyone holding it can see when that person is off — so it is 32 random bytes, and **Create a new link** on the same page revokes the old one instantly.
+One click covers **Apple Calendar**, **Google Calendar** and **Outlook / Teams**, from the Account page and from the emails alike. A fourth link handles personal Outlook.com accounts, which live on a different Microsoft host that cannot be detected from our side — so both are offered rather than one being guessed at. Anything else is served by the copyable address, with per-app instructions on the Account page.
+
+Those buttons are all ordinary `https://` links back to `/api/calendar/<token>/subscribe?app=…`, which redirects to whatever the chosen app actually wants. The indirection is load-bearing: Apple needs a `webcal://` URL, and a `webcal://` href does not survive email. Gmail and most clients sanitise anchors whose scheme they do not recognise, so the button arrives as dead text — which is exactly why the Apple button used to work on the Account page and do nothing in the approval email. Keeping the vendor URL formats server-side has a second benefit: they can be corrected without reissuing emails that have already gone out.
+
+The link is a bearer credential — anyone holding it can see when that person is off — so it is 32 random bytes, and **Create a new link** on the same page revokes the old one instantly.
 
 ### 10.3 What happens when leave changes
 
@@ -266,7 +271,13 @@ Subscribing instructions per app are on the Account page itself. The link is a b
 | Approved leave edited by the employee | Entry is withdrawn immediately, because the request has gone back to pending. A fresh one is sent when it is approved again |
 | Pending request cancelled | Nothing |
 
-Updates work because every event carries a stable `UID` and a `SEQUENCE` that only ever increases (`leave_requests.ics_sequence`). A calendar replaces an existing entry only when it sees the same UID with a higher sequence, so the count has to survive redeploys — which is why it lives in the database rather than being recomputed.
+Updates work because every event carries a `UID` and a `SEQUENCE` that only ever increases (`leave_requests.ics_sequence`). A calendar replaces an existing entry only when it sees the same UID with a higher sequence, so the count has to survive redeploys — which is why it lives in the database rather than being recomputed.
+
+The UID is stable *within one incarnation of an entry*, not for the life of the request, and the difference matters. A UID that has been cancelled is tombstoned by calendar clients: Google and Outlook both drop a later invitation carrying a UID they have already seen a cancellation for, rather than re-creating the entry. Re-using it meant the fourth row of that table quietly did not work — the withdrawal landed, and the fresh entry that should have followed re-approval never appeared.
+
+So a second counter, `leave_requests.ics_generation`, moves forward every time an entry is withdrawn and forms part of the UID (`leave-<id>-r2@host`). Withdraw-and-return therefore describes a genuinely new event instead of trying to revive a dead one, while an ordinary in-place update keeps the UID it had. Generation 0 has no suffix on purpose: entries filed before this existed went out under that exact UID, and changing it would leave them beyond the reach of any future cancellation.
+
+Withdrawals are *not* gated on the **invitation** switch, unlike new entries. That switch governs whether entries are created; a withdrawal is cleanup for one that already exists. Skipping it because the switch had since been turned off would leave a day off blocking somebody's calendar for leave that had been cancelled or moved, with nothing in the app to explain it.
 
 **Disconnecting does not remove entries already in people's calendars.** New approvals stop producing them and subscription links stop resolving, but mass-cancelling every future booking across the company is not something one click should do. Existing entries have to be removed by hand.
 
@@ -293,8 +304,12 @@ Invitations are sent as `PARTSTAT=ACCEPTED` with `RSVP=FALSE` — approved leave
 
 - **No invitation email.** Invitations travel over Resend, so `RESEND_API_KEY` must be set. The Integrations card says so plainly when it isn't. Subscription links still work without it.
 - **The feed URL 404s.** Either the integration is disconnected, subscription links are switched off, or the link was regenerated — get the current one from the Account page.
+- **New leave doesn't show up in a subscribed Outlook calendar.** Almost always Outlook's refresh schedule rather than the feed. Microsoft syncs internet calendars on its own cadence — commonly a few hours, sometimes up to a day — and ignores the `REFRESH-INTERVAL` the feed asks for, so there is no way to push from this end. To tell the two apart, open the feed URL in a browser: if the leave is in that document, the app has done its job and Outlook simply hasn't re-read it. The invitation on approval is the path that reaches Outlook in seconds, which is why both exist and both default on.
+- **Leave that moved still shows at its old dates in Outlook.** That one *was* ours. Feed events now carry `CREATED` and `LAST-MODIFIED`; without them Outlook had no per-event reason to replace the copy it fetched first time, because a feed event's `SEQUENCE` never moves. Apple and Google diff the document itself, which is why it only ever showed up on Outlook.
+- **The feed link points at `localhost`.** `NEXT_PUBLIC_SITE_URL` isn't set to the deployment's address. Fix it in the Vercel project settings and redeploy; anyone already subscribed needs a fresh link from their account page, because the dead one fails quietly rather than reporting an error.
 - **Everything 404s and the logs say `column integration_settings.config does not exist`.** Migration 010 hasn't been run. Deploying the code first is safe; the feature stays off until the migration lands.
-- **The entry is a day short.** It shouldn't be — all-day `DTEND` is exclusive and there are tests for the single-day, year-boundary and leap-year cases — but that is the shape of the classic iCalendar bug if it ever resurfaces.
+- **Re-approved leave doesn't come back after an edit.** Migration 011 hasn't been run. The app falls back to the old single-UID behaviour rather than failing, which is exactly the behaviour that has this symptom.
+- **The entry is a day short.** It shouldn't be — all-day `DTEND` is exclusive, including across the single-day, year-boundary and leap-year cases — but that is the shape of the classic iCalendar bug if it ever resurfaces.
 
 ---
 
@@ -334,7 +349,7 @@ lib/
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 010_calendar_integration.sql
+supabase/migrations/     001_init.sql … 011_calendar_event_generation.sql
 ```
 
 ---

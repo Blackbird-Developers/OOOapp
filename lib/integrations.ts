@@ -88,6 +88,17 @@ export type CalendarPanel = {
   emailConfigured: boolean;
   /** The ORGANIZER address recipients will see. */
   organizerEmail: string;
+  /**
+   * `NEXT_PUBLIC_SITE_URL` is missing or still points at localhost.
+   *
+   * Worse here than anywhere else it is used. Elsewhere a wrong site URL
+   * produces a dead link in an email somebody can ignore; here it is baked
+   * into the subscription address people paste into their calendar and keep,
+   * and into the UID of every event ever sent. Both fail silently — the feed
+   * simply never updates — so the only place it can realistically be caught
+   * is on this card.
+   */
+  siteUrlUnset: boolean;
 };
 
 export async function listIntegrations(): Promise<Integration[]> {
@@ -151,6 +162,15 @@ async function calendarIntegration(): Promise<Integration> {
   const organizer = organizerIdentity();
   const emailConfigured = !!process.env.RESEND_API_KEY;
 
+  // Treated as unset when it is still the localhost default, because that is
+  // what a Vercel deploy that never had the variable filled in looks like.
+  // Not while developing, though — there localhost is the correct answer, and
+  // a warning that is wrong every time you see it teaches you to ignore it.
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const siteUrlUnset =
+    process.env.NODE_ENV !== "development" &&
+    (!site || /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(site));
+
   return {
     id: "calendar",
     name: "Calendar",
@@ -179,6 +199,7 @@ async function calendarIntegration(): Promise<Integration> {
       managedInApp: settings.managedInApp,
       emailConfigured,
       organizerEmail: organizer.email,
+      siteUrlUnset,
     },
   };
 }

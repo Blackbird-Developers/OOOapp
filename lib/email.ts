@@ -147,35 +147,45 @@ function buttonRow(buttons: Array<{ href: string; label: string; primary?: boole
 }
 
 /**
- * The two one-click subscribe buttons, plus the URL in plain sight.
+ * The one-click subscribe buttons, plus the URL in plain sight.
  *
- * The buttons cover Apple and Google, the only two with an unambiguous
- * one-click URL. Outlook has two different hosts for personal and work
- * accounts and no way to tell which a reader holds, so it is served by the
- * copyable URL underneath rather than by a button that lands half of them on a
- * sign-in page for the wrong account.
+ * Apple, Google and Outlook each get a button. Every href is an ordinary
+ * https link back to this app, which redirects to the vendor after the click —
+ * see lib/calendar-links.ts. Linking to `webcal://` directly is what mail
+ * clients strip, and it is why the Apple button used to do nothing here while
+ * working perfectly on the account page.
+ *
+ * The Outlook button goes to the work-or-school host, which is the one a
+ * company leave tracker overwhelmingly lands on. Personal Outlook.com accounts
+ * live on a different host that cannot be detected from here, so they get a
+ * named text link rather than a button that would send the majority to a
+ * sign-in page for an account they do not have.
  */
 function subscribeBlock(feedUrl: string, opts: { showAddress: boolean }): string {
   const links = subscribeLinks(feedUrl);
+
+  const personal = `<a href="${links.outlookPersonal}" style="color:#6366f1;text-decoration:none">personal Outlook.com account</a>`;
 
   // The raw address earns its space in the one-off setup email, where somebody
   // is sitting down to do this. Repeating it in every approval for the rest of
   // their employment would just be a wall of hex under a day off.
   const address = opts.showAddress
     ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#64748b">
-         On Outlook or anything else, add this address by hand
-         (Add calendar &rarr; Subscribe from web):<br />
+         Got a ${personal}? Use that link instead. To add it by hand anywhere
+         else (Add calendar &rarr; Subscribe from web):<br />
          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#334155;word-break:break-all">${feedUrl}</span>
        </p>`
     : `<p style="margin:10px 0 0;font-size:12px;line-height:18px;color:#64748b">
-         On Outlook or Teams, the address to paste is on
+         Got a ${personal}? Use that link instead. Every option, and the
+         address to paste by hand, is on
          <a href="${SITE}/dashboard/account" style="color:#6366f1">your account page</a>.
        </p>`;
 
   return `
     ${buttonRow([
-      { href: links.webcal, label: "Add to Apple Calendar", primary: true },
-      { href: links.google, label: "Add to Google Calendar" },
+      { href: links.apple, label: "Apple Calendar", primary: true },
+      { href: links.google, label: "Google Calendar" },
+      { href: links.outlook, label: "Outlook / Teams" },
     ])}
     ${address}`;
 }
