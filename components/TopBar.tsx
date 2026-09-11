@@ -3,11 +3,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Profile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/browser";
 
 type NavItem = { href: string; label: string; badge?: number };
+type NavGroup = { label: string; items: NavItem[] };
+
+const ACCOUNT_LINK: NavItem = { href: "/dashboard/account", label: "Account" };
+
+// Bar links and menu triggers share one look so they read as a single row.
+const barItemCls =
+  "rounded-md px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900";
+const menuItemCls =
+  "flex items-center rounded-lg px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition";
 
 export default function TopBar({ profile }: { profile: Profile }) {
   const isAdmin = profile.role === "admin";
@@ -86,26 +95,45 @@ export default function TopBar({ profile }: { profile: Profile }) {
     };
   }, [pathname, profile.id, isAdmin]);
 
+  // The logo is the way home (the calendar overview), so neither nav repeats
+  // it. Admins keep the two pages they open most on the bar; the rest sit one
+  // click away in two menus, and Account moves under the avatar beside Sign
+  // out. The four-link staff nav is short enough to stay flat.
   const links: NavItem[] = isAdmin
     ? [
-        { href: "/admin", label: "Calendar" },
         { href: "/admin/whos-off", label: "Who's off" },
         { href: "/admin/requests", label: "Requests", badge: pendingCount },
-        { href: "/admin/employees", label: "Employees" },
-        { href: "/admin/hierarchy", label: "Hierarchy" },
-        { href: "/admin/invites", label: "Invites" },
-        { href: "/admin/holidays", label: "Holidays" },
-        { href: "/admin/integrations", label: "Integrations" },
-        { href: "/admin/settings", label: "Settings" },
-        { href: "/dashboard/account", label: "Account" },
       ]
     : [
-        { href: "/dashboard", label: "Who's off" },
         { href: "/dashboard/request", label: "Request leave" },
         { href: "/dashboard/my-requests", label: "My requests", badge: decisionCount },
-        { href: "/dashboard/account", label: "Account" },
+        ACCOUNT_LINK,
         { href: "/dashboard/help", label: "Help" },
       ];
+  const groups: NavGroup[] = isAdmin
+    ? [
+        {
+          label: "People",
+          items: [
+            { href: "/admin/employees", label: "Employees" },
+            { href: "/admin/hierarchy", label: "Hierarchy" },
+            { href: "/admin/invites", label: "Invites" },
+          ],
+        },
+        {
+          label: "Workspace",
+          items: [
+            { href: "/admin/holidays", label: "Holidays" },
+            { href: "/admin/integrations", label: "Integrations" },
+            { href: "/admin/settings", label: "Settings" },
+          ],
+        },
+      ]
+    : [];
+  // The drawer has room for everything, so it keeps one flat list.
+  const drawerLinks = isAdmin
+    ? [...links, ...groups.flatMap((g) => g.items), ACCOUNT_LINK]
+    : links;
 
   // Close on Escape, lock body scroll, focus the first interactive element on
   // open, trap focus inside the drawer, and restore focus to the hamburger
@@ -153,21 +181,26 @@ export default function TopBar({ profile }: { profile: Profile }) {
   // Total count for the hamburger dot.
   const hamburgerCount = isAdmin ? pendingCount : decisionCount;
 
-  // Where the bar gives way to the drawer. The admin nav carries ten links
-  // and needs about 1200px next to the logo, which the `max-w-7xl` header
-  // container only affords from `xl` up; the five-link staff nav fits from
-  // `md` as it always has. Full literal class strings, so Tailwind's scanner
-  // keeps them.
-  const desktopNavCls = isAdmin ? "hidden xl:flex" : "hidden md:flex";
-  const drawerOnlyCls = isAdmin ? "xl:hidden" : "md:hidden";
+  // Where the bar gives way to the drawer, kept in one place for the five
+  // elements that switch on it. With home left to the logo and the admin
+  // pages grouped into menus, logo, links and account all fit side by side
+  // from `md` up. Full literal class strings, so Tailwind's scanner keeps
+  // them.
+  const desktopNavCls = "hidden md:flex";
+  const drawerOnlyCls = "md:hidden";
 
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
+        {/* Logo left, links centered, account right. From `lg` a 1fr/auto/1fr
+            grid puts the links on the page's true center; below that there is
+            no room to spare, so they center between logo and account. */}
+        <div className="max-w-7xl mx-auto flex items-center justify-between lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-x-6 px-4 sm:px-6 h-14">
+          {/* The only link home, so its name says so. */}
           <Link
             href={isAdmin ? "/admin" : "/dashboard"}
-            className="flex items-center gap-2.5 text-brand-ink"
+            aria-label="Blackbird Leave, home"
+            className="flex items-center gap-2.5 justify-self-start text-brand-ink"
             onClick={() => setOpen(false)}
           >
             <Image
@@ -190,28 +223,77 @@ export default function TopBar({ profile }: { profile: Profile }) {
                 {l.label}
               </NavLink>
             ))}
-
-            <div className="mx-3 h-5 w-px bg-neutral-200" />
-
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-700"
-                aria-hidden
-                title={profile.full_name}
+            {groups.map((g) => (
+              <Menu
+                key={g.label}
+                trigger={g.label}
+                triggerClassName={`${barItemCls} aria-expanded:bg-neutral-100 aria-expanded:text-neutral-900`}
+                panelClassName="w-48"
               >
-                {initials || "·"}
-              </span>
-              {!isAdmin && (
-                <span className="hidden lg:inline text-neutral-600 text-sm">{profile.full_name}</span>
-              )}
-            </div>
-
-            <form action="/api/auth/logout" method="post" className="ml-2">
-              <button className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition text-sm">
-                Sign out
-              </button>
-            </form>
+                {g.items.map((item) => (
+                  <Link key={item.href} href={item.href} className={menuItemCls}>
+                    {item.label}
+                  </Link>
+                ))}
+              </Menu>
+            ))}
           </nav>
+
+          {/* Account */}
+          <div className={`${desktopNavCls} items-center justify-self-end text-sm`}>
+            {isAdmin ? (
+              <Menu
+                label="Account menu"
+                align="right"
+                trigger={
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-700 transition group-hover:bg-neutral-200 group-aria-expanded:bg-neutral-200">
+                    {initials || "·"}
+                  </span>
+                }
+                triggerClassName="rounded-full p-0.5 pr-1 text-neutral-400 hover:text-neutral-700 aria-expanded:text-neutral-700"
+                panelClassName="w-60"
+              >
+                <div className="px-3 pb-2 pt-1.5">
+                  <div className="truncate text-sm font-medium text-neutral-900">{profile.full_name}</div>
+                  <div className="truncate text-xs text-neutral-500">{profile.email}</div>
+                </div>
+                <div className="-mx-1.5 my-1.5 border-t border-neutral-200" />
+                <Link href={ACCOUNT_LINK.href} className={menuItemCls}>
+                  {ACCOUNT_LINK.label}
+                </Link>
+                <form action="/api/auth/logout" method="post">
+                  <button type="submit" className={`${menuItemCls} w-full`}>
+                    Sign out
+                  </button>
+                </form>
+              </Menu>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-700"
+                    aria-hidden
+                    title={profile.full_name}
+                  >
+                    {initials || "·"}
+                  </span>
+                  {/* Capped so a long name can't crowd the centered links. */}
+                  <span
+                    className="hidden lg:inline max-w-[10rem] truncate text-neutral-600 text-sm"
+                    title={profile.full_name}
+                  >
+                    {profile.full_name}
+                  </span>
+                </div>
+
+                <form action="/api/auth/logout" method="post" className="ml-3">
+                  <button className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition text-sm">
+                    Sign out
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
 
           {/* Hamburger (mobile) */}
           <button
@@ -278,7 +360,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-            {links.map((l) => (
+            {drawerLinks.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -325,7 +407,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition"
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap ${barItemCls} transition`}
     >
       <span>{children}</span>
       {badge !== undefined && badge > 0 && <Badge count={badge} />}
@@ -333,11 +415,134 @@ function NavLink({
   );
 }
 
+// A header dropdown. Built as a disclosure (a button revealing a panel of
+// links) rather than an ARIA menu, which is the better fit for site
+// navigation: Tab walks the links as usual and arrow keys are a shortcut.
+// Escape, a click outside, tabbing away or following a link closes it.
+function Menu({
+  trigger,
+  label,
+  triggerClassName,
+  align = "left",
+  panelClassName,
+  children,
+}: {
+  trigger: React.ReactNode;
+  label?: string;
+  triggerClassName: string;
+  align?: "left" | "right";
+  panelClassName: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const focusFirstOnOpen = useRef(false);
+  const panelId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    if (focusFirstOnOpen.current) {
+      focusFirstOnOpen.current = false;
+      menuItems(panelRef.current)[0]?.focus();
+    }
+
+    function onOutside(e: Event) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onEscape(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+    document.addEventListener("pointerdown", onOutside);
+    document.addEventListener("focusin", onOutside);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("pointerdown", onOutside);
+      document.removeEventListener("focusin", onOutside);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [open]);
+
+  function onArrow(e: React.KeyboardEvent) {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    if (!open) {
+      focusFirstOnOpen.current = true;
+      setOpen(true);
+      return;
+    }
+    const items = menuItems(panelRef.current);
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const step = e.key === "ArrowDown" ? 1 : -1;
+    // From the trigger, Down lands on the first item and Up on the last.
+    const next =
+      at === -1 ? (step === 1 ? 0 : items.length - 1) : (at + step + items.length) % items.length;
+    items[next]?.focus();
+  }
+
+  return (
+    // `h-14` matches the bar, so every panel hangs the same distance below it.
+    <div ref={rootRef} onKeyDown={onArrow} className="relative flex h-14 items-center">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={label}
+        className={`group inline-flex items-center gap-1 whitespace-nowrap transition ${triggerClassName}`}
+      >
+        {trigger}
+        <ChevronIcon />
+      </button>
+      <div
+        ref={panelRef}
+        id={panelId}
+        hidden={!open}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("a")) setOpen(false);
+        }}
+        className={`menu-in absolute top-full z-10 mt-1.5 rounded-xl border border-neutral-200 bg-white p-1.5 shadow-2xl ${
+          align === "right" ? "right-0" : "left-0"
+        } ${panelClassName}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function menuItems(panel: HTMLElement | null) {
+  return Array.from(panel?.querySelectorAll<HTMLElement>("a, button") ?? []);
+}
+
 function Badge({ count }: { count: number }) {
   return (
     <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white tabular-nums">
       {count > 99 ? "99+" : count}
     </span>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="transition-transform duration-150 group-aria-expanded:rotate-180"
+    >
+      <polyline points="2,3.5 5,6.5 8,3.5" />
+    </svg>
   );
 }
 

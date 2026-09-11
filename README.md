@@ -74,7 +74,7 @@ Since signup is invite-only, you need to bootstrap the first admin manually:
 2. The DB trigger creates a `profiles` row and the seed-admin trigger sets `role = admin`.
 3. Sign in at `/login` with that email/password.
 
-From here you can use **Invites** in the admin nav to invite everyone else.
+From here you can use **People → Invites** in the admin nav to invite everyone else.
 
 ---
 
@@ -128,7 +128,7 @@ This whole section is optional. Never press **Connect** and the app behaves exac
 
 ### 7.3 Connect it in the app
 
-Deploy, then sign in as an admin and open **Integrations** (`/admin/integrations`):
+Deploy, then sign in as an admin and open **Workspace → Integrations** (`/admin/integrations`):
 
 1. Paste the **bot token** from 7.1 and the **channel ID** from 7.2.
 2. Press **Connect**. The token is checked against Slack's `auth.test` before it is stored, so a bad paste fails there and then instead of silently at 06:00.
@@ -160,7 +160,7 @@ Skip 009 and the card still renders from the environment, but **Connect**, **Sav
 
 ### 7.5 Verify it works
 
-Deploy, then go to **Integrations** in the admin nav (`/admin/integrations`) and click **Post to Slack now**. The same button is also on **/admin/whos-off**. It posts today's digest immediately — no waiting for 06:00, and it posts even on a quiet day so you get proof the wiring is right. Any failure shows the actual reason (bot not in channel, bad token, missing scope) rather than a generic error.
+Deploy, then go to **Workspace → Integrations** in the admin nav (`/admin/integrations`) and click **Post to Slack now**. The same button is also on **/admin/whos-off**. It posts today's digest immediately — no waiting for 06:00, and it posts even on a quiet day so you get proof the wiring is right. Any failure shows the actual reason (bot not in channel, bad token, missing scope) rather than a generic error.
 
 ### 7.6 Checking it from the app
 
@@ -209,7 +209,7 @@ The digest deliberately **never says why** someone is off. Everyone reads as sim
 Admins can group people who cover for each other (e.g. everyone holding one core role). **At least one member of each group must always be available**: a member's **annual** leave is blocked if, on any working day of the requested range, everyone else in the group is already on approved or pending annual leave — i.e. the requester would be the last person out. In a 3-person group, two can be off together; only the third is blocked for those days. A 2-person group therefore can never overlap at all. Weekends and public holidays are skipped, and sick leave is never counted or blocked.
 
 1. Run `supabase/migrations/007_conflict_groups.sql` in the Supabase SQL editor.
-2. Go to **Admin → Hierarchy**, create a group, add members. A person can be in several groups.
+2. Go to **People → Hierarchy**, create a group, add members. A person can be in several groups.
 
 How it's enforced (all server-side, in the API routes):
 
@@ -224,10 +224,10 @@ Until migration 007 is run the check quietly passes (fails open), so deploying t
 
 ## 9. Settings — annual leave notice period
 
-Admins can require that annual leave be requested a minimum number of calendar days in advance (**Admin → Settings**): 3 days, 1–3 weeks, or a month. Employees who try to book closer in are blocked with the earliest allowed start date. Admins are exempt (they can always log or backfill leave), sick leave is never restricted, and editing a request to *different dates* re-applies the rule while same-date edits (e.g. changing the reason) don't.
+Admins can require that annual leave be requested a minimum number of calendar days in advance (**Workspace → Settings**): 3 days, 1–3 weeks, or a month. Employees who try to book closer in are blocked with the earliest allowed start date. Admins are exempt (they can always log or backfill leave), sick leave is never restricted, and editing a request to *different dates* re-applies the rule while same-date edits (e.g. changing the reason) don't.
 
 1. Run `supabase/migrations/008_app_settings.sql` in the Supabase SQL editor.
-2. Go to **Admin → Settings**, pick a notice period, save. It applies to new requests immediately.
+2. Go to **Workspace → Settings**, pick a notice period, save. It applies to new requests immediately.
 
 Settings live in the `app_settings` key-value table (`annual_min_notice_days`). Until migration 008 is run the rule is off and saving from the Settings page reports that the migration is missing — deploying the code first is safe.
 
@@ -241,7 +241,7 @@ When leave is approved, the employee gets a calendar entry marking them out of o
 
 1. Run `supabase/migrations/010_calendar_integration.sql`, `011_calendar_event_generation.sql` and `012_calendar_feed_mirror.sql` in the Supabase SQL editor.
 2. Set `NEXT_PUBLIC_SITE_URL` to the deployment's real address. Subscription links are built from it, so on a deploy where it still says `localhost` every link handed out is dead — the Integrations card warns when it spots this.
-3. Go to **Admin → Integrations → Calendar** and press **Connect**.
+3. Go to **Workspace → Integrations → Calendar** and press **Connect**.
 
 That is the whole setup. There is no Google Cloud project, no Azure app registration, no OAuth consent screen and no per-user sign-in, because the integration does not call any vendor's API — see 10.4 for why that turned out to be the better design rather than a compromise.
 
