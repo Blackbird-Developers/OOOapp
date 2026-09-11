@@ -53,6 +53,13 @@ h1, h2, h3, h4, h5, h6 {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Header menus drop in from just under the bar (TopBar's Menu). */
+@keyframes menu-in {
+  0%   { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.menu-in { animation: menu-in 140ms cubic-bezier(.2,.7,.3,1) both; }
+
 /* Approval banner slides in from above; the only celebration motion that
    remains after dropping the full-screen overlay. */
 @keyframes celebrate-banner {
@@ -64,6 +71,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Respect users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .page-fade,
+  .menu-in,
   .celebrate-banner,
   dialog[open] { animation: none !important; }
 }

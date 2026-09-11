@@ -203,7 +203,7 @@ Flat with two faint lifts. Surfaces are flat at rest. The `.card` and the `Today
 
 - **Card** (`box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 8px 24px -12px rgba(0,0,0,0.08)`): page-level cards. The double layer (1px ambient + 8px diffuse) gives just enough lift for the eye to read "container" without registering "drop shadow".
 - **Subtle** (`box-shadow: 0 1px 2px rgba(15,23,42,0.04)`): used on the `TodayStrip`. Lighter than `.card` to acknowledge it sits above the page but below the calendar card.
-- **Modal** (Tailwind `shadow-2xl`, `0 25px 50px -12px rgba(0,0,0,0.25)`): native `<dialog>` elements when open. The deeper shadow signals "this is layered above everything."
+- **Modal** (Tailwind `shadow-2xl`, `0 25px 50px -12px rgba(0,0,0,0.25)`): native `<dialog>` elements when open, and the header menus. The deeper shadow signals "this is layered above everything."
 
 ### Named Rules
 
@@ -278,8 +278,10 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 
 ### Navigation (TopBar)
 
-- **Desktop:** sticky `h-14`, `border-b neutral-200`, white-with-blur backdrop (`bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur`). Logo + Inter 700 10px "Leave" tag on the left, link row + initials avatar + ghost Sign-out on the right.
-- **Mobile:** hamburger triggers a right-side drawer (`w-[78vw] max-w-xs`, `h-dvh`, `inert` when closed, focus trapped when open). Returns focus to the hamburger on close.
+- **Desktop:** sticky `h-14`, `border-b neutral-200`, white-with-blur backdrop (`bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur`). Three zones: logo + Inter 700 10px "Leave" tag on the left, page links in the middle, account on the right. From `lg` a `1fr auto 1fr` grid puts the links on the page's true center; between `md` and `lg` they center in the space between logo and account. The logo is the only link home (Overview for admins, Team availability for staff); neither nav repeats it. Staff links: Request leave, My requests, Account, Help; their account zone is the initials avatar, name (truncated past 10rem, full name on hover) and ghost Sign-out. Both roles switch from the drawer to the bar at `md`.
+- **Admin desktop:** only the pages admins open most sit on the bar: Who's off and Requests (with its pending badge). The rest wait one click away in two menus, **People** (Employees, Hierarchy, Invites) and **Workspace** (Holidays, Integrations, Settings), and the avatar on the right opens an account menu (name, email, Account, Sign out).
+- **Header menus:** the trigger looks like a bar link plus a 10px chevron, which flips and keeps the `neutral-100` wash while open. The panel is white, `rounded-xl`, 1px `neutral-200` border, modal shadow, hung 6px below the bar, with `rounded-lg` `px-3 py-2` rows. Built as a disclosure (an `aria-expanded` button over plain links), not `role="menu"`: Tab walks the links, arrow keys move between them, and Escape (focus returns to the trigger), a click outside, tabbing away or following a link closes it.
+- **Mobile:** hamburger triggers a right-side drawer (`w-[78vw] max-w-xs`, `h-dvh`, `inert` when closed, focus trapped when open). Returns focus to the hamburger on close. The drawer stays one flat list, admin menu pages included.
 
 ## 6. Do's and Don'ts
 
