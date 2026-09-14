@@ -1,14 +1,25 @@
 import Link from "next/link";
+import { format, parseISO, startOfMonth, subMonths } from "date-fns";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import AdminLogLeaveForm from "./AdminLogLeaveForm";
+import { todayISOIn } from "@/lib/days";
+import AdminLogLeaveForm, { type ActiveLeave } from "./AdminLogLeaveForm";
 
 export default async function NewLeaveOnBehalfPage() {
   await requireAdmin();
   const supabase = await createServerClient();
-  const [{ data: employees }, { data: holidays }] = await Promise.all([
+  // The calendar marks leave from a year back onwards: enough to backfill
+  // missed entries without sending the whole history to the browser.
+  const leaveFrom = format(startOfMonth(subMonths(parseISO(todayISOIn()), 12)), "yyyy-MM-dd");
+
+  const [{ data: employees }, { data: holidays }, { data: leave }] = await Promise.all([
     supabase.from("profiles").select("id, full_name, email").order("full_name"),
-    supabase.from("public_holidays").select("date").order("date"),
+    supabase.from("public_holidays").select("date, name").order("date"),
+    supabase
+      .from("leave_requests")
+      .select("user_id, type, status, start_date, end_date")
+      .in("status", ["approved", "pending"])
+      .gte("end_date", leaveFrom),
   ]);
 
   return (
@@ -30,7 +41,9 @@ export default async function NewLeaveOnBehalfPage() {
 
         <AdminLogLeaveForm
           employees={(employees ?? []) as { id: string; full_name: string; email: string }[]}
-          holidays={(holidays ?? []).map((h) => h.date)}
+          holidays={holidays ?? []}
+          leave={(leave ?? []) as ActiveLeave[]}
+          leaveFrom={leaveFrom}
         />
       </section>
     </main>
