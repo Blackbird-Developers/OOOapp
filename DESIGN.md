@@ -274,7 +274,8 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 - **Cell:** `min-h-[68px]` mobile, `min-h-[104px]` desktop. Weekend cells get a `bg-neutral-50/40` wash. Out-of-month and past cells dim to `text-neutral-400`.
 - **Today marker:** lime pill (`bg-brand-accent text-brand-ink`), 20-24px, with `aria-label="Today, [date]"`.
 - **Event badge:** lime background for approved (`bg-brand-accent` for self, `bg-brand-accent/40` for peers); neutral background with dashed border for pending. Type discriminator carried by `· A` / `· S` suffix in label, not by color.
-- **DateRangePicker keyboard:** roving tabindex, arrow keys move focus by day, PageUp/Down by month, Shift+PageUp/Down by year, Home/End to week edges. `role="grid"` on the cell container.
+- **DateRangePicker keyboard:** roving tabindex, arrow keys move focus by day, PageUp/Down by month, Shift+PageUp/Down by year, Home/End to week edges. `role="grid"` on the cell container. When paging months with the arrow buttons leaves the focused day off-screen, the selected start (if visible) or the 1st of the month takes Tab, so the grid never drops out of the tab order.
+- **Admin log-leave picker:** the same DateRangePicker, fed everyone's approved and pending leave. The chosen employee's own leave is blocked (`bg-rose-100`, struck through, as on the employee form), past days stay selectable for backfills, and colleagues off sit inside each day: first-name chips from `sm` up (`bg-brand-accent/40` approved, dashed outline pending; two rows at most, the second ending in `+N`) and dots on phones. Cells grow to `min-h-[60px]` from `sm` to fit them. Under the grid, the selection line names everyone else off in that range (the only place phones show names), followed by a legend for the swatches.
 
 ### Navigation (TopBar)
 
