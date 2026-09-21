@@ -24,7 +24,8 @@ export default function Field({
 
   return (
     <div>
-      <label htmlFor={id} className="label">
+      {/* The id lets a dropdown's option list be named after the same label. */}
+      <label id={`${id}-label`} htmlFor={id} className="label">
         {label}
       </label>
       {children({

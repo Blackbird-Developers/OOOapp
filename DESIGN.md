@@ -231,6 +231,18 @@ Flat with two faint lifts. Surfaces are flat at rest. The `.card` and the `Today
 - **Placeholder:** `neutral-400` (decorative; never relied on for state).
 - **Focus:** 2px focus ring at `brand-ink/10`, border darkens to `neutral-400`. No outline; the ring carries the focus.
 - **Use through `<Field>`:** every form input must be wrapped in `components/Field`, which generates an ID via `useId`, associates the `<label>`, and threads `aria-describedby` for hint and error text.
+- **Error:** an input marked `aria-invalid` (as `<Field error>` does) takes a `rose-300` border and, focused, a `rose-100` ring, so the problem shows on the control as well as in the text beneath it.
+
+### Select (dropdown)
+
+Every choice list is `components/Select`; the app has no native `<select>`. A native one can't say what a choice means, can't be searched, and draws differently on every platform.
+
+- **Closed:** the `.input` box exactly, with the header menus' 10px chevron on the right (flips while open). Hover darkens the border to `neutral-300`; open keeps the focus ring. Placeholder text is `neutral-500`, since it carries the prompt ("Add a person…").
+- **Open:** the header-menu panel (white, `rounded-xl`, 1px `neutral-200` border, modal shadow, the `menu-in` drop-in), 6px from the field. At least the field's width and up to 22rem, so descriptions have room; up to 320px tall, then it scrolls. It opens upwards, rising rather than dropping in, when there's more room above.
+- **Rows:** `min-h-11` (44px), `rounded-lg px-3 py-2`. The label in `text-sm`, and an optional description beneath in `text-xs neutral-600` saying what the choice means ("Resets every 1 January", "16 days left in 2026"). The hovered or keyboard-active row gets `bg-neutral-100`; the chosen one is `font-medium` with an ink check mark. Never lime: choosing isn't a leave-creating moment.
+- **People pickers** pass `searchable` (a filter box heads the list) and `<Initials>` as each option's `leading` element, the top bar avatar at 24px.
+- **Behaviour:** the WAI-ARIA select-only combobox. Arrow keys, Enter or Space open it without changing the value; arrows, Home/End and Page Up/Down move; typing jumps to a label; Enter or Space chooses; Escape closes (without closing a surrounding dialog); Tab and clicks outside close without choosing. The list renders in the top layer (`popover="manual"`), so cards, scroll areas and modal dialogs never clip it.
+- **Use through `<Field>`** like any input: spread its props onto `<Select>`, which takes `value`, `onChange(value)` and `options` (`{ value, label, description?, leading?, disabled? }`). Without a visible label, pass `aria-label`.
 
 ### Cards
 
@@ -273,14 +285,14 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 - **Grid:** `grid-cols-7 gap-px bg-neutral-100` (the gap shows the background as 1px hairlines).
 - **Cell:** `min-h-[68px]` mobile, `min-h-[104px]` desktop. Weekend cells get a `bg-neutral-50/40` wash. Out-of-month and past cells dim to `text-neutral-400`.
 - **Today marker:** lime pill (`bg-brand-accent text-brand-ink`), 20-24px, with `aria-label="Today, [date]"`.
-- **Event badge:** lime background for approved (`bg-brand-accent` for self, `bg-brand-accent/40` for peers); neutral background with dashed border for pending. Type discriminator carried by `· A` / `· S` suffix in label, not by color.
+- **Event badge:** lime background for approved (`bg-brand-accent` for self, `bg-brand-accent/40` for peers); neutral background with dashed border for pending. Type discriminator carried by a `· A` / `· S` suffix in the label (the first letter of any other type's name, with the full name on hover), not by color. Colleagues' leave carries no type at all.
 - **DateRangePicker keyboard:** roving tabindex, arrow keys move focus by day, PageUp/Down by month, Shift+PageUp/Down by year, Home/End to week edges. `role="grid"` on the cell container. When paging months with the arrow buttons leaves the focused day off-screen, the selected start (if visible) or the 1st of the month takes Tab, so the grid never drops out of the tab order.
 - **Admin log-leave picker:** the same DateRangePicker, fed everyone's approved and pending leave. The chosen employee's own leave is blocked (`bg-rose-100`, struck through, as on the employee form), past days stay selectable for backfills, and colleagues off sit inside each day: first-name chips from `sm` up (`bg-brand-accent/40` approved, dashed outline pending; two rows at most, the second ending in `+N`) and dots on phones. Cells grow to `min-h-[60px]` from `sm` to fit them. Under the grid, the selection line names everyone else off in that range (the only place phones show names), followed by a legend for the swatches.
 
 ### Navigation (TopBar)
 
 - **Desktop:** sticky `h-14`, `border-b neutral-200`, white-with-blur backdrop (`bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur`). Three zones: logo + Inter 700 10px "Leave" tag on the left, page links in the middle, account on the right. From `lg` a `1fr auto 1fr` grid puts the links on the page's true center; between `md` and `lg` they center in the space between logo and account. The logo is the only link home (Overview for admins, Team availability for staff); neither nav repeats it. Staff links: Request leave, My requests, Account, Help; their account zone is the initials avatar, name (truncated past 10rem, full name on hover) and ghost Sign-out. Both roles switch from the drawer to the bar at `md`.
-- **Admin desktop:** only the pages admins open most sit on the bar: Who's off and Requests (with its pending badge). The rest wait one click away in two menus, **People** (Employees, Hierarchy, Invites) and **Workspace** (Holidays, Integrations, Settings), and the avatar on the right opens an account menu (name, email, Account, Sign out).
+- **Admin desktop:** only the pages admins open most sit on the bar: Who's off and Requests (with its pending badge). The rest wait one click away in two menus, **People** (Employees, Hierarchy, Leave policies, Invites) and **Workspace** (Holidays, Integrations, Settings), and the avatar on the right opens an account menu (name, email, Account, Sign out).
 - **Header menus:** the trigger looks like a bar link plus a 10px chevron, which flips and keeps the `neutral-100` wash while open. The panel is white, `rounded-xl`, 1px `neutral-200` border, modal shadow, hung 6px below the bar, with `rounded-lg` `px-3 py-2` rows. Built as a disclosure (an `aria-expanded` button over plain links), not `role="menu"`: Tab walks the links, arrow keys move between them, and Escape (focus returns to the trigger), a click outside, tabbing away or following a link closes it.
 - **Mobile:** hamburger triggers a right-side drawer (`w-[78vw] max-w-xs`, `h-dvh`, `inert` when closed, focus trapped when open). Returns focus to the hamburger on close. The drawer stays one flat list, admin menu pages included.
 
@@ -290,6 +302,7 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 
 - **Do** use lime (`brand-accent`) only on today's date marker, the four leave-creating CTAs (Request leave, Submit request, Log leave for employee, Approve), the "approved" status dot, and the approval banner. Nowhere else.
 - **Do** route every form input through `<Field>` so `htmlFor` and `aria-describedby` are guaranteed.
+- **Do** use `components/Select` for every choice list, with a description on options whose meaning isn't obvious from the label. Never a native `<select>`.
 - **Do** route every confirm / destructive interaction through `<Dialog>`, never `window.confirm/alert/prompt`.
 - **Do** use `bg-brand-ink` (`#0a0a0a`) instead of `bg-black`, and `text-brand-ink` instead of `text-black`. Same for opacity modifiers (`bg-brand-ink/10`).
 - **Do** use `text-neutral-500` as the contrast floor for body and meta text. `neutral-400` is for genuinely decorative or `aria-disabled` content only.
@@ -307,7 +320,7 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 - **Don't** use side-stripe borders (`border-left` or `border-right` > 1px as a colored accent). Use full borders, background tints, or leading dots.
 - **Don't** use gradient text (`background-clip: text`). Use solid colors. Emphasis via weight or size.
 - **Don't** use glassmorphism decoratively. The sticky `TopBar` blur is the only sanctioned use.
-- **Don't** ship the hero-metric template (big number, small label, supporting stats, gradient accent). `BalanceCards` was deliberately refactored away from this pattern; keep it inline.
+- **Don't** ship the hero-metric template (big number, small label, supporting stats, gradient accent). `BalanceCards` was deliberately refactored away from this pattern; keep it inline. The line itself stays annual and sick only; every other type waits behind its **All leave types** button, in a dialog listing one row per type (name left, days left or the cap per occasion right, the template's note and what's been taken underneath). An employee's admin page shows the same as a statement list (`LeaveOverview`), for the same reason.
 - **Don't** use `window.alert/confirm/prompt`. Ever.
 - **Don't** use emerald, amber, indigo, sky, violet, teal, cyan. The status palette is lime + rose + neutral, period.
 - **Don't** use em dashes (`—` or `--`). Use commas, colons, semicolons, periods, or parentheses.

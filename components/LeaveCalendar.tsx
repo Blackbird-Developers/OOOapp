@@ -10,7 +10,9 @@ export type CalendarEvent = {
   id: string;
   userId: string;
   userName: string;
-  type: "annual" | "sick";
+  type: string;
+  /** The type's display name ("Maternity leave"); falls back to the key. */
+  typeName?: string;
   status: "pending" | "approved" | "rejected" | "cancelled";
   start: string;
   end: string;
@@ -26,6 +28,13 @@ export default function LeaveCalendar({
   viewerUserId?: string;
 }) {
   const [cursor, setCursor] = useState(new Date());
+
+  // The legend only mentions other leave types when the viewer has some.
+  const hasOwnOther =
+    viewerUserId !== undefined &&
+    events.some(
+      (ev) => ev.userId === viewerUserId && ev.status === "approved" && ev.type !== "annual" && ev.type !== "sick"
+    );
 
   const holidayMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -143,12 +152,13 @@ export default function LeaveCalendar({
                   {dayEvents.slice(0, desktopVisible).map((ev, idx) => {
                     const isPeer = viewerUserId !== undefined && ev.userId !== viewerUserId;
                     const isOwn = viewerUserId !== undefined && ev.userId === viewerUserId;
+                    const typeName = ev.typeName ?? ev.type;
                     const label = isPeer
                       ? ev.userName.split(" ")[0]
-                      : `${ev.userName.split(" ")[0]} · ${ev.type[0].toUpperCase()}`;
+                      : `${ev.userName.split(" ")[0]} · ${typeName.charAt(0).toUpperCase()}`;
                     const title = isPeer
                       ? `${ev.userName}: off`
-                      : `${ev.userName}: ${ev.type} (${ev.status})`;
+                      : `${ev.userName}: ${typeName} (${ev.status})`;
                     const hideOnMobile = idx >= mobileVisible;
                     const pending = ev.status === "pending";
                     return (
@@ -184,6 +194,9 @@ export default function LeaveCalendar({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-xs text-neutral-500">
         <Legend swatch={<span className="h-2 w-2 rounded-full bg-violet-500" />}>Your annual</Legend>
         <Legend swatch={<span className="h-2 w-2 rounded-full bg-red-500" />}>Your sick</Legend>
+        {hasOwnOther && (
+          <Legend swatch={<span className="h-2 w-2 rounded-full bg-neutral-600" />}>Your other leave</Legend>
+        )}
         <Legend swatch={<span className="h-2 w-2 rounded-full bg-brand-accent/40" />}>Team mate</Legend>
         <Legend swatch={<span className="h-2 w-2 rounded-full border border-dashed border-neutral-400 bg-transparent" />}>Pending</Legend>
       </div>
@@ -198,6 +211,8 @@ function badgeClass(ev: CalendarEvent, isPeer: boolean, isOwn: boolean) {
   // Only applies when the viewer is known (dashboard); admin views leave this untouched.
   if (isOwn && ev.type === "sick") return "bg-red-200 text-red-900";
   if (isOwn && ev.type === "annual") return "bg-violet-200 text-violet-900";
+  // Any other type of your own (maternity, unpaid, ...) reads as a neutral block.
+  if (isOwn) return "bg-neutral-200 text-neutral-900";
   return "bg-brand-accent text-neutral-900";
 }
 
@@ -206,6 +221,7 @@ function dotClass(ev: CalendarEvent, isPeer: boolean, isOwn: boolean) {
   if (isPeer) return "bg-brand-ink/40";
   if (isOwn && ev.type === "sick") return "bg-red-600";
   if (isOwn && ev.type === "annual") return "bg-violet-600";
+  if (isOwn) return "bg-neutral-600";
   return "bg-brand-ink";
 }
 

@@ -3,9 +3,10 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addDays, format, parseISO } from "date-fns";
-import { countLeaveDays, todayISOIn } from "@/lib/days";
+import { countDaysForUnit, todayISOIn } from "@/lib/days";
 import { getAnnualMinNoticeDays, formatNoticeDays } from "@/lib/settings";
-import { getBalance } from "@/lib/balances";
+import { getLeaveContext, getLeaveRows, LEAVE_TYPE_KEY } from "@/lib/leave-policies";
+import { availableDays, limitMessage, ruleFor } from "@/lib/leave-rules";
 import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
@@ -13,7 +14,8 @@ import { publishApprovedLeave } from "@/lib/calendar";
 
 const schema = z.object({
   user_id: z.string().uuid().optional(), // admin can act on behalf
-  type: z.enum(["annual", "sick"]),
+  // A key in the leave type catalogue; the person's template decides whether it's allowed.
+  type: z.string().regex(LEAVE_TYPE_KEY),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   half_start: z.enum(["full", "am", "pm"]).default("full"),
@@ -52,6 +54,24 @@ export async function POST(req: Request) {
     }
   }
 
+  // What the person's leave template allows for this type. Employees can only
+  // request types their template switches on; admins can log any type, for
+  // the odd case a template doesn't cover yet.
+  const context = await getLeaveContext(targetUserId);
+  const rule = ruleFor(context.policy, input.type);
+  if (!rule) {
+    return NextResponse.json({ error: "That leave type doesn't exist." }, { status: 400 });
+  }
+  if (!rule.enabled && me.role !== "admin") {
+    return NextResponse.json(
+      { error: `${rule.name} isn't part of your leave policy. Ask your admin if you think it should be.` },
+      { status: 400 }
+    );
+  }
+  // Calendar-day leave (maternity) runs in whole days.
+  const halfStart = rule.unit === "calendar" ? "full" : input.half_start;
+  const halfEnd = rule.unit === "calendar" ? "full" : input.half_end;
+
   // Notice-period policy: employees must request annual leave at least
   // N calendar days before it starts (admin-configured under Settings).
   // Admins are exempt; sick leave is inherently last-minute and never
@@ -81,11 +101,12 @@ export async function POST(req: Request) {
     .lte("date", input.end_date);
   const holidayISOs = (holidays ?? []).map((h: { date: string }) => h.date);
 
-  const days = countLeaveDays(
+  const days = countDaysForUnit(
+    rule.unit,
     input.start_date,
     input.end_date,
-    input.half_start,
-    input.half_end,
+    halfStart,
+    halfEnd,
     holidayISOs
   );
 
@@ -140,21 +161,23 @@ export async function POST(req: Request) {
   const willAutoApprove = Boolean(input.auto_approve && me.role === "admin");
   const status = willAutoApprove ? "approved" : "pending";
 
-  // Enforce remaining balance for employee self-requests. Admins acting on
-  // behalf can override (the auto_approve/isAdminAction paths). Balance
-  // counts both approved and pending leave against the allowance.
+  // Enforce the template's limit for employee self-requests. Admins acting on
+  // behalf can override (the auto_approve/isAdminAction paths). A yearly
+  // allowance counts approved and pending leave in the year the request
+  // starts; a per-request cap only looks at this request.
   if (!willAutoApprove && !isAdminAction) {
-    const balance = await getBalance(targetUserId);
-    const remaining = input.type === "annual" ? balance.annual_remaining : balance.sick_remaining;
-    if (days > remaining) {
-      const noun = input.type === "annual" ? "annual leave" : "sick leave";
+    const rows = await getLeaveRows(targetUserId);
+    const available = availableDays(
+      context.policy,
+      context.employment,
+      rows,
+      input.type,
+      input.start_date,
+      todayISOIn()
+    );
+    if (available !== null && days > available) {
       return NextResponse.json(
-        {
-          error:
-            remaining <= 0
-              ? `You have no ${noun} days left this year.`
-              : `You only have ${remaining} ${noun} day${remaining === 1 ? "" : "s"} left. This request is ${days} day${days === 1 ? "" : "s"}.`,
-        },
+        { error: limitMessage(rule, available, days, input.start_date) },
         { status: 400 }
       );
     }
@@ -165,8 +188,8 @@ export async function POST(req: Request) {
     type: input.type,
     start_date: input.start_date,
     end_date: input.end_date,
-    half_start: input.half_start,
-    half_end: input.half_end,
+    half_start: halfStart,
+    half_end: halfEnd,
     days_count: days,
     reason: input.reason ?? null,
     status,
@@ -209,7 +232,7 @@ export async function POST(req: Request) {
           to: target.email,
           employeeName: target.full_name,
           approved: true,
-          type: input.type,
+          typeName: rule.name,
           startDate: input.start_date,
           endDate: input.end_date,
           days,
@@ -228,7 +251,7 @@ export async function POST(req: Request) {
         await emailNewRequestToAdmins({
           adminEmails,
           employeeName: me.full_name,
-          type: input.type,
+          typeName: rule.name,
           startDate: input.start_date,
           endDate: input.end_date,
           days,

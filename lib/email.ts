@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { subscribeLinks } from "@/lib/calendar-links";
+import { leavePhrase } from "@/lib/leave-rules";
 import {
   calendarSmtpConfigured,
   sendCalendarMailOverSmtp,
@@ -319,14 +320,15 @@ function calendarPanel(opts: {
 export async function emailNewRequestToAdmins(opts: {
   adminEmails: string[];
   employeeName: string;
-  type: "annual" | "sick";
+  /** The leave type's name, e.g. "Annual leave". */
+  typeName: string;
   startDate: string;
   endDate: string;
   days: number;
   reason?: string | null;
 }) {
   const body = `
-    <p><strong>${opts.employeeName}</strong> requested ${opts.type} leave.</p>
+    <p><strong>${escapeHtml(opts.employeeName)}</strong> requested ${escapeHtml(leavePhrase(opts.typeName))}.</p>
     <ul>
       <li><strong>Dates:</strong> ${opts.startDate} → ${opts.endDate}</li>
       <li><strong>Days:</strong> ${opts.days}</li>
@@ -341,8 +343,8 @@ export async function emailEditedRequestToAdmins(opts: {
   adminEmails: string[];
   employeeName: string;
   wasApproved: boolean;
-  before: { type: "annual" | "sick"; startDate: string; endDate: string; days: number; reason?: string | null };
-  after: { type: "annual" | "sick"; startDate: string; endDate: string; days: number; reason?: string | null };
+  before: { typeName: string; startDate: string; endDate: string; days: number; reason?: string | null };
+  after: { typeName: string; startDate: string; endDate: string; days: number; reason?: string | null };
 }) {
   const changed = (a: string | number, b: string | number) =>
     a === b
@@ -358,7 +360,7 @@ export async function emailEditedRequestToAdmins(opts: {
         : ""
     }
     <ul>
-      <li><strong>Type:</strong> ${changed(before.type, after.type)}</li>
+      <li><strong>Type:</strong> ${changed(before.typeName, after.typeName)}</li>
       <li><strong>Dates:</strong> ${changed(`${before.startDate} → ${before.endDate}`, `${after.startDate} → ${after.endDate}`)}</li>
       <li><strong>Days:</strong> ${changed(before.days, after.days)}</li>
       <li><strong>Reason:</strong> ${changed(before.reason || "—", after.reason || "—")}</li>
@@ -371,14 +373,15 @@ export async function emailEditedRequestToAdmins(opts: {
 export async function emailCancelledRequestToAdmins(opts: {
   adminEmails: string[];
   employeeName: string;
-  type: "annual" | "sick";
+  /** The leave type's name, e.g. "Annual leave". */
+  typeName: string;
   startDate: string;
   endDate: string;
   days: number;
   reason?: string | null;
 }) {
   const body = `
-    <p><strong>${escapeHtml(opts.employeeName)}</strong> cancelled their pending ${opts.type} leave request.</p>
+    <p><strong>${escapeHtml(opts.employeeName)}</strong> cancelled their pending ${escapeHtml(leavePhrase(opts.typeName))} request.</p>
     <p>No decision is needed — it has been removed from your queue.</p>
     <ul>
       <li><strong>Dates:</strong> ${opts.startDate} &rarr; ${opts.endDate}</li>
@@ -398,7 +401,8 @@ export async function emailDecisionToEmployee(opts: {
   to: string;
   employeeName: string;
   approved: boolean;
-  type: "annual" | "sick";
+  /** The leave type's name, e.g. "Annual leave". */
+  typeName: string;
   startDate: string;
   endDate: string;
   days: number;
@@ -422,7 +426,7 @@ export async function emailDecisionToEmployee(opts: {
 
   const body = `
     <p style="margin:0 0 12px;font-size:14px;line-height:21px">Hi ${escapeHtml(opts.employeeName)},</p>
-    <p style="margin:0;font-size:14px;line-height:21px">Your ${opts.type} leave request has been <strong style="color:${color}">${verb}</strong>.</p>
+    <p style="margin:0;font-size:14px;line-height:21px">Your ${escapeHtml(leavePhrase(opts.typeName))} request has been <strong style="color:${color}">${verb}</strong>.</p>
     ${detailTable(rows)}
     ${
       opts.calendar

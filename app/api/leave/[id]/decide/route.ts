@@ -5,6 +5,7 @@ import { emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireAdmin } from "@/lib/auth";
 import { publishApprovedLeave } from "@/lib/calendar";
+import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 
 const schema = z.object({
   action: z.enum(["approve", "reject"]),
@@ -89,7 +90,7 @@ export async function POST(
         to: employee.email,
         employeeName: employee.full_name,
         approved: status === "approved",
-        type: row.type,
+        typeName: typeNamer((await getLeaveSetup()).types)(row.type),
         startDate: row.start_date,
         endDate: row.end_date,
         days: Number(row.days_count),

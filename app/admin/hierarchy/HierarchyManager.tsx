@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Field from "@/components/Field";
 import Dialog from "@/components/Dialog";
+import Select, { Initials } from "@/components/Select";
 import EmptyState from "@/components/EmptyState";
 
 export type Person = { id: string; full_name: string; email: string };
@@ -162,22 +163,20 @@ function GroupCard({
   onDelete: () => void;
 }) {
   const router = useRouter();
-  const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState<string | null>(null); // user id being added/removed, or "add"
   const [error, setError] = useState<string | null>(null);
 
   const memberIds = new Set(group.members.map((m) => m.id));
   const addable = people.filter((p) => !memberIds.has(p.id));
 
-  async function addMember(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selected) return;
+  // Picking someone adds them straight away; a mistake is one click on their chip.
+  async function addMember(userId: string) {
     setBusy("add");
     setError(null);
     const res = await fetch("/api/conflict-groups/members", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ group_id: group.id, user_id: selected }),
+      body: JSON.stringify({ group_id: group.id, user_id: userId }),
     });
     setBusy(null);
     if (!res.ok) {
@@ -185,7 +184,6 @@ function GroupCard({
       setError(j.error || "Couldn't add them. Try again.");
       return;
     }
-    setSelected("");
     router.refresh();
   }
 
@@ -251,24 +249,21 @@ function GroupCard({
       )}
 
       {addable.length > 0 ? (
-        <form onSubmit={addMember} className="flex flex-col sm:flex-row gap-2">
-          <select
-            className="input flex-1"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            aria-label={`Add a member to ${group.name}`}
-          >
-            <option value="">Add a person…</option>
-            {addable.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.full_name} — {p.email}
-              </option>
-            ))}
-          </select>
-          <button className="btn-secondary sm:w-auto" disabled={!selected || busy === "add"}>
-            {busy === "add" ? "Adding…" : "Add"}
-          </button>
-        </form>
+        <Select
+          value=""
+          aria-label={`Add a member to ${group.name}`}
+          placeholder={busy === "add" ? "Adding…" : "Add a person…"}
+          disabled={busy === "add"}
+          searchable
+          searchPlaceholder="Search people"
+          options={addable.map((p) => ({
+            value: p.id,
+            label: p.full_name,
+            description: p.email,
+            leading: <Initials name={p.full_name} />,
+          }))}
+          onChange={addMember}
+        />
       ) : (
         <p className="text-xs text-neutral-500">Everyone is already in this group.</p>
       )}

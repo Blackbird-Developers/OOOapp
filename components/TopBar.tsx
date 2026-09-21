@@ -117,6 +117,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
           items: [
             { href: "/admin/employees", label: "Employees" },
             { href: "/admin/hierarchy", label: "Hierarchy" },
+            { href: "/admin/policies", label: "Leave policies" },
             { href: "/admin/invites", label: "Invites" },
           ],
         },

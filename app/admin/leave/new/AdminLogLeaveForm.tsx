@@ -1,36 +1,52 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { countLeaveDays, datesInRange, type HalfKind } from "@/lib/days";
+import { countDaysForUnit, datesInRange, HALF_DAY_OPTIONS, type HalfKind } from "@/lib/days";
+import { describeLimit, leavePhrase, type LeaveTypeRule } from "@/lib/leave-rules";
 import DateRangePicker, { type TeamOff } from "@/components/DateRangePicker";
 import Field from "@/components/Field";
+import Select, { Initials } from "@/components/Select";
 
-type Employee = { id: string; full_name: string; email: string };
+export type Employee = {
+  id: string;
+  full_name: string;
+  email: string;
+  /** Their leave template's name; null before leave policies are set up. */
+  policyName: string | null;
+  /** The types their template switches on. */
+  rules: LeaveTypeRule[];
+};
 
 /** An approved or pending request, as the page loads them for the calendar. */
 export type ActiveLeave = {
   user_id: string;
-  type: "annual" | "sick";
+  type: string;
   status: "approved" | "pending";
   start_date: string;
   end_date: string;
 };
 
 export default function AdminLogLeaveForm({
-  employees, holidays, leave, leaveFrom,
+  employees, typeNames, holidays, leave, leaveFrom,
 }: {
   employees: Employee[];
+  // Display names for every leave type, for the "also off" descriptions.
+  typeNames: Record<string, string>;
   holidays: { date: string; name: string }[];
   // Everyone's active leave that ends on or after `leaveFrom`.
   leave: ActiveLeave[];
   leaveFrom: string;
 }) {
   const router = useRouter();
+  const noteId = useId();
   const today = new Date().toISOString().slice(0, 10);
 
   const [userId, setUserId] = useState(employees[0]?.id ?? "");
-  const [type, setType] = useState<"annual" | "sick">("sick");
+  // Sick days phoned in are the most common thing logged here.
+  const [type, setType] = useState(
+    () => (employees[0]?.rules.find((r) => r.type === "sick") ?? employees[0]?.rules[0])?.type ?? "sick"
+  );
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState(today);
   const [halfStart, setHalfStart] = useState<HalfKind>("full");
@@ -50,6 +66,11 @@ export default function AdminLogLeaveForm({
   const holidayDates = useMemo(() => holidays.map((h) => h.date), [holidays]);
   const employee = employees.find((emp) => emp.id === userId);
   const firstName = employee?.full_name.split(" ")[0] ?? "";
+  const options = employee?.rules ?? [];
+  const rule = options.find((r) => r.type === type);
+  const unit = rule?.unit ?? "working";
+  // Calendar-day leave (maternity) runs in whole days.
+  const halves = unit === "working";
 
   // The chosen employee's own leave blocks its days (the API rejects overlaps);
   // everyone else's is shown in the calendar as context.
@@ -75,14 +96,14 @@ export default function AdminLogLeaveForm({
         }
         if (seen.has(`${day}|${r.user_id}`)) continue;
         seen.add(`${day}|${r.user_id}`);
-        const person = { name: nameOf(r), type: r.type, status: r.status };
+        const person = { name: nameOf(r), type: leavePhrase(typeNames[r.type] ?? r.type), status: r.status };
         const list = byDay.get(day);
         if (list) list.push(person);
         else byDay.set(day, [person]);
       }
     }
     return { blocked: [...blockedDays].sort(), teamOff: byDay };
-  }, [leave, employees, userId]);
+  }, [leave, employees, userId, typeNames]);
 
   // First day of the selection the employee already has leave on.
   const overlap = useMemo(
@@ -93,8 +114,8 @@ export default function AdminLogLeaveForm({
   const sameDay = start === end;
   const days = useMemo(() => {
     if (!start || !end || end < start) return 0;
-    return countLeaveDays(start, end, halfStart, halfEnd, holidayDates);
-  }, [start, end, halfStart, halfEnd, holidayDates]);
+    return countDaysForUnit(unit, start, end, halves ? halfStart : "full", halves ? halfEnd : "full", holidayDates);
+  }, [unit, halves, start, end, halfStart, halfEnd, holidayDates]);
 
   async function send(payload: Record<string, unknown>) {
     setBusy(true);
@@ -128,8 +149,8 @@ export default function AdminLogLeaveForm({
       type,
       start_date: start,
       end_date: end,
-      half_start: halfStart,
-      half_end: sameDay ? halfStart : halfEnd,
+      half_start: halves ? halfStart : "full",
+      half_end: halves ? (sameDay ? halfStart : halfEnd) : "full",
       reason: reason || null,
       auto_approve: autoApprove,
     });
@@ -147,22 +168,29 @@ export default function AdminLogLeaveForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <Field label="Employee">
+      <Field label="Employee" hint={employee?.policyName ? `Leave policy: ${employee.policyName}` : undefined}>
         {(p) => (
-          <select
+          <Select
             {...p}
-            className="input"
             value={userId}
-            required
-            onChange={(e) => {
-              setUserId(e.target.value);
+            searchable
+            searchPlaceholder="Search people"
+            options={employees.map((emp) => ({
+              value: emp.id,
+              label: emp.full_name,
+              description: emp.email,
+              leading: <Initials name={emp.full_name} />,
+            }))}
+            onChange={(id) => {
+              const next = employees.find((emp) => emp.id === id);
+              setUserId(id);
+              // Keep the type if their template has it too; otherwise fall back.
+              if (next && !next.rules.some((r) => r.type === type)) {
+                setType((next.rules.find((r) => r.type === "sick") ?? next.rules[0])?.type ?? "sick");
+              }
               setMsg(null);
             }}
-          >
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.email})</option>
-            ))}
-          </select>
+          />
         )}
       </Field>
 
@@ -189,33 +217,36 @@ export default function AdminLogLeaveForm({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Type">
           {(p) => (
-            <select {...p} className="input" value={type} onChange={(e) => setType(e.target.value as "annual" | "sick")}>
-              <option value="annual">Annual</option>
-              <option value="sick">Sick</option>
-            </select>
+            <Select
+              {...p}
+              aria-describedby={[p["aria-describedby"], rule?.note ? noteId : null].filter(Boolean).join(" ") || undefined}
+              value={type}
+              onChange={setType}
+              options={options.map((o) => ({ value: o.type, label: o.name, description: describeLimit(o) }))}
+            />
           )}
         </Field>
-        <Field label={sameDay ? "Half-day?" : "First day"}>
-          {(p) => (
-            <select {...p} className="input" value={halfStart} onChange={(e) => setHalfStart(e.target.value as HalfKind)}>
-              <option value="full">Full day</option>
-              <option value="am">Morning only (½)</option>
-              <option value="pm">Afternoon only (½)</option>
-            </select>
-          )}
-        </Field>
-        {!sameDay && (
+        {halves && (
+          <Field label={sameDay ? "Half-day?" : "First day"}>
+            {(p) => (
+              <Select {...p} value={halfStart} onChange={setHalfStart} options={HALF_DAY_OPTIONS} />
+            )}
+          </Field>
+        )}
+        {halves && !sameDay && (
           <Field label="Last day">
             {(p) => (
-              <select {...p} className="input" value={halfEnd} onChange={(e) => setHalfEnd(e.target.value as HalfKind)}>
-                <option value="full">Full day</option>
-                <option value="am">Morning only (½)</option>
-                <option value="pm">Afternoon only (½)</option>
-              </select>
+              <Select {...p} value={halfEnd} onChange={setHalfEnd} options={HALF_DAY_OPTIONS} />
             )}
           </Field>
         )}
       </div>
+
+      {rule?.note && (
+        <p id={noteId} className="-mt-1 max-w-prose text-xs text-neutral-500">
+          {rule.note}
+        </p>
+      )}
 
       <Field label="Note (optional)">
         {(p) => (
@@ -236,8 +267,8 @@ export default function AdminLogLeaveForm({
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-neutral-600">Total: <strong>{days}</strong> working day{days === 1 ? "" : "s"}</p>
-        <button className="btn-accent w-full sm:w-auto" disabled={busy || days === 0 || !userId || !!overlap}>
+        <p className="text-sm text-neutral-600">Total: <strong>{days}</strong> {unit === "calendar" ? "calendar" : "working"} day{days === 1 ? "" : "s"}</p>
+        <button className="btn-accent w-full sm:w-auto" disabled={busy || days === 0 || !userId || !!overlap || !rule}>
           {busy ? "Saving…" : "Log leave"}
         </button>
       </div>

@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { requireUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { yearBounds } from "@/lib/days";
+import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import ApprovalCelebration from "@/components/ApprovalCelebration";
 import TodayStrip from "@/components/TodayStrip";
@@ -27,11 +28,16 @@ export default async function DashboardPage() {
       .lte("start_date", to),
   ]);
 
+  const nameOf = typeNamer((await getLeaveSetup()).types);
+  // The calendar only ever shows colleagues as "off", so their leave type is
+  // left out of what reaches the browser too: sick or maternity leave is
+  // nobody else's business.
   const teamEvents = (teamRows ?? []).map((r: any) => ({
     id: r.id,
     userId: r.user_id,
     userName: r.profiles?.full_name ?? "Employee",
-    type: r.type,
+    type: r.user_id === profile.id ? r.type : "leave",
+    typeName: r.user_id === profile.id ? nameOf(r.type) : undefined,
     status: r.status,
     start: r.start_date,
     end: r.end_date,

@@ -9,7 +9,8 @@ import {
 /** Someone else who is off on a given day, drawn inside that day's cell. */
 export type TeamOff = {
   name: string;
-  type: "annual" | "sick";
+  /** How the type reads mid-sentence, e.g. "annual leave". */
+  type: string;
   status: "approved" | "pending";
 };
 

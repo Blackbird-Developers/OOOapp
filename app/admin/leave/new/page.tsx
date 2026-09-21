@@ -3,7 +3,9 @@ import { format, parseISO, startOfMonth, subMonths } from "date-fns";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { todayISOIn } from "@/lib/days";
-import AdminLogLeaveForm, { type ActiveLeave } from "./AdminLogLeaveForm";
+import { getEveryonesLeaveContext } from "@/lib/leave-policies";
+import { requestableRules } from "@/lib/leave-rules";
+import AdminLogLeaveForm, { type ActiveLeave, type Employee } from "./AdminLogLeaveForm";
 
 export default async function NewLeaveOnBehalfPage() {
   await requireAdmin();
@@ -12,8 +14,8 @@ export default async function NewLeaveOnBehalfPage() {
   // missed entries without sending the whole history to the browser.
   const leaveFrom = format(startOfMonth(subMonths(parseISO(todayISOIn()), 12)), "yyyy-MM-dd");
 
-  const [{ data: employees }, { data: holidays }, { data: leave }] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email").order("full_name"),
+  const [{ setup, people }, { data: holidays }, { data: leave }] = await Promise.all([
+    getEveryonesLeaveContext(),
     supabase.from("public_holidays").select("date, name").order("date"),
     supabase
       .from("leave_requests")
@@ -21,6 +23,16 @@ export default async function NewLeaveOnBehalfPage() {
       .in("status", ["approved", "pending"])
       .gte("end_date", leaveFrom),
   ]);
+
+  // Each person's template decides which types can be logged for them.
+  const employees: Employee[] = people.map((p) => ({
+    id: p.id,
+    full_name: p.full_name,
+    email: p.email,
+    policyName: p.ready ? p.policy.name : null,
+    rules: requestableRules(p.policy),
+  }));
+  const typeNames = Object.fromEntries(setup.types.map((t) => [t.key, t.name]));
 
   return (
     <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -40,7 +52,8 @@ export default async function NewLeaveOnBehalfPage() {
         </div>
 
         <AdminLogLeaveForm
-          employees={(employees ?? []) as { id: string; full_name: string; email: string }[]}
+          employees={employees}
+          typeNames={typeNames}
           holidays={holidays ?? []}
           leave={(leave ?? []) as ActiveLeave[]}
           leaveFrom={leaveFrom}

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getBalance } from "@/lib/balances";
+import { getLeaveSummary } from "@/lib/balances";
+import { typeNamer } from "@/lib/leave-policies";
+import { leaveOverview } from "@/lib/leave-rules";
 import BalanceCards from "@/components/BalanceCards";
+import AllLeaveTypes from "@/components/AllLeaveTypes";
 import ApprovalCelebration from "@/components/ApprovalCelebration";
 import MyRequestsList from "../MyRequestsList";
 
@@ -11,8 +14,8 @@ export default async function MyRequestsPage() {
   const supabase = await createServerClient();
   const sinceISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [balance, { data: requests }] = await Promise.all([
-    getBalance(profile.id),
+  const [summary, { data: requests }] = await Promise.all([
+    getLeaveSummary(profile.id),
     supabase
       .from("leave_requests")
       .select("id, type, start_date, end_date, days_count, status, decision_note, reason, created_at, decided_at")
@@ -24,13 +27,15 @@ export default async function MyRequestsPage() {
     .filter((r) => r.status === "approved" && r.decided_at && r.decided_at >= sinceISO)
     .map((r) => ({
       id: r.id,
-      type: r.type as "annual" | "sick",
+      type: r.type as string,
       start_date: r.start_date,
       end_date: r.end_date,
       days_count: r.days_count,
     }));
 
   const count = (requests ?? []).length;
+  const nameOf = typeNamer(summary.types);
+  const overview = leaveOverview(summary.policy, summary.employment, summary.rows, summary.year, summary.todayISO);
 
   return (
     <>
@@ -46,13 +51,15 @@ export default async function MyRequestsPage() {
         </header>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-5 mb-5 border-b border-neutral-200">
-          <BalanceCards balance={balance} />
+          <BalanceCards balances={summary.balances} align="start">
+            <AllLeaveTypes entries={overview} year={summary.year} />
+          </BalanceCards>
           <span className="text-[11px] uppercase tracking-wider font-medium text-neutral-500">
             {count} {count === 1 ? "request" : "requests"}
           </span>
         </div>
 
-        <MyRequestsList requests={requests ?? []} />
+        <MyRequestsList requests={(requests ?? []).map((r) => ({ ...r, type_name: nameOf(r.type) }))} />
       </main>
     </>
   );

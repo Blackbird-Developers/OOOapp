@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getBalance } from "@/lib/balances";
+import { getLeaveSummary } from "@/lib/balances";
 import { datesInRange } from "@/lib/days";
+import { leaveOverview } from "@/lib/leave-rules";
 import BalanceCards from "@/components/BalanceCards";
+import AllLeaveTypes from "@/components/AllLeaveTypes";
 import RequestLeaveForm from "../RequestLeaveForm";
 
 export default async function RequestLeavePage() {
   const profile = await requireUser();
   const supabase = await createServerClient();
 
-  const [balance, { data: holidays }, { data: existing }] = await Promise.all([
-    getBalance(profile.id),
+  const [summary, { data: holidays }, { data: existing }] = await Promise.all([
+    getLeaveSummary(profile.id),
     supabase.from("public_holidays").select("date, name").order("date"),
     supabase
       .from("leave_requests")
@@ -40,12 +42,20 @@ export default async function RequestLeavePage() {
       <section className="card p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pb-5 mb-6 border-b border-neutral-200">
           <h1 className="text-xl font-semibold tracking-tight text-neutral-900">Request leave</h1>
-          <BalanceCards balance={balance} />
+          <BalanceCards balances={summary.balances}>
+            <AllLeaveTypes
+              entries={leaveOverview(summary.policy, summary.employment, summary.rows, summary.year, summary.todayISO)}
+              year={summary.year}
+            />
+          </BalanceCards>
         </div>
 
         <RequestLeaveForm
           holidays={holidays ?? []}
-          balance={balance}
+          policy={summary.policy}
+          employment={summary.employment}
+          rows={summary.rows}
+          todayISO={summary.todayISO}
           blockedDates={blockedDates}
           calendarHref={profile.role === "admin" ? "/admin" : "/dashboard"}
         />

@@ -1,61 +1,31 @@
-import { createServerClient } from "@/lib/supabase/server";
-import { yearBounds } from "@/lib/days";
+import { todayISOIn } from "@/lib/days";
+import { getLeaveContext, getLeaveRows, type LeaveContext } from "@/lib/leave-policies";
+import { yearBalances, type LeaveRow, type YearBalance } from "@/lib/leave-rules";
 
-export type Balance = {
-  annual_used: number;
-  annual_pending: number;
-  annual_allowance: number;
-  annual_remaining: number;
-  sick_used: number;
-  sick_pending: number;
-  sick_allowance: number;
-  sick_remaining: number;
+export type LeaveSummary = LeaveContext & {
+  /** Today in the company's time zone, which is what "this year" means. */
+  todayISO: string;
+  year: number;
+  /** Their approved and pending leave, which the request form re-checks against as dates change. */
+  rows: LeaveRow[];
+  /** This year's balance for every yearly leave type their template has on. */
+  balances: YearBalance[];
 };
 
-export async function getBalance(userId: string, year?: number): Promise<Balance> {
-  const supabase = await createServerClient();
-  const { from, to } = yearBounds(year);
-
-  const [{ data: profile }, { data: rows }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("annual_allowance, sick_allowance")
-      .eq("id", userId)
-      .single(),
-    supabase
-      .from("leave_requests")
-      .select("type, days_count, status")
-      .eq("user_id", userId)
-      .in("status", ["approved", "pending"])
-      .gte("start_date", from)
-      .lte("start_date", to),
-  ]);
-
-  const allowance = {
-    annual: Number(profile?.annual_allowance ?? 20),
-    sick: Number(profile?.sick_allowance ?? 20),
-  };
-
-  let annual_used = 0, annual_pending = 0, sick_used = 0, sick_pending = 0;
-  for (const r of rows ?? []) {
-    const d = Number(r.days_count);
-    if (r.type === "annual") {
-      if (r.status === "approved") annual_used += d;
-      else if (r.status === "pending") annual_pending += d;
-    } else if (r.type === "sick") {
-      if (r.status === "approved") sick_used += d;
-      else if (r.status === "pending") sick_pending += d;
-    }
-  }
-
+/**
+ * Someone's template, leave and this year's balances. Everything is computed
+ * on the fly from `leave_requests`, so 1 January needs no job: the year simply
+ * changes, and carry-over is worked out from last year's rows.
+ */
+export async function getLeaveSummary(userId: string): Promise<LeaveSummary> {
+  const todayISO = todayISOIn();
+  const year = Number(todayISO.slice(0, 4));
+  const [context, rows] = await Promise.all([getLeaveContext(userId), getLeaveRows(userId)]);
   return {
-    annual_used,
-    annual_pending,
-    annual_allowance: allowance.annual,
-    annual_remaining: +(allowance.annual - annual_used - annual_pending).toFixed(1),
-    sick_used,
-    sick_pending,
-    sick_allowance: allowance.sick,
-    sick_remaining: +(allowance.sick - sick_used - sick_pending).toFixed(1),
+    ...context,
+    todayISO,
+    year,
+    rows,
+    balances: yearBalances(context.policy, context.employment, rows, year, todayISO),
   };
 }
