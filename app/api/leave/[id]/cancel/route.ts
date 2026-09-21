@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { emailDecisionToEmployee, emailCancelledRequestToAdmins } from "@/lib/email";
 import { requireUser } from "@/lib/auth";
 import { withdrawApprovedLeave } from "@/lib/calendar";
+import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 
 export async function POST(
   _req: Request,
@@ -92,7 +93,7 @@ async function cancelAsAdmin(
         to: employee.email,
         employeeName: employee.full_name,
         approved: false,
-        type: row.type,
+        typeName: typeNamer((await getLeaveSetup()).types)(row.type),
         startDate: row.start_date,
         endDate: row.end_date,
         days: Number(row.days_count),
@@ -117,7 +118,7 @@ async function cancelAsOwner(
   userId: string,
   employeeName: string,
   existing: {
-    type: "annual" | "sick";
+    type: string;
     start_date: string;
     end_date: string;
     days_count: number;
@@ -162,7 +163,7 @@ async function cancelAsOwner(
       await emailCancelledRequestToAdmins({
         adminEmails,
         employeeName,
-        type: existing.type,
+        typeName: typeNamer((await getLeaveSetup()).types)(existing.type),
         startDate: existing.start_date,
         endDate: existing.end_date,
         days: Number(existing.days_count),

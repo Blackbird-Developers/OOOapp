@@ -32,7 +32,7 @@ h1, h2, h3, h4, h5, h6 {
 .btn-ghost     { @apply btn bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-brand-ink disabled:text-neutral-400 disabled:hover:bg-transparent disabled:hover:text-neutral-400; }
 
 .input {
-  @apply w-full min-h-11 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-ink/10 focus:border-neutral-400;
+  @apply w-full min-h-11 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-ink/10 focus:border-neutral-400 aria-[invalid=true]:border-rose-300 aria-[invalid=true]:focus:ring-rose-100;
 }
 .label { @apply block text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 mb-1.5; }
 .card  { @apply bg-white rounded-2xl border border-neutral-200 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-12px_rgba(0,0,0,0.08)]; }
@@ -59,6 +59,13 @@ h1, h2, h3, h4, h5, h6 {
   100% { opacity: 1; transform: translateY(0); }
 }
 .menu-in { animation: menu-in 140ms cubic-bezier(.2,.7,.3,1) both; }
+
+/* A dropdown list that opens above its field rises into place instead. */
+@keyframes menu-in-up {
+  0%   { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.select-panel[data-side="top"] { animation-name: menu-in-up; }
 
 /* Approval banner slides in from above; the only celebration motion that
    remains after dropping the full-screen overlay. */

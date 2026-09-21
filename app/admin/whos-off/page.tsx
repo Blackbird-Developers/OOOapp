@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { todayISOIn, yearBounds } from "@/lib/days";
 import { loadSlackSettings } from "@/lib/slack-settings";
+import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import TodayStrip from "@/components/TodayStrip";
 import SlackDigestButton from "@/components/SlackDigestButton";
@@ -28,11 +29,13 @@ export default async function AdminWhosOffPage() {
       .lte("start_date", to),
   ]);
 
+  const nameOf = typeNamer((await getLeaveSetup()).types);
   const teamEvents = (teamRows ?? []).map((r: any) => ({
     id: r.id,
     userId: r.user_id,
     userName: r.profiles?.full_name ?? "Employee",
     type: r.type,
+    typeName: nameOf(r.type),
     status: r.status,
     start: r.start_date,
     end: r.end_date,

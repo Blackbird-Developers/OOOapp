@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Field from "@/components/Field";
+import Select from "@/components/Select";
 
-const OPTIONS = [
-  { value: 0, label: "No minimum — same-day requests allowed" },
+const OPTIONS: { value: number; label: string; description?: string }[] = [
+  { value: 0, label: "No minimum", description: "Same-day requests are fine" },
   { value: 3, label: "3 days in advance" },
   { value: 7, label: "1 week in advance" },
   { value: 14, label: "2 weeks in advance" },
   { value: 21, label: "3 weeks in advance" },
-  { value: 30, label: "1 month (30 days) in advance" },
+  { value: 30, label: "1 month in advance", description: "30 days" },
 ];
 
 export default function SettingsForm({ initialNoticeDays }: { initialNoticeDays: number }) {
@@ -61,18 +62,12 @@ export default function SettingsForm({ initialNoticeDays }: { initialNoticeDays:
       <div className="max-w-md">
         <Field label="Minimum notice">
           {(p) => (
-            <select
+            <Select
               {...p}
-              className="input"
-              value={noticeDays}
-              onChange={(e) => setNoticeDays(Number(e.target.value))}
-            >
-              {options.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              value={String(noticeDays)}
+              onChange={(v) => setNoticeDays(Number(v))}
+              options={options.map((o) => ({ value: String(o.value), label: o.label, description: o.description }))}
+            />
           )}
         </Field>
       </div>

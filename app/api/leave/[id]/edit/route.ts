@@ -3,16 +3,17 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addDays, format, parseISO } from "date-fns";
-import { countLeaveDays, todayISOIn } from "@/lib/days";
+import { countDaysForUnit, todayISOIn } from "@/lib/days";
 import { getAnnualMinNoticeDays, formatNoticeDays } from "@/lib/settings";
-import { getBalance } from "@/lib/balances";
+import { getLeaveContext, getLeaveRows, LEAVE_TYPE_KEY, typeNamer } from "@/lib/leave-policies";
+import { availableDays, limitMessage, ruleFor } from "@/lib/leave-rules";
 import { emailEditedRequestToAdmins } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
 import { withdrawCalendarEvent } from "@/lib/calendar";
 
 const schema = z.object({
-  type: z.enum(["annual", "sick"]),
+  type: z.string().regex(LEAVE_TYPE_KEY),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   half_start: z.enum(["full", "am", "pm"]).default("full"),
@@ -68,6 +69,23 @@ export async function PATCH(
     );
   }
 
+  // The type has to be on the person's template. Keeping the type a request
+  // already has is always fine, even if an admin has since switched it off:
+  // moving booked leave shouldn't depend on today's template.
+  const context = await getLeaveContext(me.id);
+  const rule = ruleFor(context.policy, input.type);
+  if (!rule) {
+    return NextResponse.json({ error: "That leave type doesn't exist." }, { status: 400 });
+  }
+  if (!rule.enabled && input.type !== existing.type && me.role !== "admin") {
+    return NextResponse.json(
+      { error: `${rule.name} isn't part of your leave policy. Ask your admin if you think it should be.` },
+      { status: 400 }
+    );
+  }
+  const halfStart = rule.unit === "calendar" ? "full" : input.half_start;
+  const halfEnd = rule.unit === "calendar" ? "full" : input.half_end;
+
   // Notice-period policy: moving annual leave to different dates counts as a
   // new request, so the same minimum-notice rule applies. Edits that keep the
   // dates (e.g. changing the reason) are not blocked, and admins are exempt.
@@ -88,7 +106,7 @@ export async function PATCH(
     }
   }
 
-  // Recompute working days over the new range.
+  // Recompute the days over the new range, in the type's unit.
   const { data: holidays } = await supabase
     .from("public_holidays")
     .select("date")
@@ -96,11 +114,12 @@ export async function PATCH(
     .lte("date", input.end_date);
   const holidayISOs = (holidays ?? []).map((h: { date: string }) => h.date);
 
-  const days = countLeaveDays(
+  const days = countDaysForUnit(
+    rule.unit,
     input.start_date,
     input.end_date,
-    input.half_start,
-    input.half_end,
+    halfStart,
+    halfEnd,
     holidayISOs
   );
   if (days <= 0) {
@@ -147,22 +166,22 @@ export async function PATCH(
     }
   }
 
-  // Re-check balance. The request being edited is already counted in the
-  // balance, so add its current days back to the matching type before testing
-  // the new size. If the type changed, the old days were counted against the
-  // old type and don't affect the new type's remaining.
-  const balance = await getBalance(me.id);
-  let remaining = input.type === "annual" ? balance.annual_remaining : balance.sick_remaining;
-  if (existing.type === input.type) remaining = +(remaining + Number(existing.days_count)).toFixed(1);
-  if (days > remaining) {
-    const noun = input.type === "annual" ? "annual leave" : "sick leave";
+  // Re-check the limit. The request being edited is left out of the count, so
+  // its current days don't stand in the way of its new shape, whether or not
+  // the type or the year changed.
+  const rows = await getLeaveRows(me.id);
+  const available = availableDays(
+    context.policy,
+    context.employment,
+    rows,
+    input.type,
+    input.start_date,
+    todayISOIn(),
+    id
+  );
+  if (available !== null && days > available) {
     return NextResponse.json(
-      {
-        error:
-          remaining <= 0
-            ? `You have no ${noun} days left this year.`
-            : `You only have ${remaining} ${noun} day${remaining === 1 ? "" : "s"} available. This request is ${days} day${days === 1 ? "" : "s"}.`,
-      },
+      { error: limitMessage(rule, available, days, input.start_date) },
       { status: 400 }
     );
   }
@@ -177,8 +196,8 @@ export async function PATCH(
       type: input.type,
       start_date: input.start_date,
       end_date: input.end_date,
-      half_start: input.half_start,
-      half_end: input.half_end,
+      half_start: halfStart,
+      half_end: halfEnd,
       days_count: days,
       reason: input.reason ?? null,
       status: "pending",
@@ -212,7 +231,8 @@ export async function PATCH(
   // Notify all admins of the change. Best-effort: the edit is already saved,
   // so an email failure must not fail the response.
   try {
-    await notifyAdminsOfEdit(admin, me.full_name, existing, input, days);
+    const nameOf = typeNamer(context.types);
+    await notifyAdminsOfEdit(admin, me.full_name, existing, input, days, nameOf);
   } catch (e) {
     console.warn("[leave] edit email failed:", e);
   }
@@ -224,7 +244,7 @@ async function notifyAdminsOfEdit(
   admin: ReturnType<typeof createAdminClient>,
   employeeName: string,
   existing: {
-    type: "annual" | "sick";
+    type: string;
     start_date: string;
     end_date: string;
     days_count: number;
@@ -232,12 +252,13 @@ async function notifyAdminsOfEdit(
     status: string;
   },
   input: {
-    type: "annual" | "sick";
+    type: string;
     start_date: string;
     end_date: string;
     reason?: string | null;
   },
-  days: number
+  days: number,
+  nameOf: (type: string) => string
 ) {
   const { data: admins } = await admin.from("profiles").select("email").eq("role", "admin");
   const adminEmails = (admins ?? []).map((a: { email: string }) => a.email);
@@ -247,14 +268,14 @@ async function notifyAdminsOfEdit(
       employeeName,
       wasApproved: existing.status === "approved",
       before: {
-        type: existing.type,
+        typeName: nameOf(existing.type),
         startDate: existing.start_date,
         endDate: existing.end_date,
         days: Number(existing.days_count),
         reason: existing.reason,
       },
       after: {
-        type: input.type,
+        typeName: nameOf(input.type),
         startDate: input.start_date,
         endDate: input.end_date,
         days,

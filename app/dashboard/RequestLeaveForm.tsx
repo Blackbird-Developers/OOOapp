@@ -1,15 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { countLeaveDays, type HalfKind } from "@/lib/days";
-import type { Balance } from "@/lib/balances";
+import { countDaysForUnit, HALF_DAY_OPTIONS, type HalfKind } from "@/lib/days";
+import {
+  availableDays,
+  describeLimit,
+  leavePhrase,
+  limitMessage,
+  requestableRules,
+  ruleFor,
+  takenIn,
+  type Employment,
+  type LeavePolicy,
+  type LeaveRow,
+} from "@/lib/leave-rules";
 import DateRangePicker from "@/components/DateRangePicker";
 import Field from "@/components/Field";
+import Select from "@/components/Select";
 
 export type EditTarget = {
   id: string;
-  type: "annual" | "sick";
+  type: string;
   start: string;
   end: string;
   halfStart: HalfKind;
@@ -20,13 +32,21 @@ export type EditTarget = {
 
 export default function RequestLeaveForm({
   holidays,
-  balance,
+  policy,
+  employment,
+  rows,
+  todayISO,
   blockedDates,
   calendarHref,
   edit,
 }: {
   holidays: { date: string; name: string }[];
-  balance: Balance;
+  // The requester's leave template, employment details and approved/pending
+  // leave: enough to run the same limit check the server runs, for any dates.
+  policy: LeavePolicy;
+  employment: Employment;
+  rows: LeaveRow[];
+  todayISO: string;
   // ISO dates the user already has approved/pending leave on.
   blockedDates: string[];
   // Calendar page to land on after a successful submit.
@@ -35,9 +55,18 @@ export default function RequestLeaveForm({
   edit?: EditTarget;
 }) {
   const router = useRouter();
+  const noteId = useId();
   const today = new Date().toISOString().slice(0, 10);
 
-  const [type, setType] = useState<"annual" | "sick">(edit?.type ?? "annual");
+  // The types this template switches on. A request being edited keeps its own
+  // type on the list even if an admin has since switched that type off.
+  const options = useMemo(() => {
+    const enabled = requestableRules(policy);
+    const current = edit ? ruleFor(policy, edit.type) : undefined;
+    return current && !current.enabled ? [...enabled, current] : enabled;
+  }, [policy, edit]);
+
+  const [type, setType] = useState(edit?.type ?? options[0]?.type ?? "annual");
   const [start, setStart] = useState(edit?.start ?? today);
   const [end, setEnd] = useState(edit?.end ?? today);
   const [halfStart, setHalfStart] = useState<HalfKind>(edit?.halfStart ?? "full");
@@ -46,25 +75,26 @@ export default function RequestLeaveForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const rule = ruleFor(policy, type);
+  const unit = rule?.unit ?? "working";
+  // Calendar-day leave (maternity) runs in whole days.
+  const halves = unit === "working";
+
   const holidayDates = useMemo(() => holidays.map((h) => h.date), [holidays]);
 
   const days = useMemo(() => {
     if (!start || !end || end < start) return 0;
-    return countLeaveDays(start, end, halfStart, halfEnd, holidayDates);
-  }, [start, end, halfStart, halfEnd, holidayDates]);
+    return countDaysForUnit(unit, start, end, halves ? halfStart : "full", halves ? halfEnd : "full", holidayDates);
+  }, [unit, halves, start, end, halfStart, halfEnd, holidayDates]);
 
   const sameDay = start === end;
-  // When editing, the request being changed is already counted in the balance.
-  // Add its days back to the matching type so the remaining figure reflects the
-  // budget actually available to this request.
-  const editAddBack = useMemo(() => {
-    if (!edit || edit.type !== type) return 0;
-    return countLeaveDays(edit.start, edit.end, edit.halfStart, edit.halfEnd, holidayDates);
-  }, [edit, type, holidayDates]);
-  const remaining = +(
-    (type === "annual" ? balance.annual_remaining : balance.sick_remaining) + editAddBack
-  ).toFixed(1);
-  const overBalance = days > 0 && days > remaining;
+  // The request being edited is left out, so its current days don't count
+  // against its new shape (whatever its type or year was).
+  const available = useMemo(
+    () => (start ? availableDays(policy, employment, rows, type, start, todayISO, edit?.id) : null),
+    [policy, employment, rows, type, start, todayISO, edit?.id]
+  );
+  const overLimit = rule !== undefined && available !== null && days > 0 && days > available;
 
   const conflict = useMemo(() => {
     if (!start || !end) return null;
@@ -80,12 +110,8 @@ export default function RequestLeaveForm({
       setError(`You already have a leave request that covers ${conflict}. Pick different dates, or edit or cancel the existing one under My requests.`);
       return;
     }
-    if (overBalance) {
-      setError(
-        remaining <= 0
-          ? `You have no ${type} leave days remaining this year.`
-          : `You only have ${remaining} ${type} day${remaining === 1 ? "" : "s"} left. This request is ${days} day${days === 1 ? "" : "s"}.`
-      );
+    if (overLimit && rule && available !== null) {
+      setError(limitMessage(rule, available, days, start));
       return;
     }
     setSubmitting(true);
@@ -97,8 +123,8 @@ export default function RequestLeaveForm({
         type,
         start_date: start,
         end_date: end,
-        half_start: halfStart,
-        half_end: sameDay ? halfStart : halfEnd,
+        half_start: halves ? halfStart : "full",
+        half_end: halves ? (sameDay ? halfStart : halfEnd) : "full",
         reason: reason || null,
       }),
     });
@@ -112,6 +138,43 @@ export default function RequestLeaveForm({
     router.push(calendarHref);
     router.refresh();
   }
+
+  // The template's note for employees (how it's paid, what to bring) reads
+  // across the whole form rather than squeezed under the select, and stays
+  // tied to the select for screen readers.
+  const note = rule?.note ?? null;
+
+  // Each type says what it leaves you with for the chosen dates: days left in
+  // that year for a yearly allowance; for anything else the cap, and how much
+  // of it has been taken that year (the request being edited left out).
+  const typeOptions = useMemo(
+    () =>
+      options.map((o) => {
+        if (o.limit !== "per_year") {
+          const year = Number(start.slice(0, 4));
+          const { used, pending } = takenIn(rows, o.type, year, todayISO, edit?.id);
+          const taken = used + pending;
+          // "Booked": approved and pending alike, since both are spoken for.
+          const suffix = taken > 0 ? ` · ${taken} booked in ${year}` : "";
+          return { value: o.type, label: o.name, description: `${describeLimit(o)}${suffix}` };
+        }
+        const left = start ? availableDays(policy, employment, rows, o.type, start, todayISO, edit?.id) ?? 0 : 0;
+        return {
+          value: o.type,
+          label: o.name,
+          description: `${left} day${left === 1 ? "" : "s"} left in ${start.slice(0, 4)}`,
+        };
+      }),
+    [options, policy, employment, rows, start, todayISO, edit?.id]
+  );
+
+  const allowanceText = !rule
+    ? null
+    : rule.limit === "unlimited"
+      ? "no fixed limit"
+      : rule.limit === "per_request"
+        ? `up to ${available} per occasion`
+        : `${available} ${leavePhrase(rule.name)} day${available === 1 ? "" : "s"} left in ${start.slice(0, 4)}`;
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -132,33 +195,36 @@ export default function RequestLeaveForm({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Leave type">
           {(p) => (
-            <select {...p} className="input" value={type} onChange={(e) => setType(e.target.value as "annual" | "sick")}>
-              <option value="annual">Annual</option>
-              <option value="sick">Sick</option>
-            </select>
+            <Select
+              {...p}
+              aria-describedby={[p["aria-describedby"], note ? noteId : null].filter(Boolean).join(" ") || undefined}
+              value={type}
+              onChange={setType}
+              options={typeOptions}
+            />
           )}
         </Field>
-        <Field label={sameDay ? "Half-day?" : "First day"}>
-          {(p) => (
-            <select {...p} className="input" value={halfStart} onChange={(e) => setHalfStart(e.target.value as HalfKind)}>
-              <option value="full">Full day</option>
-              <option value="am">Morning only (½)</option>
-              <option value="pm">Afternoon only (½)</option>
-            </select>
-          )}
-        </Field>
-        {!sameDay && (
+        {halves && (
+          <Field label={sameDay ? "Half-day?" : "First day"}>
+            {(p) => (
+              <Select {...p} value={halfStart} onChange={setHalfStart} options={HALF_DAY_OPTIONS} />
+            )}
+          </Field>
+        )}
+        {halves && !sameDay && (
           <Field label="Last day">
             {(p) => (
-              <select {...p} className="input" value={halfEnd} onChange={(e) => setHalfEnd(e.target.value as HalfKind)}>
-                <option value="full">Full day</option>
-                <option value="am">Morning only (½)</option>
-                <option value="pm">Afternoon only (½)</option>
-              </select>
+              <Select {...p} value={halfEnd} onChange={setHalfEnd} options={HALF_DAY_OPTIONS} />
             )}
           </Field>
         )}
       </div>
+
+      {note && (
+        <p id={noteId} className="-mt-3 max-w-prose text-xs text-neutral-500">
+          {note}
+        </p>
+      )}
 
       <Field label="Reason (optional)">
         {(p) => (
@@ -173,25 +239,22 @@ export default function RequestLeaveForm({
         </div>
       )}
 
-      {!conflict && overBalance && (
+      {!conflict && overLimit && rule && available !== null && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          <strong>Not enough days.</strong>{" "}
-          {remaining <= 0
-            ? `You have no ${type} leave days left this year.`
-            : `You have ${remaining} ${type} day${remaining === 1 ? "" : "s"} left, but selected ${days}. Shorten the range or take a half day.`}
+          <strong>{rule.limit === "per_request" ? "Too long." : "Not enough days."}</strong>{" "}
+          {limitMessage(rule, available, days, start)}{" "}
+          {halves ? "Shorten the range or take a half day." : "Shorten the range."}
         </div>
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-neutral-600">
-          Total: <strong>{days}</strong> working day{days === 1 ? "" : "s"}{" "}
-          <span className="text-neutral-500">
-            · {remaining} {type} day{remaining === 1 ? "" : "s"} remaining
-          </span>
+          Total: <strong>{days}</strong> {unit === "calendar" ? "calendar" : "working"} day{days === 1 ? "" : "s"}
+          {allowanceText && <span className="text-neutral-500"> · {allowanceText}</span>}
         </p>
         <button
           className="btn-accent w-full sm:w-auto"
-          disabled={submitting || days === 0 || overBalance || !!conflict}
+          disabled={submitting || days === 0 || overLimit || !!conflict || !rule}
         >
           {edit
             ? submitting

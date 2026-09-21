@@ -52,7 +52,7 @@ const content: Record<Locale, Copy> = {
                 <ol className="list-decimal pl-5 space-y-1.5">
                   <li>Click <strong>Request leave</strong> in the top nav.</li>
                   <li>Pick your start and end date on the calendar.</li>
-                  <li>Choose <strong>Annual</strong> or <strong>Sick</strong>.</li>
+                  <li>Pick the <strong>Leave type</strong>: annual, sick, or another type your leave policy includes.</li>
                   <li>Add a reason if you'd like (it's optional).</li>
                   <li>Hit <strong>Submit request</strong>.</li>
                 </ol>
@@ -78,6 +78,36 @@ const content: Record<Locale, Copy> = {
                 <p><strong>Annual</strong> is planned time off — holidays, personal days, anything you book ahead.</p>
                 <p className="mt-2"><strong>Sick</strong> is for when you're unwell. It comes out of a separate allowance, so taking a sick day doesn't eat into your annual leave.</p>
                 <p className="mt-2">Both balances show on the request page. If something looks wrong, ask your admin.</p>
+                <p className="mt-2">Your leave policy may include other types too, such as maternity, paternity or unpaid leave. When you pick one, the form shows how many days it allows and any conditions, like how it&apos;s paid.</p>
+              </>
+            ),
+          },
+          {
+            id: "different-allowance",
+            title: "Why is my annual allowance different from someone else's?",
+            body: (
+              <>
+                <p>Your annual days come from your leave policy, which your admin sets up. Depending on the policy:</p>
+                <ul className="mt-2 list-disc pl-5 space-y-1.5">
+                  <li><strong>Experience</strong> can add days, for example one more day for every five years you&apos;ve worked.</li>
+                  <li>In the <strong>year you join</strong>, you may earn days month by month instead of getting the full amount at once.</li>
+                  <li>Unused days may <strong>carry over</strong> into the next year, sometimes only until a set date.</li>
+                </ul>
+                <p className="mt-2">The request page explains where your number comes from. If it looks wrong, ask your admin to check your start date and previous experience.</p>
+              </>
+            ),
+          },
+          {
+            id: "all-leave-types",
+            title: "How many days of each leave type do I have?",
+            body: (
+              <>
+                <p>Next to your annual and sick balances, on <strong>Request leave</strong> or <strong>My requests</strong>, press <strong>All leave types</strong>. It lists every type on your leave policy.</p>
+                <ul className="mt-2 list-disc pl-5 space-y-1.5">
+                  <li><strong>Annual and sick leave</strong>, and any other yearly allowance, show how many days you have left this year.</li>
+                  <li>Types like <strong>paternity</strong> or <strong>marriage leave</strong> aren&apos;t yearly allowances: they give a set number of days per occasion. <strong>Up to 5 days per occasion</strong> on marriage leave means up to 5 days for each wedding, not 5 a year. Each one shows that limit, a line on what it&apos;s for, and how many days you&apos;ve taken this year.</li>
+                </ul>
+                <p className="mt-2">Each type has its own days. Taking paternity leave, for example, never comes out of your annual leave.</p>
               </>
             ),
           },
@@ -186,7 +216,7 @@ const content: Record<Locale, Copy> = {
                 <ol className="list-decimal pl-5 space-y-1.5">
                   <li>Kliko <strong>Request leave</strong> në navigimin e sipërm.</li>
                   <li>Zgjidh datën e fillimit dhe atë të mbarimit në kalendar.</li>
-                  <li>Zgjidh <strong>Annual</strong> ose <strong>Sick</strong>.</li>
+                  <li>Zgjidh llojin te <strong>Leave type</strong>: vjetor, mjekësor ose një lloj tjetër që e përfshin politika jote e pushimeve.</li>
                   <li>Shto një arsye nëse dëshiron (është opsionale).</li>
                   <li>Kliko <strong>Submit request</strong>.</li>
                 </ol>
@@ -212,6 +242,36 @@ const content: Record<Locale, Copy> = {
                 <p><strong>Vjetor</strong> është pushimi i planifikuar — pushime, ditë personale, çdo gjë që e rezervon paraprakisht.</p>
                 <p className="mt-2"><strong>Mjekësor</strong> është për kur je i sëmurë. Vjen nga një kuotë e veçantë, kështu që marrja e një dite mjekësore nuk zbritet nga pushimi vjetor.</p>
                 <p className="mt-2">Të dyja bilancet shfaqen në faqen e kërkesës. Nëse diçka duket gabim, pyet administratorin.</p>
+                <p className="mt-2">Politika jote e pushimeve mund të përfshijë edhe lloje të tjera, si pushimi i lehonisë, pushimi i atësisë ose pushimi pa pagesë. Kur e zgjedh një lloj, forma tregon sa ditë lejon dhe kushtet e tij, p.sh. si paguhet.</p>
+              </>
+            ),
+          },
+          {
+            id: "different-allowance",
+            title: "Pse numri im i ditëve vjetore ndryshon nga i dikujt tjetër?",
+            body: (
+              <>
+                <p>Ditët vjetore vijnë nga politika jote e pushimeve, të cilën e cakton administratori. Varësisht nga politika:</p>
+                <ul className="mt-2 list-disc pl-5 space-y-1.5">
+                  <li><strong>Përvoja e punës</strong> mund të shtojë ditë, për shembull një ditë më shumë për çdo pesë vjet punë.</li>
+                  <li>Në <strong>vitin kur fillon punën</strong>, mund t&apos;i fitosh ditët muaj pas muaji, në vend që t&apos;i marrësh të gjitha menjëherë.</li>
+                  <li>Ditët e papërdorura mund të <strong>barten</strong> në vitin e ardhshëm, ndonjëherë vetëm deri në një datë të caktuar.</li>
+                </ul>
+                <p className="mt-2">Faqja e kërkesës shpjegon nga vjen numri yt. Nëse diçka duket gabim, kërko nga administratori të kontrollojë datën e fillimit dhe përvojën tënde të mëparshme.</p>
+              </>
+            ),
+          },
+          {
+            id: "all-leave-types",
+            title: "Sa ditë kam nga secili lloj pushimi?",
+            body: (
+              <>
+                <p>Pranë bilanceve të pushimit vjetor dhe mjekësor, te <strong>Request leave</strong> ose <strong>My requests</strong>, kliko <strong>All leave types</strong>. Aty shfaqen të gjitha llojet e pushimit të politikës sate.</p>
+                <ul className="mt-2 list-disc pl-5 space-y-1.5">
+                  <li><strong>Pushimi vjetor dhe mjekësor</strong>, si dhe çdo kuotë tjetër vjetore, tregojnë sa ditë të kanë mbetur këtë vit.</li>
+                  <li>Llojet si <strong>pushimi i atësisë</strong> ose <strong>pushimi për martesë</strong> nuk janë kuota vjetore: ato japin një numër të caktuar ditësh për çdo rast. <strong>Up to 5 days per occasion</strong> te pushimi për martesë do të thotë deri në 5 ditë për çdo martesë, jo 5 në vit. Secili tregon atë kufi, një rresht se për çfarë është, dhe sa ditë ke marrë këtë vit.</li>
+                </ul>
+                <p className="mt-2">Çdo lloj ka ditët e veta. Për shembull, pushimi i atësisë nuk zbritet kurrë nga pushimi vjetor.</p>
               </>
             ),
           },

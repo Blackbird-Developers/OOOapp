@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Field from "@/components/Field";
+import Select from "@/components/Select";
 
 export default function InviteForm() {
   const router = useRouter();
@@ -60,10 +61,15 @@ export default function InviteForm() {
         </Field>
         <Field label="Role">
           {(p) => (
-            <select {...p} className="input" value={role} onChange={(e) => setRole(e.target.value as "employee" | "admin")}>
-              <option value="employee">Employee</option>
-              <option value="admin">Admin</option>
-            </select>
+            <Select
+              {...p}
+              value={role}
+              onChange={setRole}
+              options={[
+                { value: "employee", label: "Employee", description: "Requests their own leave" },
+                { value: "admin", label: "Admin", description: "Approves leave and manages the team" },
+              ]}
+            />
           )}
         </Field>
       </div>

@@ -2,6 +2,13 @@ import { addDays, format, isWeekend, parseISO, startOfDay } from "date-fns";
 
 export type HalfKind = "full" | "am" | "pm";
 
+/** The choices a half-day dropdown offers, in the order it offers them. */
+export const HALF_DAY_OPTIONS: { value: HalfKind; label: string; description?: string }[] = [
+  { value: "full", label: "Full day" },
+  { value: "am", label: "Morning only", description: "Counts as half a day" },
+  { value: "pm", label: "Afternoon only", description: "Counts as half a day" },
+];
+
 /**
  * Count working days between two ISO dates (inclusive), excluding weekends
  * and any date in `holidayISOs`. Honors half-day flags on the start and end.
@@ -51,6 +58,23 @@ export function countLeaveDays(
   }
 
   return total;
+}
+
+/**
+ * Days a request takes, in the unit its leave type counts in. Working-day
+ * types skip weekends and holidays and honour half days. Calendar-day types
+ * (maternity runs in months) count every date in the range, whole days only.
+ */
+export function countDaysForUnit(
+  unit: "working" | "calendar",
+  startISO: string,
+  endISO: string,
+  halfStart: HalfKind,
+  halfEnd: HalfKind,
+  holidayISOs: string[] = []
+): number {
+  if (unit === "calendar") return endISO < startISO ? 0 : datesInRange(startISO, endISO).length;
+  return countLeaveDays(startISO, endISO, halfStart, halfEnd, holidayISOs);
 }
 
 /** All ISO dates in [startISO, endISO], inclusive. */

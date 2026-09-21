@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type ApprovedItem = {
   id: string;
-  type: "annual" | "sick";
+  type: string;
   start_date: string;
   end_date: string;
   days_count: number;

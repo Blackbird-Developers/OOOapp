@@ -8,7 +8,9 @@ import CancelRequestButton from "./CancelRequestButton";
 
 type Request = {
   id: string;
-  type: "annual" | "sick";
+  type: string;
+  /** The leave type's display name, e.g. "Annual leave". */
+  type_name: string;
   start_date: string;
   end_date: string;
   days_count: number;
@@ -122,7 +124,7 @@ function DesktopRow({
           isRejected ? "cursor-pointer hover:bg-rose-50/40" : ""
         } ${isOpen ? "bg-rose-50/30" : ""}`}
       >
-        <td className="py-3 px-4 capitalize text-neutral-700">{r.type}</td>
+        <td className="py-3 px-4 text-neutral-700">{r.type_name}</td>
         <td className="py-3 px-4 whitespace-nowrap text-neutral-700">
           {r.start_date} <span className="text-neutral-500">→</span> {r.end_date}
         </td>
@@ -185,7 +187,7 @@ function MobileCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium capitalize text-neutral-900">{r.type}</span>
+            <span className="text-sm font-medium text-neutral-900">{r.type_name}</span>
             <StatusBadge status={r.status} />
           </div>
           <div className="mt-1 text-sm text-neutral-600 tabular-nums">

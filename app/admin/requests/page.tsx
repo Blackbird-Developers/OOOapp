@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
+import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 import StatusBadge from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
 import DecisionButtons from "./DecisionButtons";
@@ -15,6 +16,7 @@ export default async function AllRequestsPage() {
     .order("created_at", { ascending: false });
 
   const total = (rows ?? []).length;
+  const nameOf = typeNamer((await getLeaveSetup()).types);
 
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -65,7 +67,7 @@ export default async function AllRequestsPage() {
                   {(rows ?? []).map((r: any) => (
                     <tr key={r.id} className="border-b border-neutral-100 last:border-b-0 align-top hover:bg-neutral-50/40 transition-colors">
                       <td className="py-3 px-4 font-medium text-neutral-900">{r.profiles?.full_name}</td>
-                      <td className="py-3 px-4 capitalize text-neutral-700">{r.type}</td>
+                      <td className="py-3 px-4 text-neutral-700">{nameOf(r.type)}</td>
                       <td className="py-3 px-4 whitespace-nowrap text-neutral-700">{r.start_date} <span className="text-neutral-500">→</span> {r.end_date}</td>
                       <td className="py-3 px-4 text-neutral-700">{r.days_count}</td>
                       <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
@@ -97,8 +99,8 @@ export default async function AllRequestsPage() {
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0">
                       <div className="font-medium text-neutral-900 truncate">{r.profiles?.full_name}</div>
-                      <div className="text-xs text-neutral-500 capitalize mt-0.5">
-                        {r.type} leave · {r.days_count} day{r.days_count === 1 ? "" : "s"}
+                      <div className="text-xs text-neutral-500 mt-0.5">
+                        {nameOf(r.type)} · {r.days_count} day{r.days_count === 1 ? "" : "s"}
                       </div>
                     </div>
                     <StatusBadge status={r.status} />

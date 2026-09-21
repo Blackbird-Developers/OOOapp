@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Field from "@/components/Field";
+import Select from "@/components/Select";
 import type { IntegrationDetail, SlackPanel } from "@/lib/integrations";
 
 /**
@@ -141,18 +142,15 @@ export default function SlackSettingsEditor({
         */}
         <Field label="Posts at" hint="Kosovo time.">
           {(p) => (
-            <select
+            <Select
               {...p}
-              className="input"
-              value={postHour}
-              onChange={(e) => setPostHour(Number(e.target.value))}
-            >
-              {settings.postHourChoices.map((h) => (
-                <option key={h} value={h}>
-                  {String(h).padStart(2, "0")}:00
-                </option>
-              ))}
-            </select>
+              value={String(postHour)}
+              onChange={(v) => setPostHour(Number(v))}
+              options={settings.postHourChoices.map((h) => ({
+                value: String(h),
+                label: `${String(h).padStart(2, "0")}:00`,
+              }))}
+            />
           )}
         </Field>
       </div>

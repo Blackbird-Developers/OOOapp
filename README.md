@@ -2,11 +2,12 @@
 
 Internal leave / sick-day tracker for Blackbird Marketing.
 
-- Employees: see remaining annual + sick balance, request leave, view history
+- Employees: see remaining balances, request annual, sick or any other leave type their policy allows, view history
 - Admins: approve/reject, log leave on behalf, see a team calendar, manage employees, public holidays, and invites
 - Half-days supported (0.5)
 - Working-day counts automatically exclude weekends and admin-managed public holidays
-- Balances reset every Jan 1
+- Leave policy templates per country or company: yearly allowances, seniority, first-year leave, carry-over and custom leave types (section 11)
+- Balances reset every Jan 1, less anything carried over
 - Email notifications on every state change (Resend)
 - Optional daily Slack digest of who's out of office today (section 7)
 
@@ -356,6 +357,49 @@ Invitations are sent as `PARTSTAT=ACCEPTED` with `RSVP=FALSE` — approved leave
 
 ---
 
+## 11. Leave policies — allowances, earning more days, and other leave types
+
+Different countries and companies give different leave, so the rules are data an admin edits rather than code. A **leave policy** is a template, built and staffed like a Hierarchy group (**People → Leave policies**): create one, set its rules, add the people it applies to. A person follows one template; anyone not added to one follows the template marked **Default**.
+
+Each template sets:
+
+- **Annual leave**: days a year (working days), plus three rules that can each be switched on:
+  - **Seniority bonus**: extra days per block of work experience (Kosovo: +1 day for every 5 years). Experience is the person's time since their start date plus any previous experience, and years completed by 31 December count for that whole year.
+  - **First-year leave**: in the calendar year someone joins, they earn a set number of days per month worked (Kosovo: 1.5) instead of the full allowance, up to that allowance. A month counts once worked in full. From the next 1 January they get the full amount.
+  - **Carry-over**: unused annual days move into the next year up to a cap, optionally expiring at the end of a chosen month. Carried days are spent first, on the earliest leave, since they're the ones that can lapse. With no expiry, what's left can carry again (still capped). The first leftovers that can carry are 2026's, and never from before someone joined.
+- **Every other leave type**, on or off: a yearly allowance, a cap per occasion (marriage: 5 days for each wedding), or no fixed limit (unpaid: approval decides). Each type counts working days or calendar days (maternity runs in months), and can carry a note employees see when they pick it, e.g. how it's paid.
+
+Types are one catalogue shared by all templates: annual, sick, maternity, paternity, marriage, bereavement, blood donation and unpaid leave come built in, and admins can add their own from any template (it joins the others switched off). A type nobody has booked can be deleted; one that has been booked can only be switched off, so past leave keeps its name. New templates start from **the Kosovo table** (every type on, with seniority and first-year leave) or **blank** (20 annual, 20 sick).
+
+Start dates and previous experience are set per person on **People → Employees** (Edit). Without a start date, nobody gets seniority or first-year proration, just the template's days.
+
+Every type keeps its own count: paternity leave never comes out of annual leave. Employees see all of theirs from **All leave types**, at the end of the annual and sick balance line on Request leave and My requests; admins open a person from **People → Employees** to see the same, with their policy, start date and requests. Yearly allowances count down ("16 of 21 left"); types capped per occasion show the cap, the template's note on what they're for, and what's been taken that year, since there's no yearly total to count down (switch a type to "Days per year" on its template if a running total is what you want).
+
+### 11.1 Turning it on
+
+1. Run `supabase/migrations/013_leave_policies.sql` in the Supabase SQL editor.
+2. Open **People → Leave policies**. The migration created a **Standard** template matching the old behaviour exactly (20 annual, 20 sick, everything else off) and made it the default, so no balance moves when it runs. Anyone whose allowance had been edited by hand gets a template with their own numbers.
+3. Create a template from the Kosovo table (or edit Standard), adjust it, and add people. Set start dates and previous experience under Employees for the seniority and first-year rules.
+
+Until migration 013 is run, the app behaves as before: annual and sick leave only, allowances edited per person on the Employees page, and the Leave policies page says the migration is missing. Deploying the code first is safe.
+
+### 11.2 How it's enforced
+
+- Balances are still computed on the fly from `leave_requests`, all in `lib/leave-rules.ts` (pure functions, shared by the API routes, the admin tables and the employee's request form, so the number a form shows is the number the server enforces).
+- A request counts against the year it **starts** in, and is checked against that year's allowance, so booking January in December checks next year's days rather than this year's.
+- Pending leave holds its days like approved leave does. A request still pending in a year that has ended no longer holds anything back from the carry-over.
+- Employees can only request types their template switches on, and hit its limits. Admins logging leave on behalf skip the limits, as before, and can log any type. Editing a request leaves its own days out of the count and may keep a type that has since been switched off.
+- The annual notice period (section 9) and the Hierarchy rule (section 8) still apply to annual leave only.
+- Templates aren't versioned. A person's current template is used for every year, including last year when working out what carries over, so changing a template's annual days (or moving someone to another template) also changes the leftover their carry-over is based on.
+
+### 11.3 Privacy
+
+- Start dates and previous experience live in `employment_details`, readable only by the person and admins. Not `profiles`: since migration 003 any signed-in user can read every profile column.
+- Which template someone follows is readable only by them and admins.
+- Colleagues see each other's leave as simply "off". The employee dashboard no longer sends colleagues' leave types to the browser at all. Note that the `leave: authenticated reads approved` RLS policy from 003 still lets a signed-in user query the `type` of anyone's approved leave through the API directly; closing that needs a view or a column-restricted policy, and matters more now that types like maternity leave exist.
+
+---
+
 ## Project layout
 
 ```
@@ -365,12 +409,15 @@ app/
   dashboard/             employee dashboard (balance + request form + history)
   admin/                 admin dashboard (calendar + pending)
     requests/            full request list
-    employees/           employee list + allowance editor
+    employees/           employee list + start date / previous experience editor; [id] shows one person's leave
+    hierarchy/           conflict groups
+    policies/            leave policy templates, their people, and the rules editor ([id])
     invites/             send invites
     holidays/            CRUD public holidays
     leave/new/           log leave on behalf
     whos-off/            team calendar + "Post to Slack now"
   api/                   route handlers (leave, invites, holidays, etc.)
+    leave-policies/      create / save / delete templates, set the default, add and move people
     cron/slack-daily/    daily Slack digest, triggered by Vercel Cron
     slack/test/          admin-only "post the digest right now"
     integrations/slack/  connect / edit / disconnect Slack
@@ -381,7 +428,9 @@ lib/
   supabase/              browser / server / admin (service-role) clients
   auth.ts                requireUser / requireAdmin helpers
   days.ts                working-day calculator (weekends + holidays + half-days)
-  balances.ts            year-to-date used/pending/remaining
+  leave-rules.ts         the leave maths: allowances, seniority, first year, carry-over, limits (pure)
+  leave-policies.ts      loads templates, types and who follows which; works before migration 013 too
+  balances.ts            one person's template, leave and this year's balances
   email.ts               Resend wrapper + email templates
   slack.ts               Slack wrapper + digest message builder
   slack-settings.ts      where the Slack connection is stored and resolved
@@ -392,15 +441,15 @@ lib/
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 012_calendar_feed_mirror.sql
+supabase/migrations/     001_init.sql … 013_leave_policies.sql
 ```
 
 ---
 
 ## Operational notes
 
-- **Annual reset (Jan 1)**: balances are computed on the fly from `leave_requests` rows whose `start_date` falls in the current calendar year. There is no cron job — Jan 1 "just works." Old requests stay in the table for history.
-- **Allowances**: per-employee allowances live on `profiles.annual_allowance` / `sick_allowance`. Admins can edit per-person from the Employees page.
+- **Annual reset (Jan 1)**: balances are computed on the fly from `leave_requests` rows whose `start_date` falls in the calendar year, and carry-over is worked out from last year's rows. There is no cron job — Jan 1 "just works." Old requests stay in the table for history.
+- **Allowances**: come from each person's leave policy template (section 11). Before migration 013 they're the per-person `profiles.annual_allowance` / `sick_allowance`, edited from the Employees page; after it those columns are no longer read.
 - **Cancellations**: only admins can cancel pending or approved requests (per spec). Cancellation emails the employee.
 - **Half-days**: pick `Morning only` or `Afternoon only` on the first and/or last day of a range. Single-day requests with a half flag count as 0.5.
 - **Integrations**: `/admin/integrations` (admin-only) shows what Blackbird Leave is connected to, and lets an admin connect it, edit its settings, fire a digest on demand, or disconnect it. The registry lives in `lib/integrations.ts`; the stored connection in `lib/slack-settings.ts`.
