@@ -23,13 +23,14 @@ export default async function AdminWhosOffPage() {
     supabase.from("public_holidays").select("date, name").order("date"),
     supabase
       .from("leave_requests")
-      .select("id, type, status, start_date, end_date, user_id, profiles:user_id(full_name)")
+      .select("id, type, status, start_date, end_date, days_count, user_id, profiles:user_id(full_name)")
       .or(`status.eq.approved,and(status.eq.pending,user_id.eq.${profile.id})`)
       .gte("end_date", from)
       .lte("start_date", to),
   ]);
 
-  const nameOf = typeNamer((await getLeaveSetup()).types);
+  const leaveTypes = (await getLeaveSetup()).types;
+  const nameOf = typeNamer(leaveTypes);
   const teamEvents = (teamRows ?? []).map((r: any) => ({
     id: r.id,
     userId: r.user_id,
@@ -39,6 +40,7 @@ export default async function AdminWhosOffPage() {
     status: r.status,
     start: r.start_date,
     end: r.end_date,
+    days: Number(r.days_count),
   }));
 
   const offTodayMap = new Map<string, string>();
@@ -95,6 +97,7 @@ export default async function AdminWhosOffPage() {
         <LeaveCalendar
           events={teamEvents}
           holidays={holidays ?? []}
+          types={leaveTypes}
         />
       </section>
     </main>

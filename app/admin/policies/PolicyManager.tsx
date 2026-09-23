@@ -21,8 +21,8 @@ export type Template = {
 const PRESETS = [
   {
     value: "kosovo",
-    label: "Kosovo table",
-    hint: "Every leave type from the Kosovo table, with seniority and first-year leave on.",
+    label: "Full company policy",
+    hint: "Every leave type in the company policy, with seniority and first-year leave on.",
   },
   { value: "blank", label: "Blank", hint: "20 annual days and 20 sick days, nothing else." },
 ] as const;

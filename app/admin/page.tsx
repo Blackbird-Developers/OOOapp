@@ -22,14 +22,15 @@ export default async function AdminHomePage() {
       .order("created_at", { ascending: true }),
     supabase
       .from("leave_requests")
-      .select("id, type, status, start_date, end_date, user_id, profiles:user_id(full_name)")
+      .select("id, type, status, start_date, end_date, days_count, user_id, profiles:user_id(full_name)")
       .in("status", ["approved", "pending"])
       .gte("end_date", from)
       .lte("start_date", to),
     supabase.from("public_holidays").select("date, name").order("date"),
   ]);
 
-  const nameOf = typeNamer((await getLeaveSetup()).types);
+  const leaveTypes = (await getLeaveSetup()).types;
+  const nameOf = typeNamer(leaveTypes);
   const events = (rangeRows ?? []).map((r: any) => ({
     id: r.id,
     userId: r.user_id,
@@ -39,6 +40,7 @@ export default async function AdminHomePage() {
     status: r.status,
     start: r.start_date,
     end: r.end_date,
+    days: Number(r.days_count),
   }));
 
   return (
@@ -63,7 +65,7 @@ export default async function AdminHomePage() {
               <p className="text-xs text-neutral-500 mt-0.5">Approved and pending leave across the team</p>
             </div>
           </div>
-          <LeaveCalendar events={events} holidays={holidays ?? []} />
+          <LeaveCalendar events={events} holidays={holidays ?? []} types={leaveTypes} />
         </section>
 
         <section className="card p-4 sm:p-6 mt-6">
