@@ -333,7 +333,7 @@ export type PresetDefinition = {
 };
 
 /**
- * "Kosovo table" is the Leave & Absence Policy Summary as sent over: every
+ * "Full company policy" is the Leave & Absence Policy Summary as sent over: every
  * type switched on with its numbers and conditions written out for employees.
  * "Blank" is today's two allowances and nothing else.
  */

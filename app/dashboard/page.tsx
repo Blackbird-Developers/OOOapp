@@ -28,7 +28,8 @@ export default async function DashboardPage() {
       .lte("start_date", to),
   ]);
 
-  const nameOf = typeNamer((await getLeaveSetup()).types);
+  const leaveTypes = (await getLeaveSetup()).types;
+  const nameOf = typeNamer(leaveTypes);
   // The calendar only ever shows colleagues as "off", so their leave type is
   // left out of what reaches the browser too: sick or maternity leave is
   // nobody else's business.
@@ -41,6 +42,7 @@ export default async function DashboardPage() {
     status: r.status,
     start: r.start_date,
     end: r.end_date,
+    days: Number(r.days_count),
   }));
 
   const myApproved = (teamRows ?? [])
@@ -120,6 +122,7 @@ export default async function DashboardPage() {
           <LeaveCalendar
             events={teamEvents}
             holidays={holidays ?? []}
+            types={leaveTypes}
             viewerUserId={profile.id}
           />
         </section>

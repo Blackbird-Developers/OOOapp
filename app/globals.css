@@ -82,3 +82,8 @@ h1, h2, h3, h4, h5, h6 {
   .celebrate-banner,
   dialog[open] { animation: none !important; }
 }
+
+/* Public holidays on the team calendar: faint diagonal hatching, which no leave colour uses. */
+.holiday-hatch {
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgb(115 115 115 / 0.16) 6px 7px);
+}

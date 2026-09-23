@@ -369,7 +369,7 @@ Each template sets:
   - **Carry-over**: unused annual days move into the next year up to a cap, optionally expiring at the end of a chosen month. Carried days are spent first, on the earliest leave, since they're the ones that can lapse. With no expiry, what's left can carry again (still capped). The first leftovers that can carry are 2026's, and never from before someone joined.
 - **Every other leave type**, on or off: a yearly allowance, a cap per occasion (marriage: 5 days for each wedding), or no fixed limit (unpaid: approval decides). Each type counts working days or calendar days (maternity runs in months), and can carry a note employees see when they pick it, e.g. how it's paid.
 
-Types are one catalogue shared by all templates: annual, sick, maternity, paternity, marriage, bereavement, blood donation and unpaid leave come built in, and admins can add their own from any template (it joins the others switched off). A type nobody has booked can be deleted; one that has been booked can only be switched off, so past leave keeps its name. New templates start from **the Kosovo table** (every type on, with seniority and first-year leave) or **blank** (20 annual, 20 sick).
+Types are one catalogue shared by all templates: annual, sick, maternity, paternity, marriage, bereavement, blood donation and unpaid leave come built in, and admins can add their own from any template (it joins the others switched off). A type nobody has booked can be deleted; one that has been booked can only be switched off, so past leave keeps its name. New templates start from **the full company policy** (every type on, with seniority and first-year leave) or **blank** (20 annual, 20 sick).
 
 Start dates and previous experience are set per person on **People → Employees** (Edit). Without a start date, nobody gets seniority or first-year proration, just the template's days.
 
@@ -379,7 +379,7 @@ Every type keeps its own count: paternity leave never comes out of annual leave.
 
 1. Run `supabase/migrations/013_leave_policies.sql` in the Supabase SQL editor.
 2. Open **People → Leave policies**. The migration created a **Standard** template matching the old behaviour exactly (20 annual, 20 sick, everything else off) and made it the default, so no balance moves when it runs. Anyone whose allowance had been edited by hand gets a template with their own numbers.
-3. Create a template from the Kosovo table (or edit Standard), adjust it, and add people. Set start dates and previous experience under Employees for the seniority and first-year rules.
+3. Create a template from the full company policy (or edit Standard), adjust it, and add people. Set start dates and previous experience under Employees for the seniority and first-year rules.
 
 Until migration 013 is run, the app behaves as before: annual and sick leave only, allowances edited per person on the Employees page, and the Leave policies page says the migration is missing. Deploying the code first is safe.
 
