@@ -1,4 +1,4 @@
-import { loadFeedByToken } from "@/lib/calendar";
+import { loadFeedByToken, organizationForFeedToken } from "@/lib/calendar";
 import { loadCalendarSettings, organizerIdentity } from "@/lib/calendar-settings";
 import { buildFeed } from "@/lib/ics";
 
@@ -31,12 +31,17 @@ export async function GET(
 ) {
   const { token } = await params;
 
-  const settings = await loadCalendarSettings();
-  if (!settings.connected || !settings.personalFeeds) return notFound();
-
   // Cheap shape check before touching the database. Tokens are base64url of
   // 32 bytes, so anything shorter or carrying other characters is noise.
   if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) return notFound();
+
+  // Feeds are switched on per company, so the token has to say whose it is
+  // first. An unknown token and a company with feeds off both answer 404.
+  const orgId = await organizationForFeedToken(token);
+  if (!orgId) return notFound();
+
+  const settings = await loadCalendarSettings(orgId);
+  if (!settings.connected || !settings.personalFeeds) return notFound();
 
   const feed = await loadFeedByToken(token);
   if (!feed) return notFound();

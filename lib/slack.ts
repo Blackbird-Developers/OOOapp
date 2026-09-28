@@ -15,8 +15,11 @@ type SlackBlock = Record<string, unknown>;
  * using a status code, so the body is what we check — same shape of problem as
  * Resend in lib/email.ts.
  */
-export async function postToSlack(opts: { text: string; blocks: SlackBlock[] }): Promise<void> {
-  const creds = await loadSlackCredentials();
+export async function postToSlack(
+  orgId: string,
+  opts: { text: string; blocks: SlackBlock[] }
+): Promise<void> {
+  const creds = await loadSlackCredentials(orgId);
 
   if (!creds) {
     console.warn("[slack] not connected; skipping post");

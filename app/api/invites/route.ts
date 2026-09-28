@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { z } from "zod";
-import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailInvite } from "@/lib/email";
 import { requireAdmin } from "@/lib/auth";
@@ -13,13 +12,10 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
-  await requireAdmin();
+  const me = await requireAdmin();
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   const admin = createAdminClient();
 
@@ -37,12 +33,13 @@ export async function POST(req: Request) {
   const expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { error } = await admin.from("invites").insert({
+    organization_id: me.organization_id,
     email: parsed.data.email,
     full_name: parsed.data.full_name,
     role: parsed.data.role,
     token,
     expires_at,
-    created_by: user!.id,
+    created_by: me.id,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

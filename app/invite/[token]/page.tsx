@@ -1,12 +1,13 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import InviteAcceptForm from "./form";
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const supabase = await createServerClient();
-
-  const { data: invite } = await supabase
+  // Looked up on the server by its exact token. Invites are not readable with
+  // the public anon key at all (migration 015), because that let anyone list
+  // every open invite, token included.
+  const { data: invite } = await createAdminClient()
     .from("invites")
     .select("email, full_name, expires_at, used_at")
     .eq("token", token)

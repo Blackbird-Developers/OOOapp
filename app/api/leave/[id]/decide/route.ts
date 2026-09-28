@@ -38,6 +38,7 @@ export async function POST(
       .single();
     if (pendingRow && pendingRow.type === "annual") {
       const conflicts = await findAnnualConflicts({
+        orgId: admin.organization_id,
         userId: pendingRow.user_id,
         startDate: pendingRow.start_date,
         endDate: pendingRow.end_date,

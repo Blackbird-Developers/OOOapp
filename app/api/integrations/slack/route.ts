@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       bot_token: parsed.data.bot_token,
       channel_id: parsed.data.channel_id,
     },
-    admin.id
+    admin
   );
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
@@ -92,7 +92,7 @@ export async function PATCH(req: Request) {
     if (!check.ok) return NextResponse.json({ error: check.message }, { status: 400 });
   }
 
-  const { error } = await saveSlackSettings(patch, admin.id);
+  const { error } = await saveSlackSettings(patch, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
@@ -110,7 +110,7 @@ export async function PATCH(req: Request) {
 export async function DELETE() {
   const admin = await requireAdmin();
 
-  const { error } = await saveSlackSettings({ connected: false, bot_token: null }, admin.id);
+  const { error } = await saveSlackSettings({ connected: false, bot_token: null }, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });

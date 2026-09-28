@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const me = await requireUser();
 
-  const settings = await loadCalendarSettings();
+  const settings = await loadCalendarSettings(me.organization_id);
   if (!settings.connected || !settings.personalFeeds) {
     return NextResponse.json({ enabled: false, url: null });
   }
@@ -42,7 +42,7 @@ export async function GET() {
 export async function POST() {
   const me = await requireUser();
 
-  const settings = await loadCalendarSettings();
+  const settings = await loadCalendarSettings(me.organization_id);
   if (!settings.connected || !settings.personalFeeds) {
     return NextResponse.json({ error: "Calendar feeds are switched off." }, { status: 400 });
   }

@@ -1,4 +1,4 @@
-import { feedUrl } from "@/lib/calendar";
+import { feedUrl, organizationForFeedToken } from "@/lib/calendar";
 import { loadCalendarSettings } from "@/lib/calendar-settings";
 
 /**
@@ -78,13 +78,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   const { token } = await params;
   const app = new URL(req.url).searchParams.get("app") ?? "apple";
 
-  const settings = await loadCalendarSettings();
-  if (!settings.connected || !settings.personalFeeds) return notFound();
-
-  // Same cheap shape check the feed does. No database read: this hands the
-  // token to a calendar app, and the feed itself is what decides whether the
-  // token is real — answering differently here would leak which ones exist.
+  // Same cheap shape check the feed does, before touching the database.
   if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) return notFound();
+
+  // Feeds are switched on per company, so this reads which company the token
+  // belongs to. That tells a caller no more than the feed URL itself already
+  // does: both answer 404 for an unknown token and for feeds switched off.
+  const orgId = await organizationForFeedToken(token);
+  if (!orgId) return notFound();
+
+  const settings = await loadCalendarSettings(orgId);
+  if (!settings.connected || !settings.personalFeeds) return notFound();
 
   const target = targetFor(app, feedUrl(token));
   if (!target) return notFound();

@@ -29,85 +29,94 @@ export const dynamic = "force-dynamic";
  * a setting, so it belongs in the code where it can be switched off, not baked
  * into a schedule that can only be changed by a redeploy.
  *
- * `slack_daily_posts` is what keeps this to one message a day: the first run to
- * post claims the date, and every later run that day is a no-op.
+ * Runs once per company, each against its own settings and channel.
+ * `slack_daily_posts` is what keeps this to one message a day per company: the
+ * first run to post claims the date, and every later run that day is a no-op.
  */
 export async function GET(req: Request) {
   const denied = rejectIfUnauthorised(req);
   if (denied) return denied;
 
-  const settings = await loadSlackSettings();
+  const supabase = createAdminClient();
   const dateISO = todayISOIn();
+
+  // Each company has its own Slack settings, so each gets its own run. Most
+  // have Slack switched off and cost one settings read.
+  const { data: orgs, error } = await supabase.from("organizations").select("id");
+  if (error) {
+    console.error("[cron/slack-daily] could not list organizations:", error);
+    return NextResponse.json({ ok: false, date: dateISO, error: error.message }, { status: 500 });
+  }
+
+  const results: OrgResult[] = [];
+  for (const org of orgs ?? []) {
+    results.push({ organization: org.id, ...(await runFor(org.id, dateISO)) });
+  }
+
+  const failed = results.some((r) => !r.ok);
+  return NextResponse.json({ ok: !failed, date: dateISO, results }, { status: failed ? 500 : 200 });
+}
+
+type RunResult =
+  | { ok: true; posted: false; reason: string }
+  | { ok: true; posted: true; people: number; holiday: string | null }
+  | { ok: false; error: string };
+
+type OrgResult = RunResult & { organization: string };
+
+async function runFor(orgId: string, dateISO: string): Promise<RunResult> {
+  const settings = await loadSlackSettings(orgId);
   const localHour = hourNowIn();
 
+  if (!settings.connected) return skipped("Slack isn't connected");
+
   if (settings.weekdaysOnly && isWeekend(parseISO(dateISO))) {
-    return skipped(dateISO, "weekend");
+    return skipped("weekend");
   }
 
-  // Vercel fires crons within the hour of their slot, so treat the target as a
-  // floor rather than an exact match — otherwise a late trigger loses the day.
   if (localHour < settings.postHour) {
-    return skipped(
-      dateISO,
-      `too early (${localHour}:00 ${APP_TIME_ZONE}, posts from ${settings.postHour}:00)`
-    );
+    return skipped(`too early (${localHour}:00 ${APP_TIME_ZONE}, posts from ${settings.postHour}:00)`);
   }
 
-  // ...and a ceiling, so a leave request logged in the afternoon of a quiet
-  // morning can't trigger an afternoon "out of office today".
   const windowEnd = settings.postHour + POST_WINDOW_HOURS - 1;
   if (localHour > windowEnd) {
     return skipped(
-      dateISO,
       `too late (${localHour}:00 ${APP_TIME_ZONE}, window was ${settings.postHour}:00–${windowEnd}:00)`
     );
   }
 
-  if (!settings.connected) {
-    return NextResponse.json(
-      { ok: false, date: dateISO, error: "Slack isn't connected." },
-      { status: 503 }
-    );
-  }
-
   const supabase = createAdminClient();
-  const day = await getDayAvailability(supabase, dateISO);
+  const day = await getDayAvailability(supabase, orgId, dateISO);
 
   if (settings.silentWhenEmpty && !day.holiday && day.people.length === 0) {
-    return skipped(dateISO, "nobody off");
+    return skipped("nobody off");
   }
 
-  // Claim the day before posting. The primary key on post_date is what makes
-  // the second cron run — or a retry, or a redelivery — a no-op instead of a
-  // duplicate message.
   const channel = settings.channel!;
   const { error: claimError } = await supabase
     .from("slack_daily_posts")
-    .insert({ post_date: dateISO, channel, people_count: day.people.length });
+    .insert({ organization_id: orgId, post_date: dateISO, channel, people_count: day.people.length });
 
   if (claimError) {
-    if (claimError.code === "23505") return skipped(dateISO, "already posted");
-    console.error("[cron/slack-daily] could not claim the day:", claimError);
-    return NextResponse.json({ ok: false, date: dateISO, error: claimError.message }, { status: 500 });
+    if (claimError.code === "23505") return skipped("already posted");
+    console.error(`[cron/slack-daily] ${orgId}: could not claim the day:`, claimError);
+    return { ok: false, error: claimError.message };
   }
 
   try {
-    await postToSlack(buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays }));
+    await postToSlack(orgId, buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays }));
   } catch (err) {
-    // Release the claim so the next run — or a manual retry — can try again.
-    await supabase.from("slack_daily_posts").delete().eq("post_date", dateISO);
+    await supabase
+      .from("slack_daily_posts")
+      .delete()
+      .eq("organization_id", orgId)
+      .eq("post_date", dateISO);
     const message = err instanceof Error ? err.message : "Slack post failed.";
-    console.error("[cron/slack-daily] post failed, claim released:", message);
-    return NextResponse.json({ ok: false, date: dateISO, error: message }, { status: 502 });
+    console.error(`[cron/slack-daily] ${orgId}: post failed, claim released:`, message);
+    return { ok: false, error: message };
   }
 
-  return NextResponse.json({
-    ok: true,
-    posted: true,
-    date: dateISO,
-    people: day.people.length,
-    holiday: day.holiday?.name ?? null,
-  });
+  return { ok: true, posted: true, people: day.people.length, holiday: day.holiday?.name ?? null };
 }
 
 /**
@@ -133,6 +142,6 @@ function rejectIfUnauthorised(req: Request): NextResponse | null {
   return null;
 }
 
-function skipped(date: string, reason: string) {
-  return NextResponse.json({ ok: true, posted: false, date, reason });
+function skipped(reason: string): RunResult {
+  return { ok: true, posted: false, reason };
 }

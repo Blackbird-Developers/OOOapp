@@ -7,6 +7,7 @@ export type Profile = {
   email: string;
   full_name: string;
   role: "admin" | "employee";
+  organization_id: string;
   annual_allowance: number;
   sick_allowance: number;
 };
@@ -23,7 +24,7 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
   if (!session) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("id, email, full_name, role, annual_allowance, sick_allowance")
+    .select("id, email, full_name, role, organization_id, annual_allowance, sick_allowance")
     .eq("id", session.user.id)
     .single();
   return (data as Profile) ?? null;

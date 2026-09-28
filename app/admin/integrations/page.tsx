@@ -6,9 +6,9 @@ export default async function IntegrationsPage() {
   // The admin layout already gates this, but the page asserts it too — same as
   // every other page under /admin. One redirect is the guarantee; the second
   // is what stops a future refactor of the layout from quietly opening it up.
-  await requireAdmin();
+  const admin = await requireAdmin();
 
-  const integrations = await listIntegrations();
+  const integrations = await listIntegrations(admin.organization_id);
   const connected = integrations.filter((i) => i.connected).length;
 
   return (

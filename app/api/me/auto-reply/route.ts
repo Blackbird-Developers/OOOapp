@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const me = await requireUser();
 
-  const settings = await loadAutoReplySettings();
+  const settings = await loadAutoReplySettings(me.organization_id);
   if (!settings.connected) return NextResponse.json({ enabled: false });
 
   const supabase = createAdminClient();

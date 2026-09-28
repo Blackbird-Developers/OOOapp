@@ -93,7 +93,7 @@ export async function PATCH(
   const datesChanged =
     input.start_date !== existing.start_date || input.end_date !== existing.end_date;
   if (me.role !== "admin" && input.type === "annual" && datesChanged) {
-    const minNotice = await getAnnualMinNoticeDays();
+    const minNotice = await getAnnualMinNoticeDays(me.organization_id);
     if (minNotice > 0) {
       const earliest = format(addDays(parseISO(todayISOIn()), minNotice), "yyyy-MM-dd");
       if (input.start_date < earliest) {
@@ -154,6 +154,7 @@ export async function PATCH(
   // approved or pending annual leave.
   if (input.type === "annual") {
     const conflicts = await findAnnualConflicts({
+      orgId: me.organization_id,
       userId: me.id,
       startDate: input.start_date,
       endDate: input.end_date,
@@ -237,7 +238,7 @@ export async function PATCH(
   // so an email failure must not fail the response.
   try {
     const nameOf = typeNamer(context.types);
-    await notifyAdminsOfEdit(admin, me.full_name, existing, input, days, nameOf);
+    await notifyAdminsOfEdit(admin, me, existing, input, days, nameOf);
   } catch (e) {
     console.warn("[leave] edit email failed:", e);
   }
@@ -247,7 +248,7 @@ export async function PATCH(
 
 async function notifyAdminsOfEdit(
   admin: ReturnType<typeof createAdminClient>,
-  employeeName: string,
+  me: { full_name: string; organization_id: string },
   existing: {
     type: string;
     start_date: string;
@@ -265,12 +266,16 @@ async function notifyAdminsOfEdit(
   days: number,
   nameOf: (type: string) => string
 ) {
-  const { data: admins } = await admin.from("profiles").select("email").eq("role", "admin");
+  const { data: admins } = await admin
+    .from("profiles")
+    .select("email")
+    .eq("organization_id", me.organization_id)
+    .eq("role", "admin");
   const adminEmails = (admins ?? []).map((a: { email: string }) => a.email);
   if (adminEmails.length) {
     await emailEditedRequestToAdmins({
       adminEmails,
-      employeeName,
+      employeeName: me.full_name,
       wasApproved: existing.status === "approved",
       before: {
         typeName: nameOf(existing.type),

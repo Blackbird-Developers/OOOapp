@@ -23,6 +23,7 @@ export type AnnualConflict = {
  * (migration 007 not run), this fails open so leave requests keep working.
  */
 export async function findAnnualConflicts(opts: {
+  orgId: string;
   userId: string;
   startDate: string;
   endDate: string;
@@ -33,6 +34,7 @@ export async function findAnnualConflicts(opts: {
   const { data: myGroups, error: groupsError } = await admin
     .from("conflict_group_members")
     .select("group_id")
+    .eq("organization_id", opts.orgId)
     .eq("user_id", opts.userId);
   if (groupsError) {
     console.warn("conflict check skipped:", groupsError.message);
@@ -42,11 +44,16 @@ export async function findAnnualConflicts(opts: {
   if (groupIds.length === 0) return [];
 
   const [{ data: memberRows }, { data: groups }, { data: holidays }] = await Promise.all([
-    admin.from("conflict_group_members").select("group_id, user_id").in("group_id", groupIds),
-    admin.from("conflict_groups").select("id, name").in("id", groupIds),
+    admin
+      .from("conflict_group_members")
+      .select("group_id, user_id")
+      .eq("organization_id", opts.orgId)
+      .in("group_id", groupIds),
+    admin.from("conflict_groups").select("id, name").eq("organization_id", opts.orgId).in("id", groupIds),
     admin
       .from("public_holidays")
       .select("date")
+      .eq("organization_id", opts.orgId)
       .gte("date", opts.startDate)
       .lte("date", opts.endDate),
   ]);
@@ -62,6 +69,7 @@ export async function findAnnualConflicts(opts: {
   let query = admin
     .from("leave_requests")
     .select("id, user_id, start_date, end_date")
+    .eq("organization_id", opts.orgId)
     .in("user_id", allOthers)
     .eq("type", "annual")
     .in("status", ["approved", "pending"])
@@ -104,6 +112,7 @@ export async function findAnnualConflicts(opts: {
   const { data: profiles } = await admin
     .from("profiles")
     .select("id, full_name")
+    .eq("organization_id", opts.orgId)
     .in("id", [...offIds]);
   const nameById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
   for (const c of conflicts) {

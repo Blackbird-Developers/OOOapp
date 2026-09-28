@@ -19,6 +19,7 @@ import type { HalfKind } from "@/lib/days";
 
 type LeaveRow = {
   id: string;
+  organization_id: string;
   user_id: string;
   start_date: string;
   end_date: string;
@@ -39,7 +40,7 @@ type LeaveRow = {
 };
 
 const BASE_LEAVE_COLUMNS =
-  "id, user_id, start_date, end_date, half_start, half_end, days_count, status, ics_sequence, created_at, decided_at";
+  "id, organization_id, user_id, start_date, end_date, half_start, half_end, days_count, status, ics_sequence, created_at, decided_at";
 
 /**
  * Columns added by a migration that is run by hand in the Supabase SQL editor,
@@ -300,11 +301,11 @@ export async function publishApprovedLeave(
   leaveId: string
 ): Promise<CalendarAttachment | null> {
   try {
-    const settings = await loadCalendarSettings();
-    if (!settings.connected) return null;
-
     const loaded = await loadLeave(leaveId);
     if (!loaded) return null;
+
+    const settings = await loadCalendarSettings(loaded.leave.organization_id);
+    if (!settings.connected) return null;
 
     const revision = await advanceEvent(loaded.leave, { withdrawing: false });
     if (revision === null) return null;
@@ -386,11 +387,11 @@ async function prepareCancellation(
   // of an event nobody was ever sent.
   if (!opts.wasApproved) return null;
 
-  const settings = await loadCalendarSettings();
-  if (!settings.connected) return null;
-
   const loaded = await loadLeave(leaveId);
   if (!loaded) return null;
+
+  const settings = await loadCalendarSettings(loaded.leave.organization_id);
+  if (!settings.connected) return null;
 
   const revision = await advanceEvent(loaded.leave, { withdrawing: true });
   if (revision === null) return null;
@@ -581,6 +582,20 @@ export async function regenerateFeedToken(userId: string): Promise<string | null
  * between "no such token" and "token for a person with no leave", because
  * telling those apart would let someone probe for valid tokens.
  */
+/**
+ * The company a feed token belongs to, so the feed routes can check that
+ * company has feeds switched on. Null for a token nobody holds.
+ */
+export async function organizationForFeedToken(token: string): Promise<string | null> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("calendar_token", token)
+    .maybeSingle();
+  return (data?.organization_id as string | undefined) ?? null;
+}
+
 export async function loadFeedByToken(token: string): Promise<{
   person: { full_name: string };
   entries: FeedEntry[];
