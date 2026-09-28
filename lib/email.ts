@@ -556,6 +556,75 @@ export async function emailPasswordReset(opts: {
   await send(opts.to, "Reset your password", wrap(body));
 }
 
+const BUTTON = "display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none";
+
+/**
+ * The link that finishes a self-service sign-up. The same email covers every
+ * way in, worded for the one this person is taking: a new company, or joining
+ * an existing one through its link or their work domain.
+ */
+export async function emailSignupLink(opts: {
+  to: string;
+  fullName: string;
+  token: string;
+  kind: "create" | "join";
+  companyName: string;
+  viaDomain?: boolean;
+}) {
+  const url = `${SITE}/signup/${opts.token}`;
+  const company = escapeHtml(opts.companyName);
+  const body =
+    opts.kind === "create"
+      ? `
+    <p>Hi ${escapeHtml(opts.fullName)},</p>
+    <p>Confirm your email to create <strong>${company}</strong> on Blackbird Leave. You'll be its first admin.</p>
+    <p><a href="${url}" style="${BUTTON}">Confirm & set password</a></p>
+    <p style="font-size:12px;color:#64748b">This link expires in 24 hours. If you didn't ask for this, ignore the email and nothing will be created.</p>
+  `
+      : `
+    <p>Hi ${escapeHtml(opts.fullName)},</p>
+    <p>${
+      opts.viaDomain
+        ? `<strong>${company}</strong> already uses Blackbird Leave, and anyone with your work email can join.`
+        : `You're joining <strong>${company}</strong> on Blackbird Leave.`
+    } Confirm your email to finish.</p>
+    <p><a href="${url}" style="${BUTTON}">Confirm & set password</a></p>
+    <p style="font-size:12px;color:#64748b">This link expires in 24 hours. If you didn't ask for this, ignore the email and nothing will be created.</p>
+  `;
+  await send(
+    opts.to,
+    opts.kind === "create" ? "Confirm your email" : `Join ${opts.companyName}`,
+    wrap(body)
+  );
+}
+
+/** Sent instead of a sign-up link when the address already has an account. */
+export async function emailAccountExists(opts: { to: string; fullName: string }) {
+  const body = `
+    <p>Hi ${escapeHtml(opts.fullName)},</p>
+    <p>Someone tried to sign up to Blackbird Leave with this email, but you already have an account.</p>
+    <p><a href="${SITE}/login" style="${BUTTON}">Sign in</a></p>
+    <p style="font-size:12px;color:#64748b">Forgotten your password? <a href="${SITE}/forgot-password">Reset it here</a>. If this wasn't you, you can ignore this email.</p>
+  `;
+  await send(opts.to, "You already have an account", wrap(body));
+}
+
+/** Tells a company's admins that somebody joined without an invite. */
+export async function emailMemberJoined(opts: {
+  adminEmails: string[];
+  name: string;
+  email: string;
+  via: "link" | "domain";
+}) {
+  const how = opts.via === "link" ? "your join link" : "their work email";
+  const body = `
+    <p><strong>${escapeHtml(opts.name)}</strong> (${escapeHtml(opts.email)}) joined as an employee through ${how}.</p>
+    <p>If you don't recognise them, remove them under Employees, and replace the join link on the Invites page.</p>
+    <p><a href="${SITE}/admin/employees" style="${BUTTON}">Open Employees</a></p>
+  `;
+  await send(opts.adminEmails, `${opts.name} joined`, wrap(body));
+}
+
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }

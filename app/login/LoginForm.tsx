@@ -102,7 +102,12 @@ export default function LoginForm() {
           </button>
 
           <p className="text-xs text-neutral-500 text-center pt-2">
-            No account? Ask your admin for an invite.
+            New to Blackbird Leave?{" "}
+            <Link href="/signup" className="font-medium text-neutral-900 hover:underline">
+              Create a company
+            </Link>
+            <br />
+            Joining a team? Use the link your admin sent.
           </p>
         </form>
       </div>
