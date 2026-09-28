@@ -512,6 +512,8 @@ Admin rights are never handed out by sign-up beyond a new company's founder. Oth
 
 Needs `supabase/migrations/017_company_registration.sql`.
 
+**Each company's own name** appears on the Overview and Team availability pages, in the account menu, and in invite and join emails. Admins can change it under Settings → Company. "Blackbird Leave" and its logo stay as the product's name on the sign-in pages and in email headers. The Gmail auto-reply card tells other companies it isn't available to them yet, since the service account belongs to Blackbird's Workspace.
+
 ---
 
 ## Project layout

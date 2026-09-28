@@ -43,7 +43,9 @@ export default function IntegrationCard({ integration }: { integration: Integrat
       </div>
 
       <div className="mt-5 border-t border-neutral-200 pt-5">
-        {connected ? (
+        {integration.unavailable && !connected ? (
+          <p className="text-sm text-neutral-500">{integration.unavailable}</p>
+        ) : connected ? (
           // A service with an in-place editor renders it; anything else falls
           // back to the read-only list the registry describes.
           integration.slack ? (

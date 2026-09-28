@@ -62,7 +62,7 @@ export default function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                placeholder="you@blackbird.marketing"
+                placeholder="you@company.com"
               />
             )}
           </Field>

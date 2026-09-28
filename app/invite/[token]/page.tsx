@@ -9,7 +9,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   // every open invite, token included.
   const { data: invite } = await createAdminClient()
     .from("invites")
-    .select("email, full_name, expires_at, used_at")
+    .select("email, full_name, expires_at, used_at, organizations(name)")
     .eq("token", token)
     .single();
 
@@ -26,5 +26,13 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     );
   }
 
-  return <InviteAcceptForm token={token} email={invite.email} fullName={invite.full_name} />;
+  const org = invite.organizations as unknown as { name: string } | null;
+  return (
+    <InviteAcceptForm
+      token={token}
+      email={invite.email}
+      fullName={invite.full_name}
+      companyName={org?.name ?? ""}
+    />
+  );
 }

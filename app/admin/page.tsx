@@ -10,7 +10,7 @@ import EmptyState from "@/components/EmptyState";
 import DecisionButtons from "./requests/DecisionButtons";
 
 export default async function AdminHomePage() {
-  await requireAdmin();
+  const me = await requireAdmin();
   const supabase = await createServerClient();
   const { from, to } = yearBounds();
 
@@ -49,7 +49,7 @@ export default async function AdminHomePage() {
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Overview</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              {format(new Date(), "EEEE, d MMMM yyyy")} · {pending?.length ?? 0} pending request{(pending?.length ?? 0) === 1 ? "" : "s"}
+              {me.organization_name} · {format(new Date(), "EEEE, d MMMM yyyy")} · {pending?.length ?? 0} pending request{(pending?.length ?? 0) === 1 ? "" : "s"}
             </p>
           </div>
           <Link href="/admin/leave/new" className="btn-accent w-full sm:w-auto">

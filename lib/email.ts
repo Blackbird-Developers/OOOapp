@@ -530,15 +530,16 @@ export async function emailInvite(opts: {
   to: string;
   fullName: string;
   token: string;
+  companyName: string;
 }) {
   const url = `${SITE}/invite/${opts.token}`;
   const body = `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>You've been invited to join Blackbird Leave.</p>
+    <p>You've been invited to join <strong>${escapeHtml(opts.companyName)}</strong> on Blackbird Leave.</p>
     <p><a href="${url}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Accept invite & set password</a></p>
     <p style="font-size:12px;color:#64748b">This link expires in 7 days.</p>
   `;
-  await send(opts.to, "You're invited", wrap(body));
+  await send(opts.to, `You're invited to ${opts.companyName}`, wrap(body));
 }
 
 export async function emailPasswordReset(opts: {

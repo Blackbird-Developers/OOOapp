@@ -48,7 +48,12 @@ export async function POST(req: Request) {
 
   let emailError: string | null = null;
   try {
-    await emailInvite({ to: parsed.data.email, fullName: parsed.data.full_name, token });
+    await emailInvite({
+      to: parsed.data.email,
+      fullName: parsed.data.full_name,
+      token,
+      companyName: me.organization_name,
+    });
   } catch (err) {
     emailError = err instanceof Error ? err.message : "Email send failed.";
   }
