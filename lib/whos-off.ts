@@ -33,16 +33,23 @@ export type DayAvailability = {
  */
 export async function getDayAvailability(
   supabase: SupabaseClient,
+  orgId: string,
   dateISO: string
 ): Promise<DayAvailability> {
   const [{ data: leaveRows }, { data: holidayRows }] = await Promise.all([
     supabase
       .from("leave_requests")
       .select("user_id, start_date, end_date, half_start, half_end, profiles:user_id(full_name)")
+      .eq("organization_id", orgId)
       .eq("status", "approved")
       .lte("start_date", dateISO)
       .gte("end_date", dateISO),
-    supabase.from("public_holidays").select("date, name").eq("date", dateISO).limit(1),
+    supabase
+      .from("public_holidays")
+      .select("date, name")
+      .eq("organization_id", orgId)
+      .eq("date", dateISO)
+      .limit(1),
   ]);
 
   // One entry per person: someone can hold two overlapping requests (a morning

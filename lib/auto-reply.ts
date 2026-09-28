@@ -76,16 +76,19 @@ export type SyncOutcome = {
  * `clearAllAutoReplies` is what actually takes existing responders back down.
  */
 export async function syncAutoReplyFor(userId: string): Promise<SyncOutcome | null> {
-  const settings = await loadAutoReplySettings();
+  const orgId = await organizationOf(userId);
+  if (!orgId) return null;
+
+  const settings = await loadAutoReplySettings(orgId);
   if (!settings.connected) return null;
 
-  const credentials = googleCredentials();
+  const credentials = googleCredentials(orgId);
   if (!credentials) {
     console.warn("[auto-reply] connected but GOOGLE_SA_* credentials are missing.");
     return null;
   }
 
-  return syncOne(userId, settings, credentials);
+  return syncOne(orgId, userId, settings, credentials);
 }
 
 /**
@@ -101,16 +104,21 @@ export async function syncAutoReplyFor(userId: string): Promise<SyncOutcome | nu
  */
 export async function syncAfterLeaveChange(userId: string): Promise<void> {
   try {
-    const settings = await loadAutoReplySettings();
+    const orgId = await organizationOf(userId);
+    if (!orgId) return;
+
+    const settings = await loadAutoReplySettings(orgId);
     if (!settings.connected) return;
 
-    const credentials = googleCredentials();
+    const credentials = googleCredentials(orgId);
     if (!credentials) return;
 
-    await syncOne(userId, settings, credentials);
+    await syncOne(orgId, userId, settings, credentials);
 
+    // Group-mates share the company: migration 015 keys group membership by
+    // organization, so a group can never hold someone from elsewhere.
     for (const mateId of await activeGroupMates(userId)) {
-      await syncOne(mateId, settings, credentials);
+      await syncOne(orgId, mateId, settings, credentials);
     }
   } catch (e) {
     console.warn("[auto-reply] sync after leave change failed:", describeGoogleError(e));
@@ -130,14 +138,15 @@ export async function syncAfterLeaveChange(userId: string): Promise<void> {
  * Bounded by construction: it only visits mailboxes with a state row saying the
  * app enabled one, which is a handful of people rather than the whole company.
  */
-export async function clearAllAutoReplies(): Promise<{ cleared: number; failed: number }> {
-  const credentials = googleCredentials();
+export async function clearAllAutoReplies(orgId: string): Promise<{ cleared: number; failed: number }> {
+  const credentials = googleCredentials(orgId);
   if (!credentials) return { cleared: 0, failed: 0 };
 
   const supabase = createAdminClient();
   const { data: rows, error } = await supabase
     .from("auto_reply_state")
     .select("user_id, profiles:user_id(email)")
+    .eq("organization_id", orgId)
     .eq("enabled", true);
 
   if (error) {
@@ -167,6 +176,7 @@ export async function clearAllAutoReplies(): Promise<{ cleared: number; failed: 
 // ---------------------------------------------------------------------------
 
 async function syncOne(
+  orgId: string,
   userId: string,
   settings: AutoReplySettings,
   credentials: GoogleCredentials
@@ -176,7 +186,7 @@ async function syncOne(
 
   const desired = profile.auto_reply_opt_out
     ? ({ enabled: false, reason: "They have switched auto-replies off." } as DesiredState)
-    : await computeDesiredState(userId, profile.full_name, settings);
+    : await computeDesiredState(orgId, userId, profile.full_name, settings);
 
   const current = await loadState(userId);
 
@@ -261,6 +271,7 @@ function vacationPayload(desired: DesiredState, settings: AutoReplySettings): Va
 // ---------------------------------------------------------------------------
 
 export async function computeDesiredState(
+  orgId: string,
   userId: string,
   fullName: string,
   settings: AutoReplySettings
@@ -278,7 +289,7 @@ export async function computeDesiredState(
     return { enabled: false, reason: "Their leave has already finished." };
   }
 
-  const holidays = await holidaysAround(leave.endDate);
+  const holidays = await holidaysAround(orgId, leave.endDate);
   const returnDate = nextWorkingDay(dayAfter(leave.endDate), holidays);
   const contacts = await findCoverContacts(userId, leave);
 
@@ -437,12 +448,13 @@ async function activeGroupMates(userId: string): Promise<string[]> {
 }
 
 /** Public holidays near the end of the leave, for the "back on" calculation. */
-async function holidaysAround(endDate: string): Promise<string[]> {
+async function holidaysAround(orgId: string, endDate: string): Promise<string[]> {
   const supabase = createAdminClient();
   const from = dayAfter(endDate);
   const { data } = await supabase
     .from("public_holidays")
     .select("date")
+    .eq("organization_id", orgId)
     .gte("date", from)
     .lte("date", addDaysISO(from, 14));
   return (data ?? []).map((h: { date: string }) => h.date);
@@ -461,6 +473,7 @@ async function holidaysAround(endDate: string): Promise<string[]> {
  * this actually name" is the question being asked.
  */
 export async function previewAutoReply(
+  orgId: string,
   userId: string,
   fullName: string
 ): Promise<{
@@ -470,8 +483,8 @@ export async function previewAutoReply(
   contacts: CoverContact[];
   returnDate: string;
 }> {
-  const settings = await loadAutoReplySettings();
-  const real = await computeDesiredState(userId, fullName, settings);
+  const settings = await loadAutoReplySettings(orgId);
+  const real = await computeDesiredState(orgId, userId, fullName, settings);
 
   if (real.enabled) {
     return {
@@ -493,7 +506,7 @@ export async function previewAutoReply(
     halfEnd: "full",
   };
 
-  const holidays = await holidaysAround(endDate);
+  const holidays = await holidaysAround(orgId, endDate);
   const returnDate = nextWorkingDay(dayAfter(endDate), holidays);
   const contacts = await findCoverContacts(userId, window);
 
@@ -636,6 +649,17 @@ function fingerprintOf(subject: string, bodyText: string, settings: AutoReplySet
 
 type ProfileRow = { id: string; email: string; full_name: string; auto_reply_opt_out: boolean };
 
+/** The company someone belongs to, which decides whose settings and credentials apply. */
+async function organizationOf(userId: string): Promise<string | null> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("id", userId)
+    .maybeSingle();
+  return (data?.organization_id as string | undefined) ?? null;
+}
+
 /**
  * The person, tolerating a deployment where migration 014 has not been run.
  *
@@ -766,9 +790,9 @@ export type AutoReplyStats = {
  * personal address, an empty Hierarchy — none of them throw anywhere an admin
  * would see. The card has to go looking, so this is what it asks.
  */
-export async function autoReplyStats(): Promise<AutoReplyStats> {
+export async function autoReplyStats(orgId: string): Promise<AutoReplyStats> {
   const supabase = createAdminClient();
-  const credentials = googleCredentials();
+  const credentials = googleCredentials(orgId);
 
   const counted = (res: { count: number | null }) => res.count ?? 0;
 
@@ -776,18 +800,27 @@ export async function autoReplyStats(): Promise<AutoReplyStats> {
     supabase
       .from("auto_reply_state")
       .select("user_id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
       .eq("enabled", true),
     // The rows themselves rather than a count plus a separate sample query:
     // this table holds at most one row per employee, so fetching the failures
     // outright is one round-trip instead of two for the same two numbers.
-    supabase.from("auto_reply_state").select("error").not("error", "is", null),
+    supabase
+      .from("auto_reply_state")
+      .select("error")
+      .eq("organization_id", orgId)
+      .not("error", "is", null),
     supabase
       .from("profiles")
       .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
       .eq("auto_reply_opt_out", true),
-    supabase.from("conflict_groups").select("id", { count: "exact", head: true }),
+    supabase
+      .from("conflict_groups")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId),
     credentials?.domain
-      ? supabase.from("profiles").select("email")
+      ? supabase.from("profiles").select("email").eq("organization_id", orgId)
       : Promise.resolve({ data: null, error: null }),
   ]);
 

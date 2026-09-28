@@ -10,6 +10,7 @@ import { availableDays, limitMessage, ruleFor } from "@/lib/leave-rules";
 import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
+import { isInOrganization } from "@/lib/org";
 import { publishApprovedLeave } from "@/lib/calendar";
 import { syncAfterLeaveChange } from "@/lib/auto-reply";
 
@@ -41,6 +42,13 @@ export async function POST(req: Request) {
 
   const targetUserId = input.user_id && me.role === "admin" ? input.user_id : me.id;
   const isAdminAction = me.role === "admin" && targetUserId !== me.id;
+
+  // An admin acts on behalf of their own company only. RLS would refuse the
+  // insert anyway; checking here gives a clear answer before any of the
+  // service-role reads below run for somebody outside it.
+  if (isAdminAction && !(await isInOrganization(targetUserId, me.organization_id))) {
+    return NextResponse.json({ error: "No such person." }, { status: 404 });
+  }
 
   // Employees can't book past dates. Admins can backfill missed entries —
   // for anyone, including their own leave — so later checks (like a
@@ -78,7 +86,7 @@ export async function POST(req: Request) {
   // Admins are exempt; sick leave is inherently last-minute and never
   // restricted.
   if (me.role !== "admin" && input.type === "annual") {
-    const minNotice = await getAnnualMinNoticeDays();
+    const minNotice = await getAnnualMinNoticeDays(me.organization_id);
     if (minNotice > 0) {
       const earliest = format(addDays(parseISO(todayISOIn()), minNotice), "yyyy-MM-dd");
       if (input.start_date < earliest) {
@@ -147,6 +155,7 @@ export async function POST(req: Request) {
   const canOverride = Boolean(input.override_conflicts && me.role === "admin");
   if (input.type === "annual" && !canOverride) {
     const conflicts = await findAnnualConflicts({
+      orgId: me.organization_id,
       userId: targetUserId,
       startDate: input.start_date,
       endDate: input.end_date,
@@ -216,6 +225,7 @@ export async function POST(req: Request) {
       const { data: target } = await admin
         .from("profiles")
         .select("email, full_name")
+        .eq("organization_id", me.organization_id)
         .eq("id", targetUserId)
         .single();
       if (target) {
@@ -246,6 +256,7 @@ export async function POST(req: Request) {
       const { data: admins } = await admin
         .from("profiles")
         .select("email")
+        .eq("organization_id", me.organization_id)
         .eq("role", "admin");
       const adminEmails = (admins ?? []).map((a: { email: string }) => a.email);
       if (adminEmails.length) {

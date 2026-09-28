@@ -58,11 +58,12 @@ const DEFAULTS = {
 /** Keeps one admin from pasting an essay into every employee auto-reply. */
 export const EXTRA_NOTE_MAX = 280;
 
-async function loadRow(): Promise<Row | null> {
+async function loadRow(orgId: string): Promise<Row | null> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("integration_settings")
     .select("connected, config")
+    .eq("organization_id", orgId)
     .eq("id", AUTO_REPLY_INTEGRATION_ID)
     .maybeSingle();
 
@@ -75,8 +76,8 @@ async function loadRow(): Promise<Row | null> {
   return (data as Row | null) ?? null;
 }
 
-export async function loadAutoReplySettings(): Promise<AutoReplySettings> {
-  const row = await loadRow();
+export async function loadAutoReplySettings(orgId: string): Promise<AutoReplySettings> {
+  const row = await loadRow(orgId);
   const config = row?.config ?? null;
 
   const note = config?.extraNote;
@@ -109,9 +110,9 @@ export type AutoReplySettingsPatch = {
 
 export async function saveAutoReplySettings(
   patch: AutoReplySettingsPatch,
-  adminId: string
+  admin: { id: string; organization_id: string }
 ): Promise<{ error: string | null }> {
-  const current = await loadAutoReplySettings();
+  const current = await loadAutoReplySettings(admin.organization_id);
 
   const nextNote =
     patch.extraNote === undefined
@@ -124,6 +125,7 @@ export async function saveAutoReplySettings(
       : patch.fallbackEmail?.trim().toLowerCase() || null;
 
   const row = {
+    organization_id: admin.organization_id,
     id: AUTO_REPLY_INTEGRATION_ID,
     connected: patch.connected ?? current.connected,
     config: {
@@ -132,11 +134,13 @@ export async function saveAutoReplySettings(
       extraNote: nextNote,
     },
     updated_at: new Date().toISOString(),
-    updated_by: adminId,
+    updated_by: admin.id,
   };
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from("integration_settings").upsert(row, { onConflict: "id" });
+  const { error } = await supabase
+    .from("integration_settings")
+    .upsert(row, { onConflict: "organization_id,id" });
   if (error) console.error("[auto-reply] could not save integration_settings:", error.message);
   return { error: error?.message ?? null };
 }

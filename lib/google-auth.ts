@@ -1,4 +1,5 @@
 import { createSign } from "node:crypto";
+import { isBlackbird } from "@/lib/org";
 
 /**
  * Google Workspace service-account auth, with domain-wide delegation.
@@ -52,7 +53,11 @@ export class GoogleAuthError extends Error {
  * literal backslash-n. Both have to parse, because getting this wrong produces
  * a signature error that says nothing about newlines.
  */
-export function googleCredentials(): GoogleCredentials | null {
+export function googleCredentials(orgId: string): GoogleCredentials | null {
+  // The service account holds delegation over Blackbird's Workspace only. No
+  // other company's mailboxes can be reached with it, and it must never try.
+  if (!isBlackbird(orgId)) return null;
+
   const clientEmail = process.env.GOOGLE_SA_CLIENT_EMAIL?.trim();
   const rawKey = process.env.GOOGLE_SA_PRIVATE_KEY;
   if (!clientEmail || !rawKey) return null;

@@ -20,9 +20,9 @@ export const dynamic = "force-dynamic";
  * repeatedly and puts no test event in anyone's calendar.
  */
 export async function POST() {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
-  const settings = await loadCalendarSettings();
+  const settings = await loadCalendarSettings(admin.organization_id);
   if (!settings.connected) {
     return NextResponse.json(
       { error: "The calendar integration isn't switched on yet." },

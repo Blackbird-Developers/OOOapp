@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
   const { data: invite, error: inviteErr } = await admin
     .from("invites")
-    .select("id, email, full_name, role, expires_at, used_at")
+    .select("id, organization_id, email, full_name, role, expires_at, used_at")
     .eq("token", parsed.data.token)
     .single();
 
@@ -29,23 +29,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invite expired" }, { status: 410 });
   }
 
-  // Create the auth user (auto-confirmed).
+  // Create the auth user (auto-confirmed). The company and role go in
+  // app_metadata, which only the service role can write: that is where the
+  // new-user trigger reads them from, so nobody signing up can pick their own.
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email: invite.email,
     password: parsed.data.password,
     email_confirm: true,
-    user_metadata: { full_name: invite.full_name, role: invite.role },
+    user_metadata: { full_name: invite.full_name },
+    app_metadata: { organization_id: invite.organization_id, role: invite.role },
   });
 
   if (createErr || !created.user) {
     return NextResponse.json({ error: createErr?.message ?? "Could not create user" }, { status: 500 });
   }
 
-  // Ensure profile reflects the invited role (the trigger may default to 'employee').
+  // Ensure the profile reflects the invite, whatever the trigger made of it.
   await admin
     .from("profiles")
     .upsert({
       id: created.user.id,
+      organization_id: invite.organization_id,
       email: invite.email,
       full_name: invite.full_name,
       role: invite.role,
@@ -61,7 +65,7 @@ export async function POST(req: Request) {
   // failure must not turn a successful sign-up into an error the new employee
   // sees. They can always subscribe from the account page instead.
   try {
-    const settings = await loadCalendarSettings();
+    const settings = await loadCalendarSettings(invite.organization_id);
     if (settings.connected && settings.personalFeeds) {
       const token = await getOrCreateFeedToken(created.user.id);
       if (token) {

@@ -15,6 +15,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { data: target, error: lookupErr } = await admin
     .from("profiles")
     .select("id, role")
+    .eq("organization_id", me.organization_id)
     .eq("id", id)
     .maybeSingle();
   if (lookupErr) return NextResponse.json({ error: lookupErr.message }, { status: 500 });
@@ -24,6 +25,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     const { count, error: countErr } = await admin
       .from("profiles")
       .select("id", { count: "exact", head: true })
+      .eq("organization_id", me.organization_id)
       .eq("role", "admin");
     if (countErr) return NextResponse.json({ error: countErr.message }, { status: 500 });
     if ((count ?? 0) <= 1) {

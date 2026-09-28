@@ -8,11 +8,12 @@ export const ANNUAL_MIN_NOTICE_KEY = "annual_min_notice_days";
  * so the employee request path can see it regardless of RLS; fails open to 0
  * if the settings table doesn't exist yet (migration 008 not run).
  */
-export async function getAnnualMinNoticeDays(): Promise<number> {
+export async function getAnnualMinNoticeDays(orgId: string): Promise<number> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("app_settings")
     .select("value")
+    .eq("organization_id", orgId)
     .eq("key", ANNUAL_MIN_NOTICE_KEY)
     .maybeSingle();
   if (error) {

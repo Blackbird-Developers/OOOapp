@@ -21,9 +21,9 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   const admin = await requireAdmin();
 
-  const preview = await previewAutoReply(admin.id, admin.full_name).catch(() => null);
+  const preview = await previewAutoReply(admin.organization_id, admin.id, admin.full_name).catch(() => null);
 
-  const credentials = googleCredentials();
+  const credentials = googleCredentials(admin.organization_id);
   if (!credentials) {
     return NextResponse.json({
       ok: false,

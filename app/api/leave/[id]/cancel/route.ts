@@ -34,7 +34,7 @@ export async function POST(
   if (existing.user_id !== me.id) {
     return NextResponse.json({ error: "Request not found." }, { status: 404 });
   }
-  return cancelAsOwner(id, me.id, me.full_name, existing);
+  return cancelAsOwner(id, me, existing);
 }
 
 /**
@@ -121,8 +121,7 @@ async function cancelAsAdmin(
  */
 async function cancelAsOwner(
   id: string,
-  userId: string,
-  employeeName: string,
+  me: { id: string; full_name: string; organization_id: string },
   existing: {
     type: string;
     start_date: string;
@@ -148,7 +147,7 @@ async function cancelAsOwner(
     .from("leave_requests")
     .update({ status: "cancelled" })
     .eq("id", id)
-    .eq("user_id", userId)
+    .eq("user_id", me.id)
     .eq("status", "pending")
     .select("id")
     .single();
@@ -163,12 +162,16 @@ async function cancelAsOwner(
   // Best-effort: the cancellation is already saved, so a mail failure (e.g.
   // Resend not configured) must not fail the response.
   try {
-    const { data: admins } = await admin.from("profiles").select("email").eq("role", "admin");
+    const { data: admins } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("organization_id", me.organization_id)
+      .eq("role", "admin");
     const adminEmails = (admins ?? []).map((a: { email: string }) => a.email);
     if (adminEmails.length) {
       await emailCancelledRequestToAdmins({
         adminEmails,
-        employeeName,
+        employeeName: me.full_name,
         typeName: typeNamer((await getLeaveSetup()).types)(existing.type),
         startDate: existing.start_date,
         endDate: existing.end_date,

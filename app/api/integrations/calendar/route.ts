@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   const admin = await requireAdmin();
 
-  const { error } = await saveCalendarSettings({ connected: true }, admin.id);
+  const { error } = await saveCalendarSettings({ connected: true }, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
@@ -43,7 +43,7 @@ export async function PATCH(req: Request) {
     personalFeeds: parsed.data.personal_feeds,
   };
 
-  const { error } = await saveCalendarSettings(patch, admin.id);
+  const { error } = await saveCalendarSettings(patch, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
@@ -61,7 +61,7 @@ export async function PATCH(req: Request) {
 export async function DELETE() {
   const admin = await requireAdmin();
 
-  const { error } = await saveCalendarSettings({ connected: false }, admin.id);
+  const { error } = await saveCalendarSettings({ connected: false }, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });

@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   const admin = await requireAdmin();
 
-  if (!googleCredentials()) {
+  if (!googleCredentials(admin.organization_id)) {
     return NextResponse.json(
       {
         error:
@@ -36,7 +36,7 @@ export async function POST() {
     );
   }
 
-  const { error } = await saveAutoReplySettings({ connected: true }, admin.id);
+  const { error } = await saveAutoReplySettings({ connected: true }, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
@@ -63,7 +63,7 @@ export async function PATCH(req: Request) {
     extraNote: parsed.data.extra_note,
   };
 
-  const { error } = await saveAutoReplySettings(patch, admin.id);
+  const { error } = await saveAutoReplySettings(patch, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   // Existing responders keep whatever wording they were written with until the
@@ -84,12 +84,12 @@ export async function PATCH(req: Request) {
 export async function DELETE() {
   const admin = await requireAdmin();
 
-  const { error } = await saveAutoReplySettings({ connected: false }, admin.id);
+  const { error } = await saveAutoReplySettings({ connected: false }, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   // After the switch, never before: if clearing fails halfway the integration
   // is already off, so nothing new goes up while the failures are sorted out.
-  const { cleared, failed } = await clearAllAutoReplies();
+  const { cleared, failed } = await clearAllAutoReplies(admin.organization_id);
 
   return NextResponse.json({
     ok: true,

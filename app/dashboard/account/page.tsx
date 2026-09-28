@@ -11,7 +11,7 @@ export default async function AccountPage() {
 
   // Checked on the server so the section is absent rather than empty when an
   // admin has the calendar integration switched off.
-  const calendar = await loadCalendarSettings();
+  const calendar = await loadCalendarSettings(profile.organization_id);
   const showFeed = calendar.connected && calendar.personalFeeds;
 
   return (

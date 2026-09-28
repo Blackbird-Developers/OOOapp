@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isBlackbird } from "@/lib/org";
 
 /**
  * Where the Slack integration's configuration actually lives.
@@ -49,11 +50,12 @@ type Row = {
 const ROW_COLUMNS =
   "connected, bot_token, channel_id, post_hour, weekdays_only, silent_when_empty, share_half_days";
 
-async function loadRow(): Promise<Row | null> {
+async function loadRow(orgId: string): Promise<Row | null> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("integration_settings")
     .select(ROW_COLUMNS)
+    .eq("organization_id", orgId)
     .eq("id", SLACK_INTEGRATION_ID)
     .maybeSingle();
 
@@ -83,10 +85,12 @@ function envPostHour(): number {
 type Resolved = { settings: SlackSettings; token: string | null };
 
 /** One read, then everything else is derived from it. */
-async function resolve(): Promise<Resolved> {
-  const row = await loadRow();
-  const envToken = process.env.SLACK_BOT_TOKEN || null;
-  const envChannel = process.env.SLACK_CHANNEL_ID || null;
+async function resolve(orgId: string): Promise<Resolved> {
+  const row = await loadRow(orgId);
+  // The environment variables predate companies and belong to Blackbird's
+  // workspace. Anyone else would post their team's absences into it.
+  const envToken = (isBlackbird(orgId) && process.env.SLACK_BOT_TOKEN) || null;
+  const envChannel = (isBlackbird(orgId) && process.env.SLACK_CHANNEL_ID) || null;
 
   const token = row?.bot_token ?? envToken;
   const channel = row?.channel_id ?? envChannel;
@@ -110,16 +114,18 @@ async function resolve(): Promise<Resolved> {
   };
 }
 
-export async function loadSlackSettings(): Promise<SlackSettings> {
-  return (await resolve()).settings;
+export async function loadSlackSettings(orgId: string): Promise<SlackSettings> {
+  return (await resolve(orgId)).settings;
 }
 
 /**
  * The token and channel to post with, or null if the integration shouldn't
  * post at all. The token never leaves the server.
  */
-export async function loadSlackCredentials(): Promise<{ token: string; channel: string } | null> {
-  const { settings, token } = await resolve();
+export async function loadSlackCredentials(
+  orgId: string
+): Promise<{ token: string; channel: string } | null> {
+  const { settings, token } = await resolve(orgId);
   if (!settings.connected || !token || !settings.channel) return null;
   return { token, channel: settings.channel };
 }
@@ -144,11 +150,12 @@ export type SlackSettingsPatch = {
  */
 export async function saveSlackSettings(
   patch: SlackSettingsPatch,
-  adminId: string
+  admin: { id: string; organization_id: string }
 ): Promise<{ error: string | null }> {
-  const { settings } = await resolve();
+  const { settings } = await resolve(admin.organization_id);
 
   const row: Record<string, unknown> = {
+    organization_id: admin.organization_id,
     id: SLACK_INTEGRATION_ID,
     connected: patch.connected ?? settings.connected,
     channel_id: patch.channel_id ?? settings.channel,
@@ -157,7 +164,7 @@ export async function saveSlackSettings(
     silent_when_empty: patch.silent_when_empty ?? settings.silentWhenEmpty,
     share_half_days: patch.share_half_days ?? settings.shareHalfDays,
     updated_at: new Date().toISOString(),
-    updated_by: adminId,
+    updated_by: admin.id,
   };
 
   // Only touched when the caller actually supplies one, so editing the channel
@@ -166,7 +173,9 @@ export async function saveSlackSettings(
   if (patch.bot_token !== undefined) row.bot_token = patch.bot_token;
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from("integration_settings").upsert(row, { onConflict: "id" });
+  const { error } = await supabase
+    .from("integration_settings")
+    .upsert(row, { onConflict: "organization_id,id" });
 
   if (error) console.error("[slack] could not save integration_settings:", error.message);
   return { error: error?.message ?? null };

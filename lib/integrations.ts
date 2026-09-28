@@ -141,12 +141,16 @@ export type CalendarPanel = {
   siteUrlUnset: boolean;
 };
 
-export async function listIntegrations(): Promise<Integration[]> {
-  return [await slackIntegration(), await calendarIntegration(), await autoReplyIntegration()];
+export async function listIntegrations(orgId: string): Promise<Integration[]> {
+  return [
+    await slackIntegration(orgId),
+    await calendarIntegration(orgId),
+    await autoReplyIntegration(orgId),
+  ];
 }
 
-async function slackIntegration(): Promise<Integration> {
-  const settings = await loadSlackSettings();
+async function slackIntegration(orgId: string): Promise<Integration> {
+  const settings = await loadSlackSettings(orgId);
 
   return {
     id: "slack",
@@ -197,8 +201,8 @@ async function slackIntegration(): Promise<Integration> {
  * and Teams has no calendar of its own to target because it renders the
  * Microsoft 365 one.
  */
-async function calendarIntegration(): Promise<Integration> {
-  const settings = await loadCalendarSettings();
+async function calendarIntegration(orgId: string): Promise<Integration> {
+  const settings = await loadCalendarSettings(orgId);
   const organizer = organizerIdentity();
   const emailConfigured = !!process.env.RESEND_API_KEY;
 
@@ -254,11 +258,11 @@ async function calendarIntegration(): Promise<Integration> {
  * is alarming until you know the scope covers mailbox settings and cannot read
  * a single message.
  */
-async function autoReplyIntegration(): Promise<Integration> {
-  const settings = await loadAutoReplySettings();
-  const credentials = googleCredentials();
+async function autoReplyIntegration(orgId: string): Promise<Integration> {
+  const settings = await loadAutoReplySettings(orgId);
+  const credentials = googleCredentials(orgId);
   const stats = settings.connected
-    ? await autoReplyStats()
+    ? await autoReplyStats(orgId)
     : {
         active: 0,
         failing: 0,

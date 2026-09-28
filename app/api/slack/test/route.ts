@@ -17,9 +17,9 @@ export const dynamic = "force-dynamic";
  * message is still proof the token, channel and permissions are right.
  */
 export async function POST() {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
-  const settings = await loadSlackSettings();
+  const settings = await loadSlackSettings(admin.organization_id);
 
   if (!settings.connected) {
     return NextResponse.json(
@@ -29,10 +29,10 @@ export async function POST() {
   }
 
   const supabase = await createServerClient();
-  const day = await getDayAvailability(supabase, todayISOIn());
+  const day = await getDayAvailability(supabase, admin.organization_id, todayISOIn());
 
   try {
-    await postToSlack(buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays }));
+    await postToSlack(admin.organization_id, buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays }));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Slack post failed.";
     return NextResponse.json({ error: message }, { status: 502 });

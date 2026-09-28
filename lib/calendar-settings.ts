@@ -30,11 +30,12 @@ type Row = { connected: boolean; config: Record<string, unknown> | null };
 
 const DEFAULTS = { sendInvites: true, personalFeeds: true };
 
-async function loadRow(): Promise<Row | null> {
+async function loadRow(orgId: string): Promise<Row | null> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("integration_settings")
     .select("connected, config")
+    .eq("organization_id", orgId)
     .eq("id", CALENDAR_INTEGRATION_ID)
     .maybeSingle();
 
@@ -53,8 +54,8 @@ function readFlag(config: Record<string, unknown> | null, key: keyof typeof DEFA
   return typeof value === "boolean" ? value : DEFAULTS[key];
 }
 
-export async function loadCalendarSettings(): Promise<CalendarSettings> {
-  const row = await loadRow();
+export async function loadCalendarSettings(orgId: string): Promise<CalendarSettings> {
+  const row = await loadRow(orgId);
   return {
     // Defaults to OFF when no row exists. Opposite of Slack, deliberately:
     // Slack could infer intent from environment variables an admin had
@@ -75,11 +76,12 @@ export type CalendarSettingsPatch = {
 
 export async function saveCalendarSettings(
   patch: CalendarSettingsPatch,
-  adminId: string
+  admin: { id: string; organization_id: string }
 ): Promise<{ error: string | null }> {
-  const current = await loadCalendarSettings();
+  const current = await loadCalendarSettings(admin.organization_id);
 
   const row = {
+    organization_id: admin.organization_id,
     id: CALENDAR_INTEGRATION_ID,
     connected: patch.connected ?? current.connected,
     config: {
@@ -87,11 +89,13 @@ export async function saveCalendarSettings(
       personalFeeds: patch.personalFeeds ?? current.personalFeeds,
     },
     updated_at: new Date().toISOString(),
-    updated_by: adminId,
+    updated_by: admin.id,
   };
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from("integration_settings").upsert(row, { onConflict: "id" });
+  const { error } = await supabase
+    .from("integration_settings")
+    .upsert(row, { onConflict: "organization_id,id" });
   if (error) console.error("[calendar] could not save integration_settings:", error.message);
   return { error: error?.message ?? null };
 }

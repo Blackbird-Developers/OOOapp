@@ -480,6 +480,24 @@ Until migration 014 is run the feature is simply off and the card says so — de
 
 ---
 
+## 13. Organizations — one app, many companies
+
+Every row in the database belongs to one company (an *organization*). This is the groundwork for other companies signing up and running their own leave calendar; until sign-up exists, Blackbird Marketing is the only one and nothing looks different.
+
+How the separation holds:
+
+- **Every table has `organization_id`.** Existing data sits in Blackbird Marketing, which has the fixed id `00000000-0000-4000-8000-000000000001`.
+- **RLS.** One restrictive policy per table keeps each signed-in user inside their own company, on top of the existing policies. "Admin" now means admin of your own company.
+- **Same-company triggers.** Leave, group members, template members and so on are checked against their parent's company on every insert and update (migration 016), so a row can never link two companies, even from the service role. Triggers rather than composite foreign keys: an extra foreign key gives PostgREST two relationships to choose from, and every embedded select across them fails.
+- **Service-role code filters by company itself.** It skips RLS, so every query made with it passes `organization_id`. Inserts into a root table that forget it fail rather than landing in the wrong company.
+- **Per company:** leave types, public holidays, settings, integration settings and the Slack digest. The Slack cron runs once per company.
+- **Blackbird only:** the `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` fallbacks and the Gmail auto-reply's Workspace service account (see `lib/org.ts`).
+- New auth users get their company and role from `app_metadata`, which only the service role can set. A user created without one gets no profile.
+
+**Rolling it out.** Run `supabase/migrations/015_organizations.sql` and then `016_organization_checks.sql` in the Supabase SQL editor *before* deploying the code. This code filters on `organization_id`, so it cannot run without the migration. The code already live keeps working after it, except for sending and accepting invites and saving integration settings, which fail until the deploy lands. Keep the gap to a few minutes.
+
+---
+
 ## Project layout
 
 ```
@@ -509,6 +527,7 @@ app/
 lib/
   supabase/              browser / server / admin (service-role) clients
   auth.ts                requireUser / requireAdmin helpers
+  org.ts                 organizations: Blackbird's fixed id, membership check
   days.ts                working-day calculator (weekends + holidays + half-days)
   leave-rules.ts         the leave maths: allowances, seniority, first year, carry-over, limits (pure)
   leave-policies.ts      loads templates, types and who follows which; works before migration 013 too
@@ -527,7 +546,7 @@ lib/
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 014_gmail_auto_reply.sql
+supabase/migrations/     001_init.sql … 016_organization_checks.sql
 ```
 
 ---

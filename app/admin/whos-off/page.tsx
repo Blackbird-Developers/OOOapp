@@ -17,7 +17,7 @@ export default async function AdminWhosOffPage() {
   // "yesterday" during the small hours of Irish summer time — and the Slack
   // digest has to agree with this page about what "today" means.
   const todayISO = todayISOIn();
-  const slack = await loadSlackSettings();
+  const slack = await loadSlackSettings(profile.organization_id);
 
   const [{ data: holidays }, { data: teamRows }] = await Promise.all([
     supabase.from("public_holidays").select("date, name").order("date"),
