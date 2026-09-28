@@ -11,6 +11,7 @@ import { emailEditedRequestToAdmins } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
 import { withdrawCalendarEvent } from "@/lib/calendar";
+import { syncAfterLeaveChange } from "@/lib/auto-reply";
 
 const schema = z.object({
   type: z.string().regex(LEAVE_TYPE_KEY),
@@ -226,6 +227,10 @@ export async function PATCH(
       startDate: existing.start_date,
       endDate: existing.end_date,
     });
+
+    // Same reasoning for the mailbox: the leave is pending again, so an
+    // auto-reply promising those dates is no longer true.
+    await syncAfterLeaveChange(me.id);
   }
 
   // Notify all admins of the change. Best-effort: the edit is already saved,

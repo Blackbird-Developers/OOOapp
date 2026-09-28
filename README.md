@@ -400,6 +400,86 @@ Until migration 013 is run, the app behaves as before: annual and sick leave onl
 
 ---
 
+## 12. Gmail auto-reply — the mailbox answers while you're away
+
+When approved leave starts, the person's Gmail answers anyone who writes to them: that they're out of office, the day they're back, and **who to contact in the meantime** — a colleague from their Hierarchy group (section 8) who is not also away. It switches itself off when the leave ends.
+
+The reply never says what kind of leave it is, exactly as the Slack digest and calendar entries don't. This is the loudest of the three — it answers strangers, clients and recruiters automatically, with nobody reviewing it — so "out of office" is all it ever says.
+
+**Google Workspace only.** It works by setting each employee's own vacation responder through the Gmail API, so anyone on an address outside the Workspace is skipped.
+
+### 12.1 What you set up in Google, once
+
+This is the only integration in the app that needs a credential from a Google console, and it needs a **super admin** for step 3.
+
+1. **Google Cloud** → create a project (or pick an existing one) → **APIs & Services → Library → Gmail API → Enable**. Skipping this is the single most common cause of the whole thing failing with a 403.
+2. **IAM & Admin → Service Accounts** → create one → **Keys → Add key → JSON**. The file downloads once; treat it like a password.
+3. **Google Admin console** (admin.google.com, super admin required) → **Security → Access and data control → API controls → Manage domain-wide delegation → Add new**:
+   - **Client ID**: the service account's *Unique ID* (a long number, on the service account's details page — not its email address).
+   - **OAuth scopes**: `https://www.googleapis.com/auth/gmail.settings.basic`
+   - **Authorize**. Newly added delegations can take a few minutes to take effect.
+
+**What that scope can and cannot do.** `gmail.settings.basic` reads and writes mailbox *settings* — the vacation responder among them. It cannot read, send, or delete a single message. This is worth being precise about internally, because "we authorised an app to act as any employee" sounds far broader than what was actually granted.
+
+### 12.2 What you set on the deployment
+
+Three environment variables, from the JSON key file (Vercel project settings, and `.env.local` for development):
+
+```
+GOOGLE_SA_CLIENT_EMAIL   the key file's client_email
+GOOGLE_SA_PRIVATE_KEY    the key file's private_key, newlines and all
+GOOGLE_WORKSPACE_DOMAIN  blackbird.marketing
+```
+
+`GOOGLE_WORKSPACE_DOMAIN` is a safety rail rather than a requirement: with it set, an address outside the domain is skipped before Google is ever asked, which turns a confusing Google error into a clear "skipped, not in the Workspace" on the Integrations card.
+
+The private key is one long value containing newlines. Both forms parse — pasted verbatim, or with the `\n` escapes the JSON file uses — because every dashboard mangles it differently and a wrong guess produces a signature error that says nothing about newlines.
+
+### 12.3 Turning it on
+
+1. Run `supabase/migrations/014_gmail_auto_reply.sql` in the Supabase SQL editor.
+2. Go to **Workspace → Integrations**, find **Gmail auto-reply**, press **Connect**. It refuses to connect without credentials, on purpose: every other integration here announces a broken setup by visibly not working, while this one would read "Connected" while every mailbox stayed silent.
+3. Press **Check and preview**. It reads *your own* mailbox settings and changes nothing, which exercises every piece that can be silently wrong — the key signs, Google accepts the delegation, the Gmail API is enabled, the scope reaches vacation settings — and shows you the exact words your own reply would use.
+
+Two settings are worth a look while you're there:
+
+- **Fallback address** — used only when no colleague can be named, i.e. nobody in their Hierarchy group, or everyone in it away at once. Defaults to `art@blackbird.marketing`; clearing the field goes back to that.
+- **Extra line** — appended to every reply above the sign-off, e.g. an office phone number.
+
+### 12.4 How it behaves
+
+- **Gmail owns the clock.** The responder is written once with a start and end instant, and Gmail switches it on and off at those times. Leave approved in March for August needs nothing to happen in between — which is why this feature has no cron job.
+- **Half days are honoured.** An afternoon off starts the responder at midday Kosovo time, not midnight.
+- **The return date skips weekends and public holidays.** Leave ending on a Friday says "back on Monday".
+- **Re-synced on every change.** Approving, editing, cancelling, or an admin logging leave on behalf all recompute the responder. Editing approved leave sends it back to pending, so the reply comes down until it's approved again.
+- **Group-mates are re-checked too.** When someone's leave changes, colleagues whose replies currently name them are recomputed as well — so a reply can't go on telling clients to contact somebody who has since booked the same week off. That self-correction is the reason no reconciling cron is needed.
+- **One responder per mailbox.** Gmail allows only one, so back-to-back bookings are represented by the nearest one; each later booking gets its turn when the earlier ends.
+
+### 12.5 Opting out
+
+Anyone can switch it off for themselves under **Account** — "Set an out-of-office on my leave". Opting out while a reply is already running takes it down immediately. It's on for the team by default because an opt-in would leave exactly the mailboxes that matter silent, but writing into somebody's personal mailbox has to be refusable by the person whose mailbox it is.
+
+### 12.6 Disconnecting
+
+**Disconnect takes down the replies that are already running**, unlike the calendar integration, which leaves existing entries alone. The distinction is deliberate: a calendar entry records a real day off, while a responder is the app actively speaking in an employee's voice to everyone who writes in. Switching the feature off has to actually silence it.
+
+### 12.7 If nothing arrives
+
+The Integrations card reports what it can see, because every failure here is invisible from the outside. In rough order of likelihood:
+
+| What you see | What it means |
+| --- | --- |
+| 403 mentioning the API being disabled | Gmail API not enabled on the Cloud project (step 1). |
+| `unauthorized_client` | The delegation isn't authorised for `gmail.settings.basic`, or the client ID is wrong. Check you used the service account's *Unique ID*, not its email. Newly added delegations can also take a few minutes. |
+| `invalid_grant` | That address has no mailbox in this Workspace. |
+| `invalid_client` | `GOOGLE_SA_CLIENT_EMAIL` / `GOOGLE_SA_PRIVATE_KEY` don't match the downloaded key. |
+| "N people are on an address outside …" | Those colleagues aren't in the Workspace and are skipped. |
+| "There are no Hierarchy groups" | Replies still go out, pointing to the fallback address instead of a colleague. Set up groups under People → Hierarchy. |
+
+Until migration 014 is run the feature is simply off and the card says so — deploying the code first is safe.
+
+---
+
 ## Project layout
 
 ```
@@ -422,8 +502,10 @@ app/
     slack/test/          admin-only "post the digest right now"
     integrations/slack/  connect / edit / disconnect Slack
     integrations/calendar/ connect / edit / disconnect calendars
+    integrations/auto-reply/ connect / edit / disconnect the Gmail auto-reply (+ test: check and preview)
     calendar/[token]/    public ICS feed, authenticated by the token itself
     me/calendar-feed/    the caller's own feed URL (+ regenerate)
+    me/auto-reply/       the caller's own auto-reply opt-out
 lib/
   supabase/              browser / server / admin (service-role) clients
   auth.ts                requireUser / requireAdmin helpers
@@ -438,10 +520,14 @@ lib/
   calendar.ts            publishes and withdraws entries; builds the feed; mints feed tokens
   calendar-settings.ts   where the calendar configuration is stored
   whos-off.ts            who's on approved leave on a given date
+  google-auth.ts         service-account JWT -> impersonated Google access token
+  gmail.ts               read and write one mailbox's vacation responder
+  auto-reply.ts          what each mailbox should say while someone is away, and how it gets there
+  auto-reply-settings.ts where the auto-reply configuration is stored
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 013_leave_policies.sql
+supabase/migrations/     001_init.sql … 014_gmail_auto_reply.sql
 ```
 
 ---

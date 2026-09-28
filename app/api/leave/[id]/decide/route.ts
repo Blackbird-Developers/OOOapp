@@ -5,6 +5,7 @@ import { emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireAdmin } from "@/lib/auth";
 import { publishApprovedLeave } from "@/lib/calendar";
+import { syncAfterLeaveChange } from "@/lib/auto-reply";
 import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 
 const schema = z.object({
@@ -101,6 +102,12 @@ export async function POST(
   } catch (e) {
     console.warn("[leave] decision email failed:", e);
   }
+
+  // Set (or take down) the out-of-office auto-reply on their mailbox. Called
+  // for a rejection too, not only an approval: the desired responder is always
+  // recomputed from scratch, so there is no state here to get out of step.
+  // Guards itself and never throws — the decision is already committed.
+  await syncAfterLeaveChange(row.user_id);
 
   return NextResponse.json({ ok: true });
 }
