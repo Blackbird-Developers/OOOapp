@@ -11,6 +11,7 @@ import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
 import { publishApprovedLeave } from "@/lib/calendar";
+import { syncAfterLeaveChange } from "@/lib/auto-reply";
 
 const schema = z.object({
   user_id: z.string().uuid().optional(), // admin can act on behalf
@@ -262,6 +263,12 @@ export async function POST(req: Request) {
   } catch (e) {
     console.warn("[leave] notification email failed:", e);
   }
+
+  // Leave an admin pre-approves never passes through the decide route, so the
+  // mailbox auto-reply has to be raised here too — the same gap the calendar
+  // entry above closes, and for the same reason. Gated on willAutoApprove: a
+  // request that still needs approval must not announce anybody as away.
+  if (willAutoApprove) await syncAfterLeaveChange(targetUserId);
 
   return NextResponse.json({ ok: true, id: row.id, days });
 }

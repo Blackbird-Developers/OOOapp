@@ -134,3 +134,79 @@ export function currentYear(): number {
 export function yearBounds(year = currentYear()): { from: string; to: string } {
   return { from: `${year}-01-01`, to: `${year}-12-31` };
 }
+
+/**
+ * The UTC instant at which a given wall-clock time occurs in `tz`.
+ *
+ * Needed because Gmail takes the auto-reply window as epoch milliseconds,
+ * while leave is stored as a bare date that means "the working day as someone
+ * in the office would describe it". Getting this wrong by an hour twice a year
+ * would start a responder the evening before the leave, or an hour into it.
+ *
+ * Works by treating the wall time as if it were UTC, measuring how far that
+ * lands from the real zone offset, and correcting. The second pass covers the
+ * DST boundary: the offset at the corrected instant can differ from the offset
+ * at the guess, which is exactly the case a single-pass version gets wrong.
+ */
+export function zonedInstant(
+  dateISO: string,
+  hour: number,
+  minute: number = 0,
+  tz: string = APP_TIME_ZONE
+): Date {
+  const [year, month, day] = dateISO.split("-").map(Number);
+  const wallAsUTC = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  const firstPass = wallAsUTC - zoneOffsetMs(new Date(wallAsUTC), tz);
+  const secondOffset = zoneOffsetMs(new Date(firstPass), tz);
+  return new Date(wallAsUTC - secondOffset);
+}
+
+/** How far ahead of UTC `tz` is at `instant`, in milliseconds. */
+function zoneOffsetMs(instant: Date, tz: string): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+
+  const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  // `% 24` guards the ICU builds that render midnight as hour 24 — the same
+  // quirk `hourNowIn` documents, and here it would shift a whole day.
+  const asUTC = Date.UTC(
+    value("year"),
+    value("month") - 1,
+    value("day"),
+    value("hour") % 24,
+    value("minute"),
+    value("second")
+  );
+  return asUTC - instant.getTime();
+}
+
+/**
+ * The first working day on or after `fromISO`, skipping weekends and the
+ * supplied holidays.
+ *
+ * Used for the "back on ..." line in an out-of-office reply: leave that ends
+ * on a Friday means the sender should expect an answer on Monday, and saying
+ * Saturday would be both wrong and faintly insulting. Gives up after a
+ * fortnight rather than looping, since a two-week unbroken run of holidays
+ * means the holiday table is wrong, not the calendar.
+ */
+export function nextWorkingDay(fromISO: string, holidayISOs: string[] = []): string {
+  const holidays = new Set(holidayISOs);
+  let cursor = startOfDay(parseISO(fromISO));
+
+  for (let i = 0; i < 14; i++) {
+    const iso = format(cursor, "yyyy-MM-dd");
+    if (!isWeekend(cursor) && !holidays.has(iso)) return iso;
+    cursor = addDays(cursor, 1);
+  }
+  return fromISO;
+}

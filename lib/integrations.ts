@@ -2,6 +2,9 @@ import { APP_TIME_ZONE } from "@/lib/days";
 import { loadSlackSettings, type SlackSettings } from "@/lib/slack-settings";
 import { servablePostHours } from "@/lib/slack-schedule";
 import { loadCalendarSettings, organizerIdentity } from "@/lib/calendar-settings";
+import { loadAutoReplySettings } from "@/lib/auto-reply-settings";
+import { autoReplyStats } from "@/lib/auto-reply";
+import { googleCredentials } from "@/lib/google-auth";
 
 /**
  * What Blackbird Leave talks to, and whether it's talking.
@@ -15,7 +18,7 @@ import { loadCalendarSettings, organizerIdentity } from "@/lib/calendar-settings
  * never be imported into a client component.
  */
 
-export type IntegrationId = "slack" | "calendar";
+export type IntegrationId = "slack" | "calendar" | "gmail";
 
 /** A single "Channel: C0123…" line under a connected integration. */
 export type IntegrationDetail = { label: string; value: string };
@@ -66,6 +69,43 @@ export type Integration = {
   /** State for the service's own editor, when it has one. */
   slack?: SlackPanel;
   calendar?: CalendarPanel;
+  autoReply?: AutoReplyPanel;
+};
+
+/**
+ * Seed state for the in-app auto-reply editor.
+ *
+ * Carries no credential and never could: the service account private key lives
+ * in the deployment environment, and the only thing the browser is told is
+ * whether one is present at all.
+ */
+export type AutoReplyPanel = {
+  restrictToDomain: boolean;
+  fallbackEmail: string;
+  extraNote: string;
+  /** A settings row exists, so this has been configured at least once. */
+  managedInApp: boolean;
+  /** GOOGLE_SA_* are set on this deployment. Never the key itself. */
+  credentialsPresent: boolean;
+  /** The Workspace domain the app will impersonate within. */
+  domain: string | null;
+  /** Responders the app has up right now. */
+  active: number;
+  /** Mailboxes whose last write failed, and one example of why. */
+  failing: number;
+  sampleError: string | null;
+  /** People who switched it off for themselves. */
+  optedOut: number;
+  /**
+   * Hierarchy groups on file. Zero is worth saying out loud: the replies still
+   * go out, but none of them can name a colleague, which is the half of the
+   * feature people actually asked for.
+   */
+  groups: number;
+  /** Colleagues on an address outside the Workspace, who cannot be covered. */
+  outsideDomain: number;
+  /** Migration 014 has not been run yet. */
+  migrationMissing: boolean;
 };
 
 /**
@@ -102,7 +142,7 @@ export type CalendarPanel = {
 };
 
 export async function listIntegrations(): Promise<Integration[]> {
-  return [await slackIntegration(), await calendarIntegration()];
+  return [await slackIntegration(), await calendarIntegration(), await autoReplyIntegration()];
 }
 
 async function slackIntegration(): Promise<Integration> {
@@ -202,6 +242,68 @@ async function calendarIntegration(): Promise<Integration> {
       siteUrlUnset,
     },
   };
+}
+
+
+/**
+ * Gmail auto-reply: the mailbox answers for someone while they are away.
+ *
+ * The one integration here that holds a real credential with real reach — a
+ * service account the Workspace has authorised to act as any employee. Worth
+ * being precise about the limits on the card, because "acts as any employee"
+ * is alarming until you know the scope covers mailbox settings and cannot read
+ * a single message.
+ */
+async function autoReplyIntegration(): Promise<Integration> {
+  const settings = await loadAutoReplySettings();
+  const credentials = googleCredentials();
+  const stats = settings.connected
+    ? await autoReplyStats()
+    : {
+        active: 0,
+        failing: 0,
+        sampleError: null,
+        optedOut: 0,
+        groups: 0,
+        outsideDomain: 0,
+        migrationMissing: false,
+      };
+
+  return {
+    id: "gmail",
+    name: "Gmail auto-reply",
+    category: "Mailbox",
+    summary:
+      "Answers email while someone is on leave, and points the sender at a colleague who is in.",
+    connected: settings.connected,
+    details: [
+      { label: "Replying now", value: describeActive(stats.active) },
+      { label: "Replies to", value: settings.restrictToDomain ? "Colleagues only" : "Everyone, including clients" },
+      { label: "Names", value: "A free colleague from Hierarchy. Never the leave type." },
+      { label: "Workspace", value: credentials?.domain ?? "Any domain" },
+    ],
+    setupIntro: "Three steps in the Google consoles, then connect it here.",
+    setupSteps: [
+      "In Google Cloud, create a service account and enable the Gmail API on the project.",
+      "In the Google Admin console, authorise that client ID for the scope https://www.googleapis.com/auth/gmail.settings.basic under domain-wide delegation.",
+      "Put the key in GOOGLE_SA_CLIENT_EMAIL and GOOGLE_SA_PRIVATE_KEY, then press Connect.",
+    ],
+    docs: "README section 12",
+    autoReply: {
+      restrictToDomain: settings.restrictToDomain,
+      fallbackEmail: settings.fallbackEmail ?? "",
+      extraNote: settings.extraNote ?? "",
+      managedInApp: settings.managedInApp,
+      credentialsPresent: !!credentials,
+      domain: credentials?.domain ?? null,
+      ...stats,
+    },
+  };
+}
+
+function describeActive(active: number): string {
+  if (active === 0) return "Nobody";
+  return active === 1 ? "1 person" : `${active} people`;
 }
 
 function describeDelivery(s: { sendInvites: boolean; personalFeeds: boolean }): string {

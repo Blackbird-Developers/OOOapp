@@ -7,6 +7,9 @@ import SlackMark from "@/components/SlackMark";
 import CalendarSettingsEditor from "@/components/CalendarSettingsEditor";
 import CalendarConnectButton from "@/components/CalendarConnectButton";
 import CalendarDisconnectButton from "@/components/CalendarDisconnectButton";
+import AutoReplySettingsEditor from "@/components/AutoReplySettingsEditor";
+import AutoReplyConnectButton from "@/components/AutoReplyConnectButton";
+import AutoReplyDisconnectButton from "@/components/AutoReplyDisconnectButton";
 
 /**
  * One service on the Integrations page: what it does, whether it's wired up,
@@ -47,6 +50,8 @@ export default function IntegrationCard({ integration }: { integration: Integrat
             <SlackSettingsEditor details={details} settings={integration.slack} />
           ) : integration.calendar ? (
             <CalendarSettingsEditor details={details} settings={integration.calendar} />
+          ) : integration.autoReply ? (
+            <AutoReplySettingsEditor details={details} settings={integration.autoReply} />
           ) : (
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
               {details.map((d) => (
@@ -82,6 +87,13 @@ export default function IntegrationCard({ integration }: { integration: Integrat
                 siteUrlUnset={integration.calendar.siteUrlUnset}
               />
             )}
+            {integration.autoReply && (
+              <AutoReplyConnectButton
+                credentialsPresent={integration.autoReply.credentialsPresent}
+                groups={integration.autoReply.groups}
+                domain={integration.autoReply.domain}
+              />
+            )}
           </div>
         )}
       </div>
@@ -98,6 +110,7 @@ export default function IntegrationCard({ integration }: { integration: Integrat
  */
 function IntegrationActions({ integration }: { integration: Integration }) {
   if (integration.calendar) return <CalendarActions />;
+  if (integration.autoReply) return <AutoReplyActions panel={integration.autoReply} />;
   if (integration.id !== "slack" || !integration.slack) return null;
   const { envVarsPresent, managedInApp } = integration.slack;
 
@@ -135,6 +148,33 @@ function CalendarActions() {
           type, so a colleague who can see the calendar can&rsquo;t tell annual leave from sick.
         </p>
         <CalendarDisconnectButton />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The auto-reply footer states the two limits worth knowing before anyone
+ * complains about them: the app can only change mailbox settings, not read
+ * mail, and the reply never says why somebody is away.
+ */
+function AutoReplyActions({ panel }: { panel: NonNullable<Integration["autoReply"]> }) {
+  return (
+    <div className="mt-5 border-t border-neutral-200 pt-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-xl text-xs leading-relaxed text-neutral-500">
+          The app can set a mailbox out-of-office and nothing else — the access granted to it
+          can&rsquo;t read, send or delete a single message. Replies say someone is away and when
+          they&rsquo;re back, never whether it&rsquo;s annual leave or sick.
+          {panel.optedOut > 0 && (
+            <>
+              {" "}
+              {panel.optedOut} {panel.optedOut === 1 ? "person has" : "people have"} switched it off
+              for themselves under Account.
+            </>
+          )}
+        </p>
+        <AutoReplyDisconnectButton active={panel.active} />
       </div>
     </div>
   );
@@ -191,7 +231,7 @@ function IconTile({ id, connected }: { id: IntegrationId; connected: boolean }) 
       aria-hidden
       className={`${tile} ${connected ? "bg-brand-ink text-white" : "bg-neutral-100 text-neutral-400"}`}
     >
-      {id === "calendar" ? <CalendarIcon /> : <PlugIcon />}
+      {id === "calendar" ? <CalendarIcon /> : id === "gmail" ? <MailIcon /> : <PlugIcon />}
     </span>
   );
 }
@@ -208,6 +248,20 @@ function CalendarIcon() {
       <path d="M3 10h18" />
       <path d="M8 3v4" />
       <path d="M16 3v4" />
+    </svg>
+  );
+}
+
+/**
+ * A plain envelope rather than Gmail's own mark. The same reasoning as the
+ * calendar icon next door: this is the app acting on a mailbox, not a Google
+ * product badge, and the ink tile is where the other non-branded services sit.
+ */
+function MailIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 8 8.4 5.6a2 2 0 0 0 2.2 0L22 8" />
     </svg>
   );
 }

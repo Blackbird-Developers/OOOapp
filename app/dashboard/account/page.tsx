@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import ProfileEditor from "./ProfileEditor";
 import CalendarFeedCard from "./CalendarFeedCard";
+import AutoReplyCard from "./AutoReplyCard";
 import { loadCalendarSettings } from "@/lib/calendar-settings";
 
 export default async function AccountPage() {
@@ -53,6 +54,10 @@ export default async function AccountPage() {
           <CalendarFeedCard />
         </section>
       )}
+
+      {/* Renders nothing unless an admin has the auto-reply switched on, so it
+          decides for itself rather than needing another server-side check. */}
+      <AutoReplyCard />
     </main>
   );
 }

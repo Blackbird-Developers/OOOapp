@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { emailDecisionToEmployee, emailCancelledRequestToAdmins } from "@/lib/email";
 import { requireUser } from "@/lib/auth";
 import { withdrawApprovedLeave } from "@/lib/calendar";
+import { syncAfterLeaveChange } from "@/lib/auto-reply";
 import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 
 export async function POST(
@@ -104,6 +105,11 @@ async function cancelAsAdmin(
   } catch (e) {
     console.warn("[leave] admin cancellation email failed:", e);
   }
+
+  // Cancelled leave means the mailbox should stop saying they are away. Only
+  // reached from the admin path, because an employee may only cancel a request
+  // that is still pending, and a pending request never raised a responder.
+  await syncAfterLeaveChange(row.user_id);
 
   return NextResponse.json({ ok: true });
 }
