@@ -4,6 +4,11 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = [
   "/login",
   "/invite",
+  // Self-service sign-up: creating a company, following the emailed link, and
+  // joining through a company's join link. See lib/registration.ts.
+  "/signup",
+  "/join",
+  "/api/signup",
   "/forgot-password",
   "/reset-password",
   "/api/auth",

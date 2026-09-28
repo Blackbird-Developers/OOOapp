@@ -2,15 +2,26 @@ import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import EmptyState from "@/components/EmptyState";
 import InviteForm from "./InviteForm";
+import JoiningSettings from "./JoiningSettings";
+import { emailDomain, isClaimableDomain } from "@/lib/registration";
 import DeleteInviteButton from "./DeleteInviteButton";
 
 export default async function InvitesPage() {
-  await requireAdmin();
+  const me = await requireAdmin();
   const supabase = await createServerClient();
-  const { data: invites } = await supabase
-    .from("invites")
-    .select("id, email, full_name, role, expires_at, used_at, token, created_at")
-    .order("created_at", { ascending: false });
+  const [{ data: invites }, { data: org }] = await Promise.all([
+    supabase
+      .from("invites")
+      .select("id, email, full_name, role, expires_at, used_at, token, created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("organizations")
+      .select("join_code, join_domain, domain_join_enabled")
+      .eq("id", me.organization_id)
+      .maybeSingle(),
+  ]);
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const domain = emailDomain(me.email);
 
   const total = (invites ?? []).length;
 
@@ -26,6 +37,16 @@ export default async function InvitesPage() {
         <section className="card p-4 sm:p-6">
           <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-neutral-500 mb-4">New invite</h2>
           <InviteForm />
+        </section>
+
+        <section className="card p-4 sm:p-6 mt-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-neutral-500 mb-4">More ways to join</h2>
+          <JoiningSettings
+            joinUrl={org?.join_code ? `${site}/join/${org.join_code}` : null}
+            domain={org?.domain_join_enabled && org.join_domain ? org.join_domain : domain}
+            domainEnabled={!!org?.domain_join_enabled}
+            domainClaimable={isClaimableDomain(domain)}
+          />
         </section>
 
         <section className="mt-8">
