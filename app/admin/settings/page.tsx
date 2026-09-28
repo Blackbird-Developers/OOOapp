@@ -2,9 +2,10 @@ import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { ANNUAL_MIN_NOTICE_KEY } from "@/lib/settings";
 import SettingsForm from "./SettingsForm";
+import CompanyNameForm from "./CompanyNameForm";
 
 export default async function SettingsPage() {
-  await requireAdmin();
+  const me = await requireAdmin();
   const supabase = await createServerClient();
   const { data } = await supabase
     .from("app_settings")
@@ -18,10 +19,13 @@ export default async function SettingsPage() {
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <header className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Settings</h1>
-        <p className="mt-1 text-sm text-neutral-500">Leave policies that apply to the whole team.</p>
+        <p className="mt-1 text-sm text-neutral-500">Your company, and rules that apply to the whole team.</p>
       </header>
 
-      <SettingsForm initialNoticeDays={noticeDays} />
+      <div className="space-y-6">
+        <CompanyNameForm initialName={me.organization_name} />
+        <SettingsForm initialNoticeDays={noticeDays} />
+      </div>
     </main>
   );
 }

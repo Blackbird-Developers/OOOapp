@@ -10,10 +10,12 @@ export default function InviteAcceptForm({
   token,
   email,
   fullName,
+  companyName,
 }: {
   token: string;
   email: string;
   fullName: string;
+  companyName: string;
 }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -66,7 +68,9 @@ export default function InviteAcceptForm({
             <h1 className="text-2xl font-bold tracking-tight text-brand-ink">
               Welcome, {fullName.split(" ")[0]}
             </h1>
-            <p className="text-sm text-neutral-500 mt-1">Set a password to finish creating your account.</p>
+            <p className="text-sm text-neutral-500 mt-1">
+              Set a password to join {companyName || "your team"}.
+            </p>
             <p className="text-xs text-neutral-500 mt-2">{email}</p>
           </div>
 

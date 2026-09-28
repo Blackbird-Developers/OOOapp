@@ -8,6 +8,8 @@ export type Profile = {
   full_name: string;
   role: "admin" | "employee";
   organization_id: string;
+  /** The company's display name, for "Acme · Monday 28 September" and the like. */
+  organization_name: string;
   annual_allowance: number;
   sick_allowance: number;
 };
@@ -24,10 +26,16 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
   if (!session) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("id, email, full_name, role, organization_id, annual_allowance, sick_allowance")
+    .select(
+      "id, email, full_name, role, organization_id, annual_allowance, sick_allowance, organizations(name)"
+    )
     .eq("id", session.user.id)
     .single();
-  return (data as Profile) ?? null;
+  if (!data) return null;
+  const { organizations, ...profile } = data as unknown as Omit<Profile, "organization_name"> & {
+    organizations: { name: string } | null;
+  };
+  return { ...profile, organization_name: organizations?.name ?? "" };
 });
 
 export async function requireUser(): Promise<Profile> {

@@ -91,7 +91,9 @@ export default async function DashboardPage() {
             <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
               Team availability
             </h1>
-            <p className="mt-1 text-sm text-neutral-500">{format(now, "EEEE, d MMMM yyyy")}</p>
+            <p className="mt-1 text-sm text-neutral-500">
+              {profile.organization_name} · {format(now, "EEEE, d MMMM yyyy")}
+            </p>
           </div>
           <Link
             href="/dashboard/request"

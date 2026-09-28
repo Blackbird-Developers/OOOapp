@@ -17,7 +17,7 @@ const bricolage = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   title: "Blackbird Leave",
-  description: "Blackbird Marketing leave tracker",
+  description: "Leave tracking for teams: book time off, approve it, and see who's away.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -5,6 +5,7 @@ import { loadCalendarSettings, organizerIdentity } from "@/lib/calendar-settings
 import { loadAutoReplySettings } from "@/lib/auto-reply-settings";
 import { autoReplyStats } from "@/lib/auto-reply";
 import { googleCredentials } from "@/lib/google-auth";
+import { isBlackbird } from "@/lib/org";
 
 /**
  * What Blackbird Leave talks to, and whether it's talking.
@@ -66,6 +67,11 @@ export type Integration = {
   setupSteps: string[];
   /** Where the full instructions live. */
   docs: string;
+  /**
+   * Why this company can't connect it at all, when that's the case. Shown in
+   * place of the setup steps, so nobody follows steps that can't work.
+   */
+  unavailable?: string;
   /** State for the service's own editor, when it has one. */
   slack?: SlackPanel;
   calendar?: CalendarPanel;
@@ -293,6 +299,11 @@ async function autoReplyIntegration(orgId: string): Promise<Integration> {
       "Put the key in GOOGLE_SA_CLIENT_EMAIL and GOOGLE_SA_PRIVATE_KEY, then press Connect.",
     ],
     docs: "README section 12",
+    // The service account is delegated over Blackbird's Workspace alone, so no
+    // other company can connect it, whatever they set up on their side.
+    unavailable: isBlackbird(orgId)
+      ? undefined
+      : "Not available for your company yet. It needs a Google Workspace connection of your own, which is coming later.",
     autoReply: {
       restrictToDomain: settings.restrictToDomain,
       fallbackEmail: settings.fallbackEmail ?? "",

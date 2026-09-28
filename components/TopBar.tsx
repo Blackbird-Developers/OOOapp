@@ -257,6 +257,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
                 <div className="px-3 pb-2 pt-1.5">
                   <div className="truncate text-sm font-medium text-neutral-900">{profile.full_name}</div>
                   <div className="truncate text-xs text-neutral-500">{profile.email}</div>
+                  <div className="mt-1 truncate text-xs text-neutral-500">{profile.organization_name}</div>
                 </div>
                 <div className="-mx-1.5 my-1.5 border-t border-neutral-200" />
                 <Link href={ACCOUNT_LINK.href} className={menuItemCls}>
@@ -382,6 +383,7 @@ export default function TopBar({ profile }: { profile: Profile }) {
               <div className="min-w-0">
                 <div className="text-sm font-medium text-neutral-900 truncate">{profile.full_name}</div>
                 <div className="text-xs text-neutral-500 truncate">{profile.email}</div>
+                <div className="text-xs text-neutral-500 truncate">{profile.organization_name}</div>
               </div>
             </div>
             <form action="/api/auth/logout" method="post">

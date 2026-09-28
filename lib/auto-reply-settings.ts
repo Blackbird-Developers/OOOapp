@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isBlackbird } from "@/lib/org";
 
 /**
  * Configuration for the Gmail auto-reply integration.
@@ -49,9 +50,13 @@ type Row = { connected: boolean; config: Record<string, unknown> | null };
  */
 export const DEFAULT_FALLBACK_EMAIL = "art@blackbird.marketing";
 
+/** Blackbird's own fallback address; any other company starts with none. */
+function defaultFallbackFor(orgId: string): string | null {
+  return isBlackbird(orgId) ? DEFAULT_FALLBACK_EMAIL : null;
+}
+
 const DEFAULTS = {
   restrictToDomain: false,
-  fallbackEmail: DEFAULT_FALLBACK_EMAIL as string | null,
   extraNote: null as string | null,
 };
 
@@ -93,7 +98,7 @@ export async function loadAutoReplySettings(orgId: string): Promise<AutoReplySet
         ? config.restrictToDomain
         : DEFAULTS.restrictToDomain,
     fallbackEmail:
-      typeof fallback === "string" && fallback.trim() ? fallback.trim() : DEFAULTS.fallbackEmail,
+      typeof fallback === "string" && fallback.trim() ? fallback.trim() : defaultFallbackFor(orgId),
     extraNote: typeof note === "string" && note.trim() ? note.trim() : DEFAULTS.extraNote,
     managedInApp: !!row,
   };
