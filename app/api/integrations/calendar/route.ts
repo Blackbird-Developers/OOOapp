@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import { unverifiedResponse } from "@/lib/verification";
 import { saveCalendarSettings, type CalendarSettingsPatch } from "@/lib/calendar-settings";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 /** Connect: start putting approved leave in people's calendars. */
 export async function POST() {
   const admin = await requireAdmin();
+  const locked = await unverifiedResponse(admin.organization_id, "connecting calendars");
+  if (locked) return locked;
 
   const { error } = await saveCalendarSettings({ connected: true }, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });

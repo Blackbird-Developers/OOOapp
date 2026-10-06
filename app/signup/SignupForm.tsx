@@ -5,12 +5,10 @@ import Link from "next/link";
 import Field from "@/components/Field";
 
 /**
- * Both ways to start a sign-up: creating a company (no `join`), or joining one
- * through its link. Either way the answer is "check your inbox" — the email
- * says what happens next.
+ * Joining a company through its link. The answer is "check your inbox" — the
+ * email says what happens next. Creating a company is CompanyWizard.
  */
-export default function SignupForm({ join }: { join?: { code: string; companyName: string } }) {
-  const [companyName, setCompanyName] = useState("");
+export default function SignupForm({ join }: { join: { code: string; companyName: string } }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,11 +22,7 @@ export default function SignupForm({ join }: { join?: { code: string; companyNam
     const res = await fetch("/api/signup", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(
-        join
-          ? { mode: "join", code: join.code, full_name: fullName, email }
-          : { mode: "create", company_name: companyName, full_name: fullName, email }
-      ),
+      body: JSON.stringify({ mode: "join", code: join.code, full_name: fullName, email }),
     });
     const json = await res.json().catch(() => null);
     setLoading(false);
@@ -61,32 +55,11 @@ export default function SignupForm({ join }: { join?: { code: string; companyNam
   return (
     <form onSubmit={onSubmit} className="card p-8 space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-brand-ink">
-          {join ? `Join ${join.companyName}` : "Create your company"}
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-brand-ink">Join {join.companyName}</h1>
         <p className="text-sm text-neutral-500 mt-1">
-          {join
-            ? "Book leave and see who's off, with the rest of your team."
-            : "Set up leave tracking for your team. You'll be its first admin."}
+          Book leave and see who&apos;s off, with the rest of your team.
         </p>
       </div>
-
-      {!join && (
-        <Field label="Company name">
-          {(p) => (
-            <input
-              {...p}
-              required
-              maxLength={80}
-              className="input"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              autoComplete="organization"
-              placeholder="Acme Ltd"
-            />
-          )}
-        </Field>
-      )}
 
       <Field label="Your name">
         {(p) => (

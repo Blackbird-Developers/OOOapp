@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailInvite } from "@/lib/email";
 import { requireAdmin } from "@/lib/auth";
+import { UNVERIFIED_PEOPLE_LIMIT, isVerified, peopleCount } from "@/lib/verification";
 
 const schema = z.object({
   email: z.string().email(),
@@ -16,6 +17,18 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+
+  // Until the company proves its domain, it can only bring in a handful of
+  // people: enough to try it out, too few to pass as somebody else's company.
+  if (!(await isVerified(me.organization_id)) && (await peopleCount(me.organization_id)) >= UNVERIFIED_PEOPLE_LIMIT) {
+    return NextResponse.json(
+      {
+        error: `Unverified companies can have up to ${UNVERIFIED_PEOPLE_LIMIT} people, including open invites. Verify your company's domain under Settings to invite more.`,
+        code: "unverified",
+      },
+      { status: 403 }
+    );
+  }
 
   const admin = createAdminClient();
 

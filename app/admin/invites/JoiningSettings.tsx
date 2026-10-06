@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -10,10 +11,12 @@ type Props = {
   domainEnabled: boolean;
   /** False for a public provider such as gmail.com, which can't be claimed. */
   domainClaimable: boolean;
+  /** Opening either door needs a verified company domain; closing one never does. */
+  verified: boolean;
 };
 
 /** The two ways in besides an invite: a shareable link, and the company's email domain. */
-export default function JoiningSettings({ joinUrl, domain, domainEnabled, domainClaimable }: Props) {
+export default function JoiningSettings({ joinUrl, domain, domainEnabled, domainClaimable, verified }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +48,14 @@ export default function JoiningSettings({ joinUrl, domain, domainEnabled, domain
 
   return (
     <div className="space-y-6">
+      {!verified && (
+        <p className="rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
+          Verify your company domain to use these.{" "}
+          <Link href="/admin/settings" className="font-medium text-neutral-900 underline">
+            Go to Settings
+          </Link>
+        </p>
+      )}
       <div>
         <h3 className="text-sm font-semibold text-neutral-900">Join link</h3>
         <p className="mt-1 text-sm text-neutral-500">
@@ -81,7 +92,7 @@ export default function JoiningSettings({ joinUrl, domain, domainEnabled, domain
         ) : (
           <button
             type="button"
-            disabled={!!busy}
+            disabled={!!busy || !verified}
             onClick={() => update("new", { action: "new_link" })}
             className="btn-secondary mt-3"
           >
@@ -103,7 +114,7 @@ export default function JoiningSettings({ joinUrl, domain, domainEnabled, domain
                 type="checkbox"
                 className="h-4 w-4"
                 checked={domainEnabled}
-                disabled={!!busy}
+                disabled={!!busy || (!verified && !domainEnabled)}
                 onChange={(e) => update("domain", { action: "domain", enabled: e.target.checked })}
               />
               {domainEnabled ? `On for @${domain}` : "Off"}

@@ -522,7 +522,7 @@ How the separation holds:
 
 Besides an admin invite there are three ways in, all public (`lib/registration.ts`):
 
-- **Create a company** at `/signup`. The person signing up becomes the new company's first admin. The company starts with the usual leave types and a Standard policy (20 annual, 20 sick), made in one step by `create_organization()`.
+- **Create a company** at `/signup`, in three steps. **You:** name and a work email; personal and throwaway addresses (Gmail, Outlook.com, Yahoo, Mailinator, …) are refused, and so is a domain with no mail server. **Company:** name, country, team size, their job title, and a declaration that they work there and may set it up; its exact words, the time and their IP address are kept in `organization_declarations` (service role only). **Leave policy:** Standard (20 annual, 20 sick, raised to the country's legal minimum where that is higher, e.g. 25 in France), Kosovo labour law (suggested for Kosovo), or one built on the spot; skipping gives Standard. The country's minimum paid annual leave is shown as a guide (`lib/countries.ts`) and a custom policy below it is flagged. The person becomes the new company's first admin, and the company, its leave types and that default template are made in one step by `create_organization()`.
 - **Join link** at `/join/<code>`. An admin switches it on under Invites → More ways to join. Anyone who opens it joins as an employee. **Replace link** stops the old one working immediately, and **Switch off** removes it.
 - **Work email domain.** Off by default. When an admin turns it on, anyone signing up at `/signup` with an address at that admin's own domain joins the company as an employee instead of creating a new one. Public providers (gmail.com, outlook.com, …) can't be used, and each domain belongs to at most one company.
 
@@ -530,7 +530,9 @@ Every route emails a link first, and only following it (and setting a password) 
 
 Admin rights are never handed out by sign-up beyond a new company's founder. Other admins are invited as admins, or promoted with **Make admin** on their page under Employees. A company always keeps at least one admin.
 
-Needs `supabase/migrations/017_company_registration.sql`.
+**One company per domain, and domain verification.** A new company keeps the email domain its founder signed up with, and nobody else can create a company on it: they're emailed to ask its admin for an invite. Under **Settings → Verify your company domain** an admin adds a `blackbird-leave-verify=…` TXT record to the domain's DNS and checks it. Until the company is verified it can have up to 10 people (members plus open invites), and join links, joining by email domain and connecting integrations are locked. Blackbird Marketing is verified by migration 019. See `lib/verification.ts`.
+
+Needs `supabase/migrations/017_company_registration.sql`, `018_company_signup_details.sql` for the country, team size and leave policy step, and `019_company_verification.sql` for domains, declarations and verification.
 
 ---
 
@@ -567,6 +569,9 @@ lib/
   auth.ts                requireUser / requireAdmin helpers
   org.ts                 organizations: Blackbird's fixed id, membership check
   registration.ts        sign-up: create a company, join by link or domain, emailed confirmation
+  signup.ts              what creating a company asks for: work-email rules, team sizes, starting leave policy
+  countries.ts           country list and each one's legal minimum annual leave
+  verification.ts        company domain verification (DNS TXT) and what it unlocks
   onboarding.ts          what every new account gets (calendar setup email)
   days.ts                working-day calculator (weekends + holidays + half-days)
   leave-rules.ts         the leave maths: allowances, seniority, first year, carry-over, limits (pure)
@@ -586,7 +591,7 @@ lib/
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 017_company_registration.sql
+supabase/migrations/     001_init.sql … 019_company_verification.sql
 ```
 
 ---

@@ -570,6 +570,8 @@ export async function emailSignupLink(opts: {
   kind: "create" | "join";
   companyName: string;
   viaDomain?: boolean;
+  /** For a new company: country, size and leave policy, as one line. */
+  details?: string;
 }) {
   const url = `${SITE}/signup/${opts.token}`;
   const company = escapeHtml(opts.companyName);
@@ -578,6 +580,7 @@ export async function emailSignupLink(opts: {
       ? `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
     <p>Confirm your email to create <strong>${company}</strong> on Blackbird Leave. You'll be its first admin.</p>
+    ${opts.details ? `<p style="font-size:13px;color:#475569">${escapeHtml(opts.details)}</p>` : ""}
     <p><a href="${url}" style="${BUTTON}">Confirm & set password</a></p>
     <p style="font-size:12px;color:#64748b">This link expires in 24 hours. If you didn't ask for this, ignore the email and nothing will be created.</p>
   `
@@ -596,6 +599,17 @@ export async function emailSignupLink(opts: {
     opts.kind === "create" ? "Confirm your email" : `Join ${opts.companyName}`,
     wrap(body)
   );
+}
+
+/** Sent instead of a sign-up link when somebody at this domain already created the company. */
+export async function emailCompanyExists(opts: { to: string; fullName: string; companyName: string }) {
+  const body = `
+    <p>Hi ${escapeHtml(opts.fullName)},</p>
+    <p>Someone tried to create a company on Blackbird Leave with this email, but <strong>${escapeHtml(opts.companyName)}</strong> is already set up for your email domain, and each domain can only have one company.</p>
+    <p>Ask whoever runs it at your company to invite you. If you don't know who set it up, your IT team can help.</p>
+    <p style="font-size:12px;color:#64748b">If you didn't ask for this, ignore the email.</p>
+  `;
+  await send(opts.to, `${opts.companyName} is already on Blackbird Leave`, wrap(body));
 }
 
 /** Sent instead of a sign-up link when the address already has an account. */

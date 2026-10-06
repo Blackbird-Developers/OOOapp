@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailDomain, isClaimableDomain, newJoinCode } from "@/lib/registration";
+import { unverifiedResponse } from "@/lib/verification";
 
 const schema = z.discriminatedUnion("action", [
   // Switch the join link on, or replace it: either way a fresh code, so the
@@ -24,6 +25,17 @@ export async function PATCH(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   const input = parsed.data;
 
+  // Switching a door off is always allowed; opening one needs a verified
+  // company, since anyone could walk through it.
+  const opening = input.action === "new_link" || (input.action === "domain" && input.enabled);
+  if (opening) {
+    const locked = await unverifiedResponse(
+      me.organization_id,
+      input.action === "new_link" ? "creating a join link" : "letting people join by email domain"
+    );
+    if (locked) return locked;
+  }
+
   let patch: Record<string, unknown>;
   if (input.action === "new_link") {
     patch = { join_code: newJoinCode() };
@@ -32,9 +44,16 @@ export async function PATCH(req: Request) {
   } else if (!input.enabled) {
     patch = { domain_join_enabled: false };
   } else {
-    // The domain is always the admin's own. Typing one in would let a company
-    // claim somebody else's, and everyone signing up there would be offered it.
-    const domain = emailDomain(me.email);
+    // The company's verified domain. Older companies verified before they had
+    // one fall back to the admin's own. Never typed in: that would let a
+    // company claim somebody else's, and everyone signing up there would be
+    // offered it.
+    const { data: org } = await createAdminClient()
+      .from("organizations")
+      .select("domain")
+      .eq("id", me.organization_id)
+      .maybeSingle();
+    const domain = org?.domain ?? emailDomain(me.email);
     if (!isClaimableDomain(domain)) {
       return NextResponse.json(
         { error: `${domain} is a public email provider, so it can't be used to let people join. Use an admin account on your company's own domain.` },
