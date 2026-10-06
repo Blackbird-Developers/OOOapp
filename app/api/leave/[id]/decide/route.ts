@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { emailDecisionToEmployee } from "@/lib/email";
-import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireAdmin } from "@/lib/auth";
-import { publishApprovedLeave } from "@/lib/calendar";
-import { syncAfterLeaveChange } from "@/lib/auto-reply";
-import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
+import { decideLeaveRequest } from "@/lib/leave-decision";
 
 const schema = z.object({
   action: z.enum(["approve", "reject"]),
@@ -23,92 +19,19 @@ export async function POST(
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
-  const supabase = await createServerClient();
-  const status = parsed.data.action === "approve" ? "approved" : "rejected";
+  const result = await decideLeaveRequest({
+    supabase: await createServerClient(),
+    admin,
+    id,
+    action: parsed.data.action,
+    note: parsed.data.note,
+  });
 
-  // Hierarchy rule safety net: don't approve annual leave that now clashes
-  // with a conflict-group mate's leave (e.g. approved after the request was
-  // logged with an admin override, or a race between two requests).
-  if (status === "approved") {
-    const { data: pendingRow } = await supabase
-      .from("leave_requests")
-      .select("user_id, type, start_date, end_date")
-      .eq("id", id)
-      .eq("status", "pending")
-      .single();
-    if (pendingRow && pendingRow.type === "annual") {
-      const conflicts = await findAnnualConflicts({
-        orgId: admin.organization_id,
-        userId: pendingRow.user_id,
-        startDate: pendingRow.start_date,
-        endDate: pendingRow.end_date,
-        excludeRequestId: id,
-      });
-      if (conflicts.length > 0) {
-        return NextResponse.json(
-          {
-            error: `${describeConflict(conflicts, "they")} Reject this request, or change the group under Hierarchy first.`,
-            conflict: true,
-          },
-          { status: 409 }
-        );
-      }
-    }
+  if (!result.ok) {
+    return NextResponse.json(
+      result.conflict ? { error: result.error, conflict: true } : { error: result.error },
+      { status: result.status }
+    );
   }
-
-  const { data: row, error } = await supabase
-    .from("leave_requests")
-    .update({
-      status,
-      decided_by: admin.id,
-      decided_at: new Date().toISOString(),
-      decision_note: parsed.data.note ?? null,
-    })
-    .eq("id", id)
-    .eq("status", "pending")
-    .select("user_id, type, start_date, end_date, days_count")
-    .single();
-
-  if (error || !row) {
-    return NextResponse.json({ error: error?.message ?? "Request not found or already decided" }, { status: 404 });
-  }
-
-  const { data: employee } = await supabase
-    .from("profiles")
-    .select("email, full_name")
-    .eq("id", row.user_id)
-    .single();
-
-  // Best-effort: the decision is already saved, so an email failure
-  // must not fail the response.
-  try {
-    if (employee) {
-      // An approval puts the day off in the employee's own calendar, riding
-      // along with the email they are already getting. A rejection carries
-      // nothing: no event was ever created, so there is nothing to withdraw.
-      const calendar = status === "approved" ? await publishApprovedLeave(id) : null;
-
-      await emailDecisionToEmployee({
-        to: employee.email,
-        employeeName: employee.full_name,
-        approved: status === "approved",
-        typeName: typeNamer((await getLeaveSetup()).types)(row.type),
-        startDate: row.start_date,
-        endDate: row.end_date,
-        days: Number(row.days_count),
-        note: parsed.data.note ?? null,
-        calendar: calendar ?? undefined,
-      });
-    }
-  } catch (e) {
-    console.warn("[leave] decision email failed:", e);
-  }
-
-  // Set (or take down) the out-of-office auto-reply on their mailbox. Called
-  // for a rejection too, not only an approval: the desired responder is always
-  // recomputed from scratch, so there is no state here to get out of step.
-  // Guards itself and never throws — the decision is already committed.
-  await syncAfterLeaveChange(row.user_id);
-
   return NextResponse.json({ ok: true });
 }

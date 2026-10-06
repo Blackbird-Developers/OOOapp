@@ -29,6 +29,8 @@ export default function SlackSettingsEditor({
   const [weekdaysOnly, setWeekdaysOnly] = useState(settings.weekdaysOnly);
   const [silentWhenEmpty, setSilentWhenEmpty] = useState(settings.silentWhenEmpty);
   const [shareHalfDays, setShareHalfDays] = useState(settings.shareHalfDays);
+  const [approvalsEnabled, setApprovalsEnabled] = useState(settings.approvalsEnabled);
+  const [signingSecret, setSigningSecret] = useState("");
   const [token, setToken] = useState("");
 
   const [busy, setBusy] = useState(false);
@@ -40,6 +42,8 @@ export default function SlackSettingsEditor({
     weekdaysOnly !== settings.weekdaysOnly ||
     silentWhenEmpty !== settings.silentWhenEmpty ||
     shareHalfDays !== settings.shareHalfDays ||
+    approvalsEnabled !== settings.approvalsEnabled ||
+    signingSecret.trim() !== "" ||
     token.trim() !== "";
 
   function cancel() {
@@ -48,6 +52,8 @@ export default function SlackSettingsEditor({
     setWeekdaysOnly(settings.weekdaysOnly);
     setSilentWhenEmpty(settings.silentWhenEmpty);
     setShareHalfDays(settings.shareHalfDays);
+    setApprovalsEnabled(settings.approvalsEnabled);
+    setSigningSecret("");
     setToken("");
     setError(null);
     setEditing(false);
@@ -67,6 +73,8 @@ export default function SlackSettingsEditor({
     if (weekdaysOnly !== settings.weekdaysOnly) patch.weekdays_only = weekdaysOnly;
     if (silentWhenEmpty !== settings.silentWhenEmpty) patch.silent_when_empty = silentWhenEmpty;
     if (shareHalfDays !== settings.shareHalfDays) patch.share_half_days = shareHalfDays;
+    if (approvalsEnabled !== settings.approvalsEnabled) patch.approvals_enabled = approvalsEnabled;
+    if (signingSecret.trim()) patch.signing_secret = signingSecret.trim();
     if (token.trim()) patch.bot_token = token.trim();
 
     try {
@@ -83,6 +91,7 @@ export default function SlackSettingsEditor({
       }
 
       setToken("");
+      setSigningSecret("");
       setEditing(false);
       router.refresh();
     } catch {
@@ -177,6 +186,65 @@ export default function SlackSettingsEditor({
           leave both read as simply &ldquo;out&rdquo; — the digest goes to a channel the whole
           company can see.
         </p>
+      </fieldset>
+
+      <fieldset>
+        <legend className="label">Approvals</legend>
+        {settings.approvalsMigrationMissing ? (
+          <p className="text-xs leading-relaxed text-neutral-500">
+            Run <code className="font-mono">supabase/migrations/017_slack_leave_approvals.sql</code> to
+            let admins approve and reject leave from Slack.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <Toggle checked={approvalsEnabled} onChange={setApprovalsEnabled}>
+              Send new leave requests to admins in Slack, with Approve and Reject buttons
+            </Toggle>
+            <p className="text-xs leading-relaxed text-neutral-500">
+              Each admin gets a direct message, matched to Slack by their email address, so the
+              leave type stays out of shared channels. Deciding in Slack does exactly what the
+              Requests page does — the employee is emailed and their calendar updated.
+            </p>
+            {approvalsEnabled && (
+              <div className="space-y-3 rounded-lg border border-neutral-200 p-3">
+                <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-neutral-600">
+                  <li>
+                    In the Slack app, add the <code className="font-mono">users:read</code> and{" "}
+                    <code className="font-mono">users:read.email</code> scopes, then reinstall it.
+                  </li>
+                  <li>
+                    Under <strong>Interactivity &amp; Shortcuts</strong>, switch it on and set the
+                    Request URL to{" "}
+                    <code className="break-all font-mono text-neutral-800">{settings.interactionsUrl}</code>
+                  </li>
+                  <li>
+                    Paste the <strong>Signing Secret</strong> from Basic Information below.
+                  </li>
+                </ol>
+                <Field
+                  label={settings.hasSigningSecret ? "Replace signing secret" : "Signing secret"}
+                  hint={
+                    settings.hasSigningSecret
+                      ? "Leave blank to keep the secret already on file."
+                      : "Slack signs every button press with it, so nobody else can approve leave."
+                  }
+                >
+                  {(p) => (
+                    <input
+                      {...p}
+                      type="password"
+                      className="input font-mono"
+                      value={signingSecret}
+                      onChange={(e) => setSigningSecret(e.target.value)}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  )}
+                </Field>
+              </div>
+            )}
+          </div>
+        )}
       </fieldset>
 
       <Field

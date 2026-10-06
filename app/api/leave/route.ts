@@ -13,6 +13,7 @@ import { requireUser } from "@/lib/auth";
 import { isInOrganization } from "@/lib/org";
 import { publishApprovedLeave } from "@/lib/calendar";
 import { syncAfterLeaveChange } from "@/lib/auto-reply";
+import { notifyAdminsInSlack } from "@/lib/slack-approvals";
 
 const schema = z.object({
   user_id: z.string().uuid().optional(), // admin can act on behalf
@@ -280,6 +281,11 @@ export async function POST(req: Request) {
   // entry above closes, and for the same reason. Gated on willAutoApprove: a
   // request that still needs approval must not announce anybody as away.
   if (willAutoApprove) await syncAfterLeaveChange(targetUserId);
+
+  // Anything still waiting on a decision goes to the admins in Slack too, with
+  // Approve / Reject buttons. Does nothing unless an admin switched it on, and
+  // never throws.
+  if (status === "pending") await notifyAdminsInSlack(row.id);
 
   return NextResponse.json({ ok: true, id: row.id, days });
 }

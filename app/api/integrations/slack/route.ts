@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
-import { verifySlackToken } from "@/lib/slack";
-import { saveSlackSettings, type SlackSettingsPatch } from "@/lib/slack-settings";
+import { callSlack, verifySlackToken } from "@/lib/slack";
+import {
+  loadSlackCredentials,
+  loadSlackSettings,
+  saveSlackSettings,
+  type SlackSettingsPatch,
+} from "@/lib/slack-settings";
 import { servablePostHours } from "@/lib/slack-schedule";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +31,15 @@ const channelId = z
 // Left loose on purpose: `auth.test` is the real gate, and a length rule that
 // guessed wrong about a future token format would reject a working token.
 const botToken = z.string().trim().min(10, "That token looks too short to be a bot token.");
+
+// Slack's signing secrets are 32 hex characters today. Kept to "long and no
+// spaces" for the same reason as the token: a wrong guess about the format
+// would lock out a working secret. A wrong secret shows up as presses that
+// are refused, which the setup steps explain.
+const signingSecret = z
+  .string()
+  .trim()
+  .regex(/^\S{16,}$/, "That doesn't look like a signing secret. Copy it from Basic Information → App Credentials.");
 
 // An hour no scheduled cron run can reach is not a preference, it is an outage
 // with a friendly label — the digest would simply stop. The dropdown already
@@ -72,6 +86,8 @@ const updateSchema = z
     weekdays_only: z.boolean().optional(),
     silent_when_empty: z.boolean().optional(),
     share_half_days: z.boolean().optional(),
+    approvals_enabled: z.boolean().optional(),
+    signing_secret: signingSecret.optional(),
     // Rotating a token shouldn't require disconnecting first, so PATCH takes
     // one too — verified exactly as POST does before it's written.
     bot_token: botToken.optional(),
@@ -92,6 +108,34 @@ export async function PATCH(req: Request) {
     if (!check.ok) return NextResponse.json({ error: check.message }, { status: 400 });
   }
 
+  const touchesApprovals =
+    parsed.data.approvals_enabled !== undefined || parsed.data.signing_secret !== undefined;
+
+  if (touchesApprovals) {
+    const settings = await loadSlackSettings(admin.organization_id);
+    if (settings.approvalsMigrationMissing) {
+      return NextResponse.json(
+        { error: "Run supabase/migrations/017_slack_leave_approvals.sql first, then switch this on." },
+        { status: 400 }
+      );
+    }
+
+    if (parsed.data.approvals_enabled) {
+      if (!parsed.data.signing_secret && !settings.hasSigningSecret) {
+        return NextResponse.json(
+          { error: "Paste the Slack app's signing secret to switch approvals on." },
+          { status: 400 }
+        );
+      }
+
+      // Prove the token can find people by email now, rather than discovering
+      // the missing scope when the first request quietly never arrives.
+      const token = parsed.data.bot_token;
+      const problem = await checkApprovalScopes(admin.email, token, admin.organization_id);
+      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+    }
+  }
+
   const { error } = await saveSlackSettings(patch, admin);
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
@@ -110,7 +154,17 @@ export async function PATCH(req: Request) {
 export async function DELETE() {
   const admin = await requireAdmin();
 
-  const { error } = await saveSlackSettings({ connected: false, bot_token: null }, admin);
+  // Approvals send with the same token, so they stop too. Only written once
+  // migration 017 exists, so Disconnect keeps working on a database without it.
+  const { approvalsMigrationMissing } = await loadSlackSettings(admin.organization_id);
+  const { error } = await saveSlackSettings(
+    {
+      connected: false,
+      bot_token: null,
+      ...(approvalsMigrationMissing ? {} : { approvals_enabled: false }),
+    },
+    admin
+  );
   if (error) return NextResponse.json({ error: saveFailed(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
@@ -120,6 +174,34 @@ export async function DELETE() {
 function badRequest(error: z.ZodError): NextResponse {
   const message = error.issues[0]?.message ?? "Invalid input";
   return NextResponse.json({ error: message }, { status: 400 });
+}
+
+/**
+ * Look the admin switching approvals on up by their own email. That needs
+ * users:read.email, the scope approvals add — so a missing scope is caught
+ * here, and so is the admin's Slack account using a different address.
+ */
+async function checkApprovalScopes(
+  email: string,
+  newToken: string | undefined,
+  orgId: string
+): Promise<string | null> {
+  const token = newToken ?? (await loadSlackCredentials(orgId))?.token ?? null;
+  if (!token) return "Connect Slack first.";
+
+  try {
+    await callSlack(token, "users.lookupByEmail", { email }, { form: true });
+    return null;
+  } catch (e) {
+    const code = (e as { slackCode?: string }).slackCode;
+    if (code === "users_not_found") {
+      return `Slack has no account for ${email}. Approvals are sent to admins by matching their Blackbird Leave email to their Slack email — use the same address in both.`;
+    }
+    if (code === "missing_scope") {
+      return "The Slack app needs the users:read and users:read.email scopes to find admins. Add them under OAuth & Permissions, reinstall the app, then try again.";
+    }
+    return e instanceof Error ? e.message : "Couldn't check the Slack app's permissions.";
+  }
 }
 
 function saveFailed(error: string): string {

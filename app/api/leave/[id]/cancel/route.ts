@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { withdrawApprovedLeave } from "@/lib/calendar";
 import { syncAfterLeaveChange } from "@/lib/auto-reply";
 import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
+import { refreshSlackApprovalMessages } from "@/lib/slack-approvals";
 
 export async function POST(
   _req: Request,
@@ -111,6 +112,9 @@ async function cancelAsAdmin(
   // that is still pending, and a pending request never raised a responder.
   await syncAfterLeaveChange(row.user_id);
 
+  // Take the Approve / Reject buttons off the admins' Slack copies.
+  await refreshSlackApprovalMessages(id);
+
   return NextResponse.json({ ok: true });
 }
 
@@ -182,6 +186,9 @@ async function cancelAsOwner(
   } catch (e) {
     console.warn("[leave] cancellation email failed:", e);
   }
+
+  // Take the Approve / Reject buttons off the admins' Slack copies.
+  await refreshSlackApprovalMessages(id);
 
   return NextResponse.json({ ok: true });
 }
