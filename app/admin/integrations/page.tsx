@@ -33,8 +33,8 @@ export default async function IntegrationsPage() {
       {!verified && (
         <p className="mb-4 rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
           Verify your company domain before connecting anything new.{" "}
-          <Link href="/admin/settings" className="font-medium text-neutral-900 underline">
-            Go to Settings
+          <Link href="/dashboard/account#company-domain" className="font-medium text-neutral-900 underline">
+            Go to Your account
           </Link>
         </p>
       )}

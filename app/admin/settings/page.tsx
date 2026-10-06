@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { ANNUAL_MIN_NOTICE_KEY } from "@/lib/settings";
 import { UNVERIFIED_PEOPLE_LIMIT, getVerification } from "@/lib/verification";
 import SettingsForm from "./SettingsForm";
-import DomainVerification from "./DomainVerification";
+import Link from "next/link";
 
 export default async function SettingsPage() {
   const me = await requireAdmin();
@@ -25,7 +25,23 @@ export default async function SettingsPage() {
       </header>
 
       <div className="space-y-6">
-        <DomainVerification verification={verification} peopleLimit={UNVERIFIED_PEOPLE_LIMIT} />
+        <section className="card p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-neutral-900 tracking-tight">Company domain</h2>
+              <p className="mt-1 text-sm text-neutral-500">
+                {verification.verified
+                  ? `${verification.domain} is verified.`
+                  : `Not verified yet. Until it is, join links, joining by email domain and integrations are locked, and you can have up to ${UNVERIFIED_PEOPLE_LIMIT} people.`}
+              </p>
+            </div>
+            {!verification.verified && (
+              <Link href="/dashboard/account#company-domain" className="btn-secondary shrink-0">
+                Verify in your account
+              </Link>
+            )}
+          </div>
+        </section>
         <SettingsForm initialNoticeDays={noticeDays} />
       </div>
     </main>

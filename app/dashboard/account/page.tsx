@@ -3,7 +3,9 @@ import { requireUser } from "@/lib/auth";
 import ProfileEditor from "./ProfileEditor";
 import CalendarFeedCard from "./CalendarFeedCard";
 import AutoReplyCard from "./AutoReplyCard";
+import DomainVerification from "./DomainVerification";
 import { loadCalendarSettings } from "@/lib/calendar-settings";
+import { UNVERIFIED_PEOPLE_LIMIT, getVerification } from "@/lib/verification";
 
 export default async function AccountPage() {
   const profile = await requireUser();
@@ -13,6 +15,9 @@ export default async function AccountPage() {
   // admin has the calendar integration switched off.
   const calendar = await loadCalendarSettings(profile.organization_id);
   const showFeed = calendar.connected && calendar.personalFeeds;
+  // Admins verify the company domain here, on their own page, so it can be
+  // skipped at first and finished whenever the DNS change is made.
+  const verification = profile.role === "admin" ? await getVerification(profile.organization_id, profile.email) : null;
 
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -33,6 +38,12 @@ export default async function AccountPage() {
 
         <ProfileEditor initialFullName={profile.full_name} email={profile.email} />
       </section>
+
+      {verification && (
+        <div id="company-domain" className="mt-4 scroll-mt-6">
+          <DomainVerification verification={verification} peopleLimit={UNVERIFIED_PEOPLE_LIMIT} />
+        </div>
+      )}
 
       {showFeed && (
         <section className="card mt-4 p-4 sm:p-6">

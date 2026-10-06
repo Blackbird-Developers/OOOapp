@@ -126,11 +126,39 @@ export async function verifyDomain(orgId: string, adminEmail: string): Promise<V
   return { ok: true };
 }
 
+/**
+ * Point an unverified company at a different domain, for example its own
+ * domain when the founder signed up from another one they also use. Safe to
+ * type in, unlike a join domain: nothing is unlocked until the TXT record on
+ * that domain proves it's theirs.
+ */
+export async function changeDomain(orgId: string, raw: string): Promise<VerifyResult> {
+  const domain = raw.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+    return { ok: false, status: 400, error: "Enter a domain such as yourcompany.com." };
+  }
+  if (isPublicEmailDomain(domain)) {
+    return { ok: false, status: 400, error: `${domain} is a public email provider, not your company's domain.` };
+  }
+  const org = await loadOrg(orgId);
+  if (!org) return { ok: false, status: 404, error: "Company not found." };
+  if (org.domain_verified_at) {
+    return { ok: false, status: 409, error: "Your domain is already verified, so it can't be changed here." };
+  }
+  const { error } = await createAdminClient().from("organizations").update({ domain }).eq("id", orgId);
+  if (error) {
+    return error.code === "23505"
+      ? { ok: false, status: 409, error: `Another company on Blackbird Leave already uses ${domain}.` }
+      : { ok: false, status: 500, error: error.message };
+  }
+  return { ok: true };
+}
+
 /** For API routes: a 403 to return when the company isn't verified, or null to carry on. */
 export async function unverifiedResponse(orgId: string, what: string): Promise<NextResponse | null> {
   if (await isVerified(orgId)) return null;
   return NextResponse.json(
-    { error: `Verify your company's domain before ${what}. You'll find it under Settings.`, code: "unverified" },
+    { error: `Verify your company's domain before ${what}. You'll find it under Your account.`, code: "unverified" },
     { status: 403 }
   );
 }

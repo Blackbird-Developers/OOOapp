@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (!(await isVerified(me.organization_id)) && (await peopleCount(me.organization_id)) >= UNVERIFIED_PEOPLE_LIMIT) {
     return NextResponse.json(
       {
-        error: `Unverified companies can have up to ${UNVERIFIED_PEOPLE_LIMIT} people, including open invites. Verify your company's domain under Settings to invite more.`,
+        error: `Unverified companies can have up to ${UNVERIFIED_PEOPLE_LIMIT} people, including open invites. Verify your company's domain under Your account to invite more.`,
         code: "unverified",
       },
       { status: 403 }

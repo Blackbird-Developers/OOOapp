@@ -530,7 +530,7 @@ Every route emails a link first, and only following it (and setting a password) 
 
 Admin rights are never handed out by sign-up beyond a new company's founder. Other admins are invited as admins, or promoted with **Make admin** on their page under Employees. A company always keeps at least one admin.
 
-**One company per domain, and domain verification.** A new company keeps the email domain its founder signed up with, and nobody else can create a company on it: they're emailed to ask its admin for an invite. Under **Settings → Verify your company domain** an admin adds a `blackbird-leave-verify=…` TXT record to the domain's DNS and checks it. Until the company is verified it can have up to 10 people (members plus open invites), and join links, joining by email domain and connecting integrations are locked. Blackbird Marketing is verified by migration 019. See `lib/verification.ts`.
+**One company per domain, and domain verification.** A new company keeps the email domain its founder signed up with, and nobody else can create a company on it: they're emailed to ask its admin for an invite. On their own **Your account** page (linked from Settings), an admin adds a `blackbird-leave-verify=…` TXT record to the domain's DNS and checks it, or skips it for now and comes back later. Until the company is verified it can have up to 10 people (members plus open invites), and join links, joining by email domain and connecting integrations are locked. Blackbird Marketing is verified by migration 019. See `lib/verification.ts`.
 
 Needs `supabase/migrations/017_company_registration.sql`, `018_company_signup_details.sql` for the country, team size and leave policy step, and `019_company_verification.sql` for domains, declarations and verification.
 

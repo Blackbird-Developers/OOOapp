@@ -41,9 +41,9 @@ export default async function InvitesPage() {
           <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-neutral-500 mb-4">New invite</h2>
           {!verified && (
             <p className="mb-4 rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
-              {people} of {UNVERIFIED_PEOPLE_LIMIT} people used, counting open invites. Verify your company domain under{" "}
-              <Link href="/admin/settings" className="font-medium text-neutral-900 underline">
-                Settings
+              {people} of {UNVERIFIED_PEOPLE_LIMIT} people used, counting open invites. Verify your company domain in{" "}
+              <Link href="/dashboard/account#company-domain" className="font-medium text-neutral-900 underline">
+                Your account
               </Link>{" "}
               to invite more.
             </p>
