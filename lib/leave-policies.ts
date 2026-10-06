@@ -1,4 +1,5 @@
 import { cache } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabase/server";
 import {
   FIRST_TRACKED_YEAR,
@@ -165,6 +166,26 @@ export const getLeaveSetup = cache(async (): Promise<LeaveSetup> => {
   const policies = ((policiesRes.data ?? []) as unknown as PolicyRow[]).map((row) => toPolicy(row, types));
   return { ready: true, types, policies, defaultPolicy: policies.find((p) => p.isDefault) ?? null };
 });
+
+/**
+ * A leave type's display name, read through the caller's client.
+ *
+ * Not `getLeaveSetup()`: that reads with the signed-in session, and a press in
+ * Slack has none, so every type would fall back to its raw key.
+ */
+export async function leaveTypeName(
+  supabase: SupabaseClient,
+  orgId: string,
+  key: string
+): Promise<string> {
+  const { data } = await supabase
+    .from("leave_types")
+    .select("key, name")
+    .eq("organization_id", orgId)
+    .eq("key", key)
+    .maybeSingle();
+  return typeNamer(data ? [{ key: data.key, name: data.name, sortOrder: 0 }] : BUILT_IN_TYPES)(key);
+}
 
 /** Display names by key, falling back to a readable version of the key. */
 export function typeNamer(types: LeaveType[]): (key: string) => string {

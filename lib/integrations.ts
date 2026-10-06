@@ -41,6 +41,14 @@ export type SlackPanel = {
   weekdaysOnly: boolean;
   silentWhenEmpty: boolean;
   shareHalfDays: boolean;
+  /** New requests go to admins as Slack DMs with Approve / Reject. */
+  approvalsEnabled: boolean;
+  /** A signing secret is on file. Never the secret itself. */
+  hasSigningSecret: boolean;
+  /** Migration 017 hasn't been run, so approvals can't be switched on. */
+  approvalsMigrationMissing: boolean;
+  /** What to paste into the Slack app's Interactivity Request URL. */
+  interactionsUrl: string;
   hasToken: boolean;
   /** The stored row supplies the token, so the environment's copy is unused. */
   tokenFromRow: boolean;
@@ -156,7 +164,8 @@ async function slackIntegration(orgId: string): Promise<Integration> {
     id: "slack",
     name: "Slack",
     category: "Notifications",
-    summary: "Posts a daily out-of-office digest so the team knows who's away before standup.",
+    summary:
+      "Posts a daily out-of-office digest so the team knows who's away before standup, and lets admins approve leave from Slack.",
     connected: settings.connected,
     details: [
       // The channel ID is not a credential — it's visible to everyone in the
@@ -166,10 +175,11 @@ async function slackIntegration(orgId: string): Promise<Integration> {
       { label: "Posts at", value: `${pad(settings.postHour)}:00 Kosovo time (${APP_TIME_ZONE})` },
       { label: "Schedule", value: describeSchedule(settings) },
       { label: "Shares", value: describeSharing(settings) },
+      { label: "Approvals", value: describeApprovals(settings) },
     ],
     setupIntro: "Do the Slack-side setup once, then connect it here.",
     setupSteps: [
-      "Create a Slack app with the chat:write scope and install it to your workspace.",
+      "Create a Slack app with the chat:write scope (add users:read and users:read.email to approve leave from Slack) and install it to your workspace.",
       "Invite the bot to the channel that should receive the digest.",
       "Paste the bot token and channel ID below, then press Connect.",
     ],
@@ -181,6 +191,10 @@ async function slackIntegration(orgId: string): Promise<Integration> {
       weekdaysOnly: settings.weekdaysOnly,
       silentWhenEmpty: settings.silentWhenEmpty,
       shareHalfDays: settings.shareHalfDays,
+      approvalsEnabled: settings.approvalsEnabled,
+      hasSigningSecret: settings.hasSigningSecret,
+      approvalsMigrationMissing: settings.approvalsMigrationMissing,
+      interactionsUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/slack/interactions`,
       hasToken: settings.hasToken,
       tokenFromRow: settings.tokenFromRow,
       managedInApp: settings.managedInApp,
@@ -343,6 +357,12 @@ function describeSharing(s: SlackSettings): string {
   return s.shareHalfDays
     ? "Names and half-days. Never the leave type."
     : "Names only. Never the leave type.";
+}
+
+function describeApprovals(s: SlackSettings): string {
+  return s.approvalsEnabled
+    ? "New requests go to each admin as a DM with Approve / Reject."
+    : "Off — admins approve on the website.";
 }
 
 function pad(hour: number): string {

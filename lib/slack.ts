@@ -6,7 +6,46 @@ const POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
 const AUTH_TEST_URL = "https://slack.com/api/auth.test";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
-type SlackBlock = Record<string, unknown>;
+export type SlackBlock = Record<string, unknown>;
+
+/**
+ * Call a Slack Web API method with a bot token.
+ *
+ * Returns the parsed body when Slack says `ok`, and throws an Error carrying
+ * an admin-readable explanation otherwise. The raw error code rides along on
+ * `slackCode` for callers that branch on it (e.g. `users_not_found`).
+ */
+export async function callSlack<T extends Record<string, unknown>>(
+  token: string,
+  method: string,
+  body: Record<string, unknown>,
+  opts: { form?: boolean } = {}
+): Promise<T> {
+  // Slack's read methods (users.lookupByEmail among them) don't accept JSON
+  // bodies, only form encoding; the write methods take either.
+  const res = await fetch(`https://slack.com/api/${method}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": opts.form
+        ? "application/x-www-form-urlencoded"
+        : "application/json; charset=utf-8",
+    },
+    body: opts.form
+      ? new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)])).toString()
+      : JSON.stringify(body),
+  });
+
+  const json = (await res.json().catch(() => null)) as (T & { ok?: boolean; error?: string }) | null;
+
+  if (!json?.ok) {
+    const code = json?.error ?? `http_${res.status}`;
+    const err = new Error(explainSlackError(code)) as Error & { slackCode?: string };
+    err.slackCode = code;
+    throw err;
+  }
+  return json;
+}
 
 /**
  * Post to the configured channel via chat.postMessage.
@@ -94,7 +133,11 @@ function explainSlackError(code: string): string {
     case "account_inactive":
       return "That bot token is invalid or was revoked. Reinstall the Slack app and copy the new bot token.";
     case "missing_scope":
-      return "The Slack app is missing the chat:write scope. Add it under OAuth & Permissions, then reinstall.";
+      return "The Slack app is missing a scope. It needs chat:write, plus users:read and users:read.email for approvals. Add them under OAuth & Permissions, then reinstall.";
+    case "users_not_found":
+      return "No Slack account uses that email address.";
+    case "expired_trigger_id":
+      return "Slack took too long to open the form. Press the button again.";
     case "is_archived":
       return "That channel is archived. Unarchive it or point the integration at a live channel.";
     case "ratelimited":
@@ -178,6 +221,6 @@ function footer(label: string): SlackBlock {
  * Slack mrkdwn only reserves these three. Names come from user-editable
  * profiles, so escape them before they hit a message body.
  */
-function esc(s: string): string {
+export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

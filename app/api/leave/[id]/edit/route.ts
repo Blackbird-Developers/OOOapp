@@ -12,6 +12,7 @@ import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
 import { withdrawCalendarEvent } from "@/lib/calendar";
 import { syncAfterLeaveChange } from "@/lib/auto-reply";
+import { refreshSlackApprovalMessages } from "@/lib/slack-approvals";
 
 const schema = z.object({
   type: z.string().regex(LEAVE_TYPE_KEY),
@@ -242,6 +243,11 @@ export async function PATCH(
   } catch (e) {
     console.warn("[leave] edit email failed:", e);
   }
+
+  // The admins' Slack copies show the new dates. An approved request that was
+  // edited is pending again, so its buttons come back — or, if it was never
+  // sent to Slack, it is sent now. Never throws.
+  await refreshSlackApprovalMessages(id, { sendIfMissing: true });
 
   return NextResponse.json({ ok: true, id: row.id, days });
 }
