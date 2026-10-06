@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import { unverifiedResponse } from "@/lib/verification";
 import { callSlack, verifySlackToken } from "@/lib/slack";
 import {
   loadSlackCredentials,
@@ -59,6 +60,8 @@ const connectSchema = z.object({
 /** Connect: verify the token, then store it and switch the digest on. */
 export async function POST(req: Request) {
   const admin = await requireAdmin();
+  const locked = await unverifiedResponse(admin.organization_id, "connecting Slack");
+  if (locked) return locked;
 
   const parsed = connectSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return badRequest(parsed.error);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import { unverifiedResponse } from "@/lib/verification";
 import {
   EXTRA_NOTE_MAX,
   saveAutoReplySettings,
@@ -25,6 +26,8 @@ export const dynamic = "force-dynamic";
 /** Connect: start setting out-of-office replies on approved leave. */
 export async function POST() {
   const admin = await requireAdmin();
+  const locked = await unverifiedResponse(admin.organization_id, "turning on out-of-office replies");
+  if (locked) return locked;
 
   if (!googleCredentials(admin.organization_id)) {
     return NextResponse.json(

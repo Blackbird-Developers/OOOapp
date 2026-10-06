@@ -1,6 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import { listIntegrations } from "@/lib/integrations";
+import Link from "next/link";
 import IntegrationCard from "@/components/IntegrationCard";
+import { isVerified } from "@/lib/verification";
 
 export default async function IntegrationsPage() {
   // The admin layout already gates this, but the page asserts it too — same as
@@ -8,7 +10,10 @@ export default async function IntegrationsPage() {
   // is what stops a future refactor of the layout from quietly opening it up.
   const admin = await requireAdmin();
 
-  const integrations = await listIntegrations(admin.organization_id);
+  const [integrations, verified] = await Promise.all([
+    listIntegrations(admin.organization_id),
+    isVerified(admin.organization_id),
+  ]);
   const connected = integrations.filter((i) => i.connected).length;
 
   return (
@@ -24,6 +29,15 @@ export default async function IntegrationsPage() {
           {connected} of {integrations.length} connected
         </span>
       </header>
+
+      {!verified && (
+        <p className="mb-4 rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
+          Verify your company domain before connecting anything new.{" "}
+          <Link href="/admin/settings" className="font-medium text-neutral-900 underline">
+            Go to Settings
+          </Link>
+        </p>
+      )}
 
       <div className="space-y-4">
         {integrations.map((integration) => (

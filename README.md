@@ -518,12 +518,32 @@ How the separation holds:
 
 ---
 
+## 14. Sign-up — new companies and people joining them
+
+Besides an admin invite there are three ways in, all public (`lib/registration.ts`):
+
+- **Create a company** at `/signup`, in three steps. **You:** name and a work email; personal and throwaway addresses (Gmail, Outlook.com, Yahoo, Mailinator, …) are refused, and so is a domain with no mail server. **Company:** name, country, team size, their job title, and a declaration that they work there and may set it up; its exact words, the time and their IP address are kept in `organization_declarations` (service role only). **Leave policy:** Standard (20 annual, 20 sick, raised to the country's legal minimum where that is higher, e.g. 25 in France), Kosovo labour law (suggested for Kosovo), or one built on the spot; skipping gives Standard. The country's minimum paid annual leave is shown as a guide (`lib/countries.ts`) and a custom policy below it is flagged. The person becomes the new company's first admin, and the company, its leave types and that default template are made in one step by `create_organization()`.
+- **Join link** at `/join/<code>`. An admin switches it on under Invites → More ways to join. Anyone who opens it joins as an employee. **Replace link** stops the old one working immediately, and **Switch off** removes it.
+- **Work email domain.** Off by default. When an admin turns it on, anyone signing up at `/signup` with an address at that admin's own domain joins the company as an employee instead of creating a new one. Public providers (gmail.com, outlook.com, …) can't be used, and each domain belongs to at most one company.
+
+Every route emails a link first, and only following it (and setting a password) creates anything. `/signup` always answers "check your inbox"; whether the address already has an account is said only in the email. Links last 24 hours, are single-use, and are stored hashed. A join link that has been replaced, or a domain join switched off, also invalidates links already sent. Each address can request at most three links an hour. Admins get an email whenever someone joins without an invite.
+
+Admin rights are never handed out by sign-up beyond a new company's founder. Other admins are invited as admins, or promoted with **Make admin** on their page under Employees. A company always keeps at least one admin.
+
+**One company per domain, and domain verification.** A new company keeps the email domain its founder signed up with, and nobody else can create a company on it: they're emailed to ask its admin for an invite. Under **Settings → Verify your company domain** an admin adds a `blackbird-leave-verify=…` TXT record to the domain's DNS and checks it. Until the company is verified it can have up to 10 people (members plus open invites), and join links, joining by email domain and connecting integrations are locked. Blackbird Marketing is verified by migration 019. See `lib/verification.ts`.
+
+Needs `supabase/migrations/017_company_registration.sql`, `018_company_signup_details.sql` for the country, team size and leave policy step, and `019_company_verification.sql` for domains, declarations and verification.
+
+---
+
 ## Project layout
 
 ```
 app/
   login/                 sign-in page
   invite/[token]/        invited user sets password
+  signup/                create a company; [token] is the emailed link that finishes any sign-up
+  join/[code]/           a company's shareable join link
   dashboard/             employee dashboard (balance + request form + history)
   admin/                 admin dashboard (calendar + pending)
     requests/            full request list
@@ -548,6 +568,11 @@ lib/
   supabase/              browser / server / admin (service-role) clients
   auth.ts                requireUser / requireAdmin helpers
   org.ts                 organizations: Blackbird's fixed id, membership check
+  registration.ts        sign-up: create a company, join by link or domain, emailed confirmation
+  signup.ts              what creating a company asks for: work-email rules, team sizes, starting leave policy
+  countries.ts           country list and each one's legal minimum annual leave
+  verification.ts        company domain verification (DNS TXT) and what it unlocks
+  onboarding.ts          what every new account gets (calendar setup email)
   days.ts                working-day calculator (weekends + holidays + half-days)
   leave-rules.ts         the leave maths: allowances, seniority, first year, carry-over, limits (pure)
   leave-policies.ts      loads templates, types and who follows which; works before migration 013 too
@@ -566,7 +591,7 @@ lib/
 components/              shared UI (TopBar, LeaveCalendar, StatusBadge)
 middleware.ts            redirects unauthenticated users to /login
 vercel.json              cron schedule for the Slack digest
-supabase/migrations/     001_init.sql … 016_organization_checks.sql
+supabase/migrations/     001_init.sql … 019_company_verification.sql
 ```
 
 ---

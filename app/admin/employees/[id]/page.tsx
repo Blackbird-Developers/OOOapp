@@ -10,6 +10,7 @@ import LeaveOverview from "@/components/LeaveOverview";
 import StatusBadge from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
 import EmploymentEditor from "../EmploymentEditor";
+import RoleButton from "../RoleButton";
 
 /** "9 years, 6 months" */
 function duration(months: number): string {
@@ -22,7 +23,7 @@ function duration(months: number): string {
 }
 
 export default async function EmployeePage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  const me = await requireAdmin();
   const { id } = await params;
   const supabase = await createServerClient();
 
@@ -64,6 +65,9 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
           >
             {person.role}
           </span>
+          {person.id !== me.id && (
+            <RoleButton id={person.id} name={person.full_name} role={person.role} />
+          )}
         </div>
         <p className="mt-1 text-sm text-neutral-500">{person.email}</p>
       </header>

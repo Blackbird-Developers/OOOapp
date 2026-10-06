@@ -41,10 +41,44 @@ const UNIT_OPTIONS: SelectOption<DayUnit>[] = [
 // Carried days lapse at the end of a month, or never.
 const EXPIRY_OPTIONS = ["01-31", "02-28", "03-31", "04-30", "05-31", "06-30", "07-31", "08-31", "09-30", "10-31", "11-30"];
 
+/** What a save sends: the template's settings and one rule per leave type. */
+export type PolicyPayload = {
+  name: string;
+  seniority: LeavePolicy["seniority"];
+  firstYear: LeavePolicy["firstYear"];
+  carryOver: LeavePolicy["carryOver"];
+  rules: { type: string; enabled: boolean; limit: LimitKind; days: number | null; unit: DayUnit; note: string | null }[];
+};
+
+/**
+ * Sign-up uses this editor before the company exists (app/signup). Nothing
+ * is saved from here: the finished template goes to `onSubmit`, and the
+ * catalogue can't change, so adding and deleting types is hidden.
+ */
+export type DraftMode = {
+  onSubmit: (payload: PolicyPayload) => void;
+  /** Leaving the editor; gets what's on screen, unchecked, so coming back restores it. */
+  onBack: (payload: PolicyPayload) => void;
+  busy: boolean;
+  submitLabel: string;
+  /** From sign-up, e.g. the server turning the request down. */
+  error?: string | null;
+  /** The country's legal minimum, flagged under annual leave when the allowance is lower. */
+  annualMinimum?: number | null;
+};
+
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 const halfStep = (n: number) => Number.isFinite(n) && Math.round(n * 2) === n * 2;
 
-export default function PolicyEditor({ policy, usedTypes }: { policy: LeavePolicy; usedTypes: string[] }) {
+export default function PolicyEditor({
+  policy,
+  usedTypes,
+  draft,
+}: {
+  policy: LeavePolicy;
+  usedTypes: string[];
+  draft?: DraftMode;
+}) {
   const router = useRouter();
   const annualRule = policy.rules.find((r) => r.type === "annual");
 
@@ -155,16 +189,8 @@ export default function PolicyEditor({ policy, usedTypes }: { policy: LeavePolic
   // there falls back to what was saved rather than blocking the save.
   const orSaved = (value: string, saved: number) => (Number.isFinite(num(value)) && num(value) > 0 ? num(value) : saved);
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    const found = validate();
-    setErrors(found);
-    if (Object.keys(found).length) {
-      setMsg({ kind: "err", text: "Some values need fixing first. They're marked above." });
-      return;
-    }
-
-    const payload = {
+  function buildPayload() {
+    return {
       name: name.trim(),
       seniority: {
         enabled: seniority.enabled,
@@ -191,6 +217,24 @@ export default function PolicyEditor({ policy, usedTypes }: { policy: LeavePolic
       newTypes: rows.filter((r) => r.isNew).map((r) => ({ ref: r.key, name: r.name })),
       deleteTypes: deleted,
     };
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const found = validate();
+    setErrors(found);
+    if (Object.keys(found).length) {
+      setMsg({ kind: "err", text: "Some values need fixing first. They're marked above." });
+      return;
+    }
+
+    const payload = buildPayload();
+    if (draft) {
+      setMsg(null);
+      const { name, seniority, firstYear, carryOver, rules } = payload;
+      draft.onSubmit({ name, seniority, firstYear, carryOver, rules: rules as PolicyPayload["rules"] });
+      return;
+    }
 
     setBusy(true);
     setMsg(null);
@@ -232,7 +276,16 @@ export default function PolicyEditor({ policy, usedTypes }: { policy: LeavePolic
         </p>
 
         <div className="mt-5 max-w-xs">
-          <Field label="Days a year" hint="Working days. Weekends and public holidays don't count." error={errors.annualDays}>
+          <Field
+            label="Days a year"
+            hint="Working days. Weekends and public holidays don't count."
+            error={
+              errors.annualDays ??
+              (draft?.annualMinimum != null && num(annualDays) < draft.annualMinimum
+                ? `Below the legal minimum of ${draft.annualMinimum}.`
+                : null)
+            }
+          >
             {(p) => (
               <input
                 {...p}
@@ -376,63 +429,97 @@ export default function PolicyEditor({ policy, usedTypes }: { policy: LeavePolic
               row={row}
               error={errors[`days:${row.key}`]}
               onChange={(patch) => updateRow(row.key, patch)}
-              onRemove={row.key === "sick" || row.used ? undefined : () => (row.isNew ? removeType(row) : setConfirming(row))}
+              onRemove={
+                draft || row.key === "sick" || row.used
+                  ? undefined
+                  : () => (row.isNew ? removeType(row) : setConfirming(row))
+              }
             />
           ))}
         </ul>
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start">
-          <div className="flex-1">
-            <Field
-              label="Add a leave type"
-              hint="It joins every template, switched off everywhere except here."
-              error={errors.newType}
-            >
-              {(p) => (
-                <input
-                  {...p}
-                  className="input"
-                  maxLength={60}
-                  placeholder="e.g. Parent's leave"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Enter adds the type rather than saving the whole template.
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addType();
-                    }
-                  }}
-                />
-              )}
-            </Field>
+        {draft ? (
+          <p className="mt-4 text-xs text-neutral-500">
+            Need a type that isn&apos;t here? Add your own under Leave policies once your company is set up.
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start">
+            <div className="flex-1">
+              <Field
+                label="Add a leave type"
+                hint="It joins every template, switched off everywhere except here."
+                error={errors.newType}
+              >
+                {(p) => (
+                  <input
+                    {...p}
+                    className="input"
+                    maxLength={60}
+                    placeholder="e.g. Parent's leave"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Enter adds the type rather than saving the whole template.
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addType();
+                      }
+                    }}
+                  />
+                )}
+              </Field>
+            </div>
+            <button type="button" className="btn-secondary sm:mt-[1.625rem]" onClick={addType} disabled={!newName.trim()}>
+              Add type
+            </button>
           </div>
-          <button type="button" className="btn-secondary sm:mt-[1.625rem]" onClick={addType} disabled={!newName.trim()}>
-            Add type
-          </button>
-        </div>
+        )}
       </section>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div aria-live="polite" className="text-sm">
-          {msg && (
-            <p className={msg.kind === "ok" ? "text-neutral-700" : "text-rose-700"}>
-              {msg.kind === "ok" && (
-                <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
-              )}
-              {msg.text}
-            </p>
-          )}
-          {!msg && deleted.length > 0 && (
-            <p className="text-neutral-600">
-              {deleted.length === 1 ? "1 leave type is" : `${deleted.length} leave types are`} deleted when you save.
-            </p>
-          )}
+      {draft ? (
+        <div className="space-y-3">
+          <div aria-live="polite" className="text-sm">
+            {(msg?.kind === "err" || draft.error) && <p className="text-rose-700">{msg?.text ?? draft.error}</p>}
+          </div>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={draft.busy}
+              onClick={() => {
+                const { name, seniority, firstYear, carryOver, rules } = buildPayload();
+                draft.onBack({ name, seniority, firstYear, carryOver, rules: rules as PolicyPayload["rules"] });
+              }}
+            >
+              Back
+            </button>
+            <button className="btn-primary w-full sm:w-auto sm:min-w-48" disabled={draft.busy}>
+              {draft.busy ? "Sending…" : draft.submitLabel}
+            </button>
+          </div>
         </div>
-        <button className="btn-primary w-full sm:w-auto" disabled={busy}>
-          {busy ? "Saving…" : "Save template"}
-        </button>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div aria-live="polite" className="text-sm">
+            {msg && (
+              <p className={msg.kind === "ok" ? "text-neutral-700" : "text-rose-700"}>
+                {msg.kind === "ok" && (
+                  <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
+                )}
+                {msg.text}
+              </p>
+            )}
+            {!msg && deleted.length > 0 && (
+              <p className="text-neutral-600">
+                {deleted.length === 1 ? "1 leave type is" : `${deleted.length} leave types are`} deleted when you save.
+              </p>
+            )}
+          </div>
+          <button className="btn-primary w-full sm:w-auto" disabled={busy}>
+            {busy ? "Saving…" : "Save template"}
+          </button>
+        </div>
+      )}
 
       <Dialog
         open={!!confirming}
