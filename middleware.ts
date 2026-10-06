@@ -21,6 +21,10 @@ const PUBLIC_PATHS = [
   // secret token in the path is the credential — see
   // app/api/calendar/[token]/route.ts.
   "/api/calendar",
+  // Slack's button presses carry no session either. The route checks Slack's
+  // request signature instead — see app/api/slack/interactions/route.ts.
+  // Listed exactly: /api/slack/test is an admin action and stays gated.
+  "/api/slack/interactions",
   "/_next",
   "/favicon.ico",
 ];

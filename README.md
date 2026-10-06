@@ -181,6 +181,26 @@ Slack handles this natively, per person — nobody needs an admin to do it for t
 
 A muted channel stops making noise and drops out of the unread bolding, but the messages are still there when someone wants to look. Muting is per-person and affects nobody else.
 
+### 7.8 Approving leave from Slack
+
+Optional, and off until an admin switches it on. When it's on, every new leave request is sent to each admin as a **direct message** from the Blackbird Leave app with **Approve** and **Reject** buttons — the Slack twin of the "new request" email, which still goes out as before.
+
+- **Approve** decides it on the spot. **Reject** opens a small form for an optional note to the employee, the same as on the Requests page.
+- Either way the decision goes through exactly the same code as the website (`lib/leave-decision.ts`): the employee is emailed, the day lands in (or stays out of) their calendar, their Gmail auto-reply is updated, and the Hierarchy rule still blocks clashing annual leave.
+- Once anyone decides — in Slack or on the website — every admin's copy is rewritten to say who decided it and when, and the buttons disappear. Cancelling or editing a request updates the copies too.
+- DMs rather than the digest channel on purpose: these messages name the leave type, and sick leave is health data.
+
+**Setup, once:**
+
+1. In the Slack app (<https://api.slack.com/apps>) → **OAuth & Permissions** → add the **`users:read`** and **`users:read.email`** bot scopes, then **Reinstall to Workspace**. Admins are matched to Slack by email, so each admin's Blackbird Leave email must be the one on their Slack account. An admin without a match is simply skipped in Slack and still gets the email.
+2. **Interactivity & Shortcuts** → switch **Interactivity** on → set the **Request URL** to `https://<your site>/api/slack/interactions` → Save.
+3. **App Home** → make sure the **Messages Tab** is enabled, so the DMs have somewhere to appear.
+4. **Basic Information** → **App Credentials** → copy the **Signing Secret**.
+5. Run `supabase/migrations/017_slack_leave_approvals.sql` in the Supabase SQL editor (after 016). Until it's run the toggle is replaced with a note asking for it; the digest keeps working either way.
+6. In Blackbird Leave → **Integrations** → Slack → **Edit** → tick *Send new leave requests to admins in Slack*, paste the signing secret, **Save changes**. Saving checks the scopes by looking you up by email, so a missing scope fails there and then.
+
+**Security.** `/api/slack/interactions` is public (Slack holds no session), so every press is checked against Slack's request signature using the company's signing secret, and refused if it doesn't verify or is more than five minutes old. A verified press then has to come from the Slack account the DM was sent to, and that person must still be an admin of the same company. The signing secret is stored like the bot token — write-only from the browser. `SLACK_SIGNING_SECRET` in the environment works as a bootstrap for Blackbird's own workspace, like the other `SLACK_*` variables.
+
 ### How the schedule actually works
 
 `vercel.json` triggers the endpoint at **04:00 and 05:00 UTC, every day**. Two runs a day is the Vercel Hobby ceiling — that plan allows two cron jobs and fires each at most once daily.
