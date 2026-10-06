@@ -6,6 +6,9 @@
   --background: #fafaf9;
   --foreground: #0a0a0a;
   --accent: #D7FF36;
+  /* The family names the @fontsource-variable packages register (app/layout.tsx). */
+  --font-inter: "Inter Variable";
+  --font-display: "Bricolage Grotesque Variable";
 }
 
 html, body {
