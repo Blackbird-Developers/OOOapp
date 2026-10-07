@@ -88,7 +88,7 @@ async function runFor(orgId: string, dateISO: string): Promise<RunResult> {
   const supabase = createAdminClient();
   const day = await getDayAvailability(supabase, orgId, dateISO);
 
-  if (settings.silentWhenEmpty && !day.holiday && day.people.length === 0) {
+  if (settings.silentWhenEmpty && !day.holiday && day.holidaysOff.length === 0 && day.people.length === 0) {
     return skipped("nobody off");
   }
 

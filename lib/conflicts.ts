@@ -1,6 +1,7 @@
 import { isWeekend, parseISO } from "date-fns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { datesInRange } from "@/lib/days";
+import { loadHolidayBook } from "@/lib/holiday-calendars";
 
 export type AnnualConflict = {
   groupName: string;
@@ -43,19 +44,14 @@ export async function findAnnualConflicts(opts: {
   const groupIds = (myGroups ?? []).map((g) => g.group_id);
   if (groupIds.length === 0) return [];
 
-  const [{ data: memberRows }, { data: groups }, { data: holidays }] = await Promise.all([
+  const [{ data: memberRows }, { data: groups }, holidayBook] = await Promise.all([
     admin
       .from("conflict_group_members")
       .select("group_id, user_id")
       .eq("organization_id", opts.orgId)
       .in("group_id", groupIds),
     admin.from("conflict_groups").select("id, name").eq("organization_id", opts.orgId).in("id", groupIds),
-    admin
-      .from("public_holidays")
-      .select("date")
-      .eq("organization_id", opts.orgId)
-      .gte("date", opts.startDate)
-      .lte("date", opts.endDate),
+    loadHolidayBook(admin, opts.orgId, { from: opts.startDate, to: opts.endDate }),
   ]);
 
   const othersByGroup = new Map<string, string[]>();
@@ -79,7 +75,8 @@ export async function findAnnualConflicts(opts: {
   const { data: leaveRows } = await query;
   if (!leaveRows || leaveRows.length === 0) return [];
 
-  const holidaySet = new Set((holidays ?? []).map((h: { date: string }) => h.date));
+  // The requester's own holidays: those are the days they'd be away from.
+  const holidaySet = new Set(holidayBook.holidaysFor(opts.userId).map((h) => h.date));
   const workingDays = datesInRange(opts.startDate, opts.endDate).filter(
     (d) => !isWeekend(parseISO(d)) && !holidaySet.has(d)
   );

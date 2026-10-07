@@ -7,6 +7,7 @@ import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import ApprovalCelebration from "@/components/ApprovalCelebration";
 import TodayStrip from "@/components/TodayStrip";
+import { getHolidaysFor } from "@/lib/holiday-calendars";
 
 export default async function DashboardPage() {
   const profile = await requireUser();
@@ -16,8 +17,8 @@ export default async function DashboardPage() {
   const todayISO = format(now, "yyyy-MM-dd");
   const sinceISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [{ data: holidays }, { data: teamRows }] = await Promise.all([
-    supabase.from("public_holidays").select("date, name").order("date"),
+  const [holidays, { data: teamRows }] = await Promise.all([
+    getHolidaysFor(profile.id),
     supabase
       .from("leave_requests")
       .select("id, type, status, start_date, end_date, user_id, days_count, decided_at, profiles:user_id(full_name)")
@@ -63,7 +64,7 @@ export default async function DashboardPage() {
     }
   }
   const offToday = Array.from(offTodayMap.values());
-  const holidayToday = (holidays ?? []).find((h) => h.date === todayISO) ?? null;
+  const holidayToday = (holidays).find((h) => h.date === todayISO) ?? null;
 
   // Upcoming leave in the next 14 days, surfaced when no one is off today,
   // so the strip doesn't say "everyone's in" while the calendar clearly shows
@@ -121,7 +122,7 @@ export default async function DashboardPage() {
           </div>
           <LeaveCalendar
             events={teamEvents}
-            holidays={holidays ?? []}
+            holidays={holidays}
             types={leaveTypes}
             viewerUserId={profile.id}
           />

@@ -8,13 +8,14 @@ import LeaveCalendar from "@/components/LeaveCalendar";
 import StatusBadge from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
 import DecisionButtons from "./requests/DecisionButtons";
+import { getHolidaysFor } from "@/lib/holiday-calendars";
 
 export default async function AdminHomePage() {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const supabase = await createServerClient();
   const { from, to } = yearBounds();
 
-  const [{ data: pending }, { data: rangeRows }, { data: holidays }] = await Promise.all([
+  const [{ data: pending }, { data: rangeRows }, holidays] = await Promise.all([
     supabase
       .from("leave_requests")
       .select("id, type, start_date, end_date, days_count, reason, status, created_at, user_id, profiles:user_id(full_name, email)")
@@ -26,7 +27,7 @@ export default async function AdminHomePage() {
       .in("status", ["approved", "pending"])
       .gte("end_date", from)
       .lte("start_date", to),
-    supabase.from("public_holidays").select("date, name").order("date"),
+    getHolidaysFor(admin.id),
   ]);
 
   const leaveTypes = (await getLeaveSetup()).types;
@@ -65,7 +66,7 @@ export default async function AdminHomePage() {
               <p className="text-xs text-neutral-500 mt-0.5">Approved and pending leave across the team</p>
             </div>
           </div>
-          <LeaveCalendar events={events} holidays={holidays ?? []} types={leaveTypes} />
+          <LeaveCalendar events={events} holidays={holidays} types={leaveTypes} />
         </section>
 
         <section className="card p-4 sm:p-6 mt-6">

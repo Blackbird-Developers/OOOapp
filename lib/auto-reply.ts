@@ -5,6 +5,7 @@ import { APP_TIME_ZONE, nextWorkingDay, todayISOIn, zonedInstant, type HalfKind 
 import { googleCredentials, isImpersonatable, type GoogleCredentials } from "@/lib/google-auth";
 import { describeGoogleError, putVacation, type VacationSettings } from "@/lib/gmail";
 import { loadAutoReplySettings, type AutoReplySettings } from "@/lib/auto-reply-settings";
+import { loadHolidayBook } from "@/lib/holiday-calendars";
 
 /**
  * The out-of-office auto-reply: what each mailbox should be saying, and how it
@@ -289,7 +290,7 @@ export async function computeDesiredState(
     return { enabled: false, reason: "Their leave has already finished." };
   }
 
-  const holidays = await holidaysAround(orgId, leave.endDate);
+  const holidays = await holidaysAround(orgId, userId, leave.endDate);
   const returnDate = nextWorkingDay(dayAfter(leave.endDate), holidays);
   const contacts = await findCoverContacts(userId, leave);
 
@@ -447,17 +448,11 @@ async function activeGroupMates(userId: string): Promise<string[]> {
   return (states ?? []).map((s) => s.user_id as string);
 }
 
-/** Public holidays near the end of the leave, for the "back on" calculation. */
-async function holidaysAround(orgId: string, endDate: string): Promise<string[]> {
-  const supabase = createAdminClient();
+/** The person's public holidays just after their leave, for the "back on" calculation. */
+async function holidaysAround(orgId: string, userId: string, endDate: string): Promise<string[]> {
   const from = dayAfter(endDate);
-  const { data } = await supabase
-    .from("public_holidays")
-    .select("date")
-    .eq("organization_id", orgId)
-    .gte("date", from)
-    .lte("date", addDaysISO(from, 14));
-  return (data ?? []).map((h: { date: string }) => h.date);
+  const book = await loadHolidayBook(createAdminClient(), orgId, { from, to: addDaysISO(from, 14) });
+  return book.holidaysFor(userId).map((h) => h.date);
 }
 
 /**
@@ -506,7 +501,7 @@ export async function previewAutoReply(
     halfEnd: "full",
   };
 
-  const holidays = await holidaysAround(orgId, endDate);
+  const holidays = await holidaysAround(orgId, userId, endDate);
   const returnDate = nextWorkingDay(dayAfter(endDate), holidays);
   const contacts = await findCoverContacts(userId, window);
 

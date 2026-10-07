@@ -4,19 +4,20 @@ import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { todayISOIn } from "@/lib/days";
 import { getEveryonesLeaveContext } from "@/lib/leave-policies";
+import { loadHolidayBook } from "@/lib/holiday-calendars";
 import { requestableRules } from "@/lib/leave-rules";
 import AdminLogLeaveForm, { type ActiveLeave, type Employee } from "./AdminLogLeaveForm";
 
 export default async function NewLeaveOnBehalfPage() {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const supabase = await createServerClient();
   // The calendar marks leave from a year back onwards: enough to backfill
   // missed entries without sending the whole history to the browser.
   const leaveFrom = format(startOfMonth(subMonths(parseISO(todayISOIn()), 12)), "yyyy-MM-dd");
 
-  const [{ setup, people }, { data: holidays }, { data: leave }] = await Promise.all([
+  const [{ setup, people }, holidayBook, { data: leave }] = await Promise.all([
     getEveryonesLeaveContext(),
-    supabase.from("public_holidays").select("date, name").order("date"),
+    loadHolidayBook(supabase, admin.organization_id),
     supabase
       .from("leave_requests")
       .select("user_id, type, status, start_date, end_date")
@@ -31,7 +32,9 @@ export default async function NewLeaveOnBehalfPage() {
     email: p.email,
     policyName: p.ready ? p.policy.name : null,
     rules: requestableRules(p.policy),
+    calendarId: holidayBook.calendarFor(p.id),
   }));
+  const holidays = Object.fromEntries(holidayBook.byCalendar);
   const typeNames = Object.fromEntries(setup.types.map((t) => [t.key, t.name]));
 
   return (
@@ -54,7 +57,7 @@ export default async function NewLeaveOnBehalfPage() {
         <AdminLogLeaveForm
           employees={employees}
           typeNames={typeNames}
-          holidays={holidays ?? []}
+          holidays={holidays}
           leave={(leave ?? []) as ActiveLeave[]}
           leaveFrom={leaveFrom}
         />

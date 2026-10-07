@@ -178,25 +178,43 @@ export function buildDailyDigest(
     };
   }
 
-  if (day.people.length === 0) {
+  // A public holiday for part of the team only (the Kosovo staff, say, while
+  // Ireland works). Said once per calendar, with who it covers.
+  const holidayBlocks = day.holidaysOff.map((h) =>
+    section(`*🎉 Public holiday in ${esc(h.calendar)}* · _${esc(h.name)}_\n${h.people.map((n) => `• ${esc(n)}`).join("\n")}`)
+  );
+  const onHoliday = day.holidaysOff.reduce((n, h) => n + h.people.length, 0);
+
+  if (day.people.length === 0 && onHoliday === 0) {
     return {
       text: `Everyone's in today — ${pretty}`,
       blocks: [section(`*✅ Everyone's in today*\n_${pretty}_`), footer("No leave on the calendar")],
     };
   }
 
-  const list = day.people
-    .map((p) => `• ${esc(p.name)}${shareHalfDays ? portionSuffix(p) : ""}`)
-    .join("\n");
-  const count = day.people.length;
+  const count = day.people.length + onHoliday;
   const countLabel = `${count} ${count === 1 ? "person" : "people"} out`;
+  const names = [...day.people.map((p) => p.name), ...day.holidaysOff.flatMap((h) => h.people)];
+  const leaveBlocks =
+    day.people.length === 0
+      ? []
+      : [
+          section(
+            day.people.map((p) => `• ${esc(p.name)}${shareHalfDays ? portionSuffix(p) : ""}`).join("\n")
+          ),
+        ];
 
   return {
     // Escaped here too, not just in the blocks: `text` is what Slack shows in
     // the notification, and it parses mentions — an unescaped `<!channel>` in
     // someone's profile name would ping the whole workspace from a push alert.
-    text: `${countLabel} today — ${day.people.map((p) => esc(p.name)).join(", ")}`,
-    blocks: [section(`*🌴 Out of office today*\n_${pretty}_`), section(list), footer(countLabel)],
+    text: `${countLabel} today — ${names.map(esc).join(", ")}`,
+    blocks: [
+      section(`*🌴 Out of office today*\n_${pretty}_`),
+      ...leaveBlocks,
+      ...holidayBlocks,
+      footer(countLabel),
+    ],
   };
 }
 

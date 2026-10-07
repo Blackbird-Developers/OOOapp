@@ -155,7 +155,7 @@ const content: Record<Locale, Copy> = {
                 <p>Two reasons:</p>
                 <ul className="list-disc pl-5 space-y-1 mt-2">
                   <li>You've <strong>already submitted leave</strong> covering that date (pending or approved). Edit or cancel the existing request under <strong>My requests</strong> if you want to change it.</li>
-                  <li>It's a <strong>public holiday</strong>. Holidays don't count toward your leave days — you don't need to book them off.</li>
+                  <li>It's a <strong>public holiday</strong> where you work. Holidays don't count toward your leave days — you don't need to book them off. Your admin sets which country's holidays apply to you.</li>
                 </ul>
               </>
             ),
@@ -319,7 +319,7 @@ const content: Record<Locale, Copy> = {
                 <p>Për dy arsye:</p>
                 <ul className="list-disc pl-5 space-y-1 mt-2">
                   <li>Tashmë ke <strong>dërguar një kërkesë pushimi</strong> që e mbulon atë datë (në pritje ose e aprovuar). Ndrysho ose anulo kërkesën ekzistuese te <strong>My requests</strong> nëse dëshiron ta ndryshosh.</li>
-                  <li>Është një <strong>festë publike</strong>. Festat nuk numërohen si ditë pushimi — nuk ke nevojë t'i rezervosh.</li>
+                  <li>Është një <strong>festë publike</strong> aty ku punon. Festat nuk numërohen si ditë pushimi — nuk ke nevojë t'i rezervosh. Admini cakton se festat e cilit shtet vlejnë për ty.</li>
                 </ul>
               </>
             ),

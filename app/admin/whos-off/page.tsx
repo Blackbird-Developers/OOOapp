@@ -7,6 +7,7 @@ import { getLeaveSetup, typeNamer } from "@/lib/leave-policies";
 import LeaveCalendar from "@/components/LeaveCalendar";
 import TodayStrip from "@/components/TodayStrip";
 import SlackDigestButton from "@/components/SlackDigestButton";
+import { getHolidaysFor } from "@/lib/holiday-calendars";
 
 export default async function AdminWhosOffPage() {
   const profile = await requireAdmin();
@@ -19,8 +20,8 @@ export default async function AdminWhosOffPage() {
   const todayISO = todayISOIn();
   const slack = await loadSlackSettings(profile.organization_id);
 
-  const [{ data: holidays }, { data: teamRows }] = await Promise.all([
-    supabase.from("public_holidays").select("date, name").order("date"),
+  const [holidays, { data: teamRows }] = await Promise.all([
+    getHolidaysFor(profile.id),
     supabase
       .from("leave_requests")
       .select("id, type, status, start_date, end_date, days_count, user_id, profiles:user_id(full_name)")
@@ -50,7 +51,7 @@ export default async function AdminWhosOffPage() {
     }
   }
   const offToday = Array.from(offTodayMap.values());
-  const holidayToday = (holidays ?? []).find((h) => h.date === todayISO) ?? null;
+  const holidayToday = (holidays).find((h) => h.date === todayISO) ?? null;
 
   const horizonISO = format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
   const upcomingMap = new Map<string, { name: string; start: string }>();
@@ -96,7 +97,7 @@ export default async function AdminWhosOffPage() {
         </div>
         <LeaveCalendar
           events={teamEvents}
-          holidays={holidays ?? []}
+          holidays={holidays}
           types={leaveTypes}
         />
       </section>
