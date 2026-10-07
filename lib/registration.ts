@@ -29,7 +29,7 @@ import {
  */
 
 /** How long an emailed sign-up link stays good. */
-const LINK_TTL_MS = 24 * 60 * 60 * 1000;
+const LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Sign-up emails a single address can be sent per hour. The endpoint is public. */
 const MAX_REQUESTS_PER_HOUR = 3;

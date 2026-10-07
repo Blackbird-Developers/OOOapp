@@ -170,7 +170,7 @@ export default function CompanyWizard() {
             set your password and create {companyName.trim().replace(/\.$/, "")}.
           </p>
           <p className="text-xs text-neutral-500">
-            The link works for 24 hours. Nothing arrived? Check spam, or{" "}
+            The link works for 7 days. Nothing arrived? Check spam, or{" "}
             <button type="button" onClick={() => setSentTo(null)} className="font-medium underline">
               try again
             </button>
