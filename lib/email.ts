@@ -582,7 +582,7 @@ export async function emailSignupLink(opts: {
     <p>Confirm your email to create <strong>${company}</strong> on Blackbird Leave. You'll be its first admin.</p>
     ${opts.details ? `<p style="font-size:13px;color:#475569">${escapeHtml(opts.details)}</p>` : ""}
     <p><a href="${url}" style="${BUTTON}">Confirm & set password</a></p>
-    <p style="font-size:12px;color:#64748b">This link expires in 24 hours. If you didn't ask for this, ignore the email and nothing will be created.</p>
+    <p style="font-size:12px;color:#64748b">This link expires in 7 days. If you didn't ask for this, ignore the email and nothing will be created.</p>
   `
       : `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
@@ -592,7 +592,7 @@ export async function emailSignupLink(opts: {
         : `You're joining <strong>${company}</strong> on Blackbird Leave.`
     } Confirm your email to finish.</p>
     <p><a href="${url}" style="${BUTTON}">Confirm & set password</a></p>
-    <p style="font-size:12px;color:#64748b">This link expires in 24 hours. If you didn't ask for this, ignore the email and nothing will be created.</p>
+    <p style="font-size:12px;color:#64748b">This link expires in 7 days. If you didn't ask for this, ignore the email and nothing will be created.</p>
   `;
   await send(
     opts.to,
