@@ -5,6 +5,8 @@ import { emailAccountExists, emailCompanyExists, emailMemberJoined, emailSignupL
 import { welcomeNewMember } from "@/lib/onboarding";
 import { POLICY_PRESETS, type PresetDefinition } from "@/lib/leave-policies";
 import { countryName } from "@/lib/countries";
+import { fillCalendarYear, startingYears } from "@/lib/holiday-calendars";
+import { presetKeyForCountry, presetLabel } from "@/lib/holiday-presets";
 import {
   declarationText,
   emailDomain,
@@ -441,6 +443,11 @@ export async function completeSignup(token: string, password: string): Promise<C
     role,
   });
 
+  // The new company's default holiday calendar, filled with its country's holidays.
+  if (row.kind === "create" && row.country) {
+    await fillStartingHolidays(orgId!, row.country);
+  }
+
   // What the founder confirmed, kept with the company for good.
   if (row.kind === "create" && row.declaration && row.job_title) {
     const { error: declErr } = await admin.from("organization_declarations").insert({
@@ -483,4 +490,30 @@ export async function completeSignup(token: string, password: string): Promise<C
 /** Let a link be tried again after a failure that wasn't the person's fault. */
 async function releaseClaim(id: string) {
   await createAdminClient().from("signup_requests").update({ used_at: null }).eq("id", id);
+}
+
+/**
+ * Migration 020 gives every new company an empty default holiday calendar.
+ * Name it after the company's country and fill this year and next. Never
+ * fatal: a company with an empty calendar can fill it from the Holidays page.
+ */
+async function fillStartingHolidays(orgId: string, country: string): Promise<void> {
+  const admin = createAdminClient();
+  const preset = presetKeyForCountry(country) ?? country;
+  const { data: calendar, error } = await admin
+    .from("holiday_calendars")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("is_default", true)
+    .maybeSingle();
+  if (error || !calendar) return; // before migration 020
+
+  await admin
+    .from("holiday_calendars")
+    .update({ name: presetLabel(preset).replace(/^United Kingdom: /, ""), preset })
+    .eq("id", calendar.id);
+  for (const year of startingYears()) {
+    const filled = await fillCalendarYear(admin, orgId, calendar.id, preset, year);
+    if (!filled.ok) console.warn(`[signup] no ${year} holidays for ${country}:`, filled.error);
+  }
 }

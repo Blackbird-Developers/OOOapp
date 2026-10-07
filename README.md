@@ -5,7 +5,7 @@ Internal leave / sick-day tracker for Blackbird Marketing.
 - Employees: see remaining balances, request annual, sick or any other leave type their policy allows, view history
 - Admins: approve/reject, log leave on behalf, see a team calendar, manage employees, public holidays, and invites
 - Half-days supported (0.5)
-- Working-day counts automatically exclude weekends and admin-managed public holidays
+- Working-day counts automatically exclude weekends and the public holidays of each person's own holiday calendar (one per country)
 - Leave policy templates per country or company: yearly allowances, seniority, first-year leave, carry-over and custom leave types (section 11)
 - Balances reset every Jan 1, less anything carried over
 - Email notifications on every state change (Resend)
@@ -551,7 +551,7 @@ app/
     hierarchy/           conflict groups
     policies/            leave policy templates, their people, and the rules editor ([id])
     invites/             send invites
-    holidays/            CRUD public holidays
+    holidays/            holiday calendars by country, and their holidays
     leave/new/           log leave on behalf
     whos-off/            team calendar + "Post to Slack now"
   api/                   route handlers (leave, invites, holidays, etc.)
@@ -603,6 +603,6 @@ supabase/migrations/     001_init.sql … 019_company_verification.sql
 - **Cancellations**: only admins can cancel pending or approved requests (per spec). Cancellation emails the employee.
 - **Half-days**: pick `Morning only` or `Afternoon only` on the first and/or last day of a range. Single-day requests with a half flag count as 0.5.
 - **Integrations**: `/admin/integrations` (admin-only) shows what Blackbird Leave is connected to, and lets an admin connect it, edit its settings, fire a digest on demand, or disconnect it. The registry lives in `lib/integrations.ts`; the stored connection in `lib/slack-settings.ts`.
-- **Holidays**: admin-managed in `/admin/holidays`. Add the year's Irish public holidays each year (or as needed). Anything in this table is excluded from working-day counts.
+- **Holidays**: holiday calendars in `/admin/holidays` (migration 020), set up like leave policies. Create a calendar per country (Kosovo, Ireland, ...), add the people it applies to, and anyone not added follows the default calendar. Picking a country fills in this year's and next year's national holidays: about 45 countries have built-in rules in `lib/holiday-presets.ts` (Easter-based dates, "last Monday in May", weekend days off in lieu, a table of Eid dates), and any other country is fetched from [Nager.Date](https://date.nager.at). Every holiday is an ordinary row the admin can rename, move, remove or add to, and a later year is one click ("Add missing 2028 holidays"). Only national holidays are filled in; regional ones (German states, Spanish communities, US states) are added by hand. A person's holidays decide their working-day counts, the hatching on their calendar, the auto-reply's "back on" date and the conflict check. The Slack digest says "office closed" only when the day is a holiday for everyone; otherwise it lists who is off for a holiday under that calendar's name.
 - **Slack digest**: by default weekdays at 06:00 Kosovo time and silent when nobody is off — all editable on the Integrations page, except that the post hour is limited to what the cron schedule can reach (04:00–06:00 on the current two Hobby slots; see section 7). It never names the leave type, and that one isn't editable at all. If a post fails, the day's claim in `slack_daily_posts` is released so the second run — or a manual **Post to Slack now** — can retry.
 - **Security**: all DB access goes through Postgres Row-Level Security. The service-role key is only used in server-side route handlers (never exposed to the browser) for operations that need to bypass RLS (creating auth users, invite lookup, etc.).

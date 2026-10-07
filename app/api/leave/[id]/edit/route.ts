@@ -10,6 +10,7 @@ import { availableDays, limitMessage, ruleFor } from "@/lib/leave-rules";
 import { emailEditedRequestToAdmins } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
+import { holidayDatesFor } from "@/lib/holiday-calendars";
 import { withdrawCalendarEvent } from "@/lib/calendar";
 import { syncAfterLeaveChange } from "@/lib/auto-reply";
 import { refreshSlackApprovalMessages } from "@/lib/slack-approvals";
@@ -108,13 +109,9 @@ export async function PATCH(
     }
   }
 
-  // Recompute the days over the new range, in the type's unit.
-  const { data: holidays } = await supabase
-    .from("public_holidays")
-    .select("date")
-    .gte("date", input.start_date)
-    .lte("date", input.end_date);
-  const holidayISOs = (holidays ?? []).map((h: { date: string }) => h.date);
+  // Recompute the days over the new range, in the type's unit, with the
+  // person's own holiday calendar.
+  const holidayISOs = await holidayDatesFor(me.id, input.start_date, input.end_date);
 
   const days = countDaysForUnit(
     rule.unit,

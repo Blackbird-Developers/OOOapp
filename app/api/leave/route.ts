@@ -10,6 +10,7 @@ import { availableDays, limitMessage, ruleFor } from "@/lib/leave-rules";
 import { emailNewRequestToAdmins, emailDecisionToEmployee } from "@/lib/email";
 import { findAnnualConflicts, describeConflict } from "@/lib/conflicts";
 import { requireUser } from "@/lib/auth";
+import { holidayDatesFor } from "@/lib/holiday-calendars";
 import { isInOrganization } from "@/lib/org";
 import { publishApprovedLeave } from "@/lib/calendar";
 import { syncAfterLeaveChange } from "@/lib/auto-reply";
@@ -103,13 +104,8 @@ export async function POST(req: Request) {
 
   const supabase = await createServerClient();
 
-  // Load holidays in range to compute working days.
-  const { data: holidays } = await supabase
-    .from("public_holidays")
-    .select("date")
-    .gte("date", input.start_date)
-    .lte("date", input.end_date);
-  const holidayISOs = (holidays ?? []).map((h: { date: string }) => h.date);
+  // The holidays of whoever the leave is for decide which days it counts.
+  const holidayISOs = await holidayDatesFor(targetUserId, input.start_date, input.end_date);
 
   const days = countDaysForUnit(
     rule.unit,

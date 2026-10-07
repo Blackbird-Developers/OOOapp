@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import Field from "@/components/Field";
 import Dialog from "@/components/Dialog";
 import EmptyState from "@/components/EmptyState";
+import DatePicker from "@/components/DatePicker";
 
 type Holiday = { id: string; date: string; name: string };
 
-export default function HolidayManager({ initialHolidays }: { initialHolidays: Holiday[] }) {
+export default function LegacyHolidayList({ initialHolidays }: { initialHolidays: Holiday[] }) {
   const router = useRouter();
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
@@ -60,7 +61,7 @@ export default function HolidayManager({ initialHolidays }: { initialHolidays: H
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="Date">
             {(p) => (
-              <input {...p} type="date" className="input" required value={date} onChange={(e) => setDate(e.target.value)} />
+              <DatePicker {...p} value={date} onChange={setDate} />
             )}
           </Field>
           <div className="md:col-span-2">
@@ -71,7 +72,7 @@ export default function HolidayManager({ initialHolidays }: { initialHolidays: H
             </Field>
           </div>
         </div>
-        <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Adding…" : "Add holiday"}</button>
+        <button className="btn-primary w-full sm:w-auto" disabled={busy || !date}>{busy ? "Adding…" : "Add holiday"}</button>
         {error && (
           <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div>
         )}

@@ -16,6 +16,8 @@ export type Employee = {
   policyName: string | null;
   /** The types their template switches on. */
   rules: LeaveTypeRule[];
+  /** The holiday calendar they follow, a key into `holidays`. */
+  calendarId: string | null;
 };
 
 /** An approved or pending request, as the page loads them for the calendar. */
@@ -33,7 +35,8 @@ export default function AdminLogLeaveForm({
   employees: Employee[];
   // Display names for every leave type, for the "also off" descriptions.
   typeNames: Record<string, string>;
-  holidays: { date: string; name: string }[];
+  // Each holiday calendar's holidays: the person picked decides which apply.
+  holidays: Record<string, { date: string; name: string }[]>;
   // Everyone's active leave that ends on or after `leaveFrom`.
   leave: ActiveLeave[];
   leaveFrom: string;
@@ -63,8 +66,12 @@ export default function AdminLogLeaveForm({
   // starts a fresh range instead of finishing the one just saved.
   const [entry, setEntry] = useState(0);
 
-  const holidayDates = useMemo(() => holidays.map((h) => h.date), [holidays]);
   const employee = employees.find((emp) => emp.id === userId);
+  const theirHolidays = useMemo(
+    () => (employee?.calendarId ? holidays[employee.calendarId] ?? [] : []),
+    [holidays, employee?.calendarId]
+  );
+  const holidayDates = useMemo(() => theirHolidays.map((h) => h.date), [theirHolidays]);
   const firstName = employee?.full_name.split(" ")[0] ?? "";
   const options = employee?.rules ?? [];
   const rule = options.find((r) => r.type === type);
@@ -205,7 +212,7 @@ export default function AdminLogLeaveForm({
             setEnd(e);
             setMsg(null);
           }}
-          holidays={holidays}
+          holidays={theirHolidays}
           blocked={blocked}
           bookingFor={firstName}
           allowPast

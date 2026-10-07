@@ -7,14 +7,15 @@ import { leaveOverview } from "@/lib/leave-rules";
 import BalanceCards from "@/components/BalanceCards";
 import AllLeaveTypes from "@/components/AllLeaveTypes";
 import RequestLeaveForm from "../RequestLeaveForm";
+import { getHolidaysFor } from "@/lib/holiday-calendars";
 
 export default async function RequestLeavePage() {
   const profile = await requireUser();
   const supabase = await createServerClient();
 
-  const [summary, { data: holidays }, { data: existing }] = await Promise.all([
+  const [summary, holidays, { data: existing }] = await Promise.all([
     getLeaveSummary(profile.id),
-    supabase.from("public_holidays").select("date, name").order("date"),
+    getHolidaysFor(profile.id),
     supabase
       .from("leave_requests")
       .select("start_date, end_date")
@@ -51,7 +52,7 @@ export default async function RequestLeavePage() {
         </div>
 
         <RequestLeaveForm
-          holidays={holidays ?? []}
+          holidays={holidays}
           policy={summary.policy}
           employment={summary.employment}
           rows={summary.rows}
