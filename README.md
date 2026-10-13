@@ -1,6 +1,6 @@
-# BBM Leave
+# Whooo
 
-Internal leave / sick-day tracker for Blackbird Marketing.
+Leave / sick-day tracker for small teams, built for (and first used by) Blackbird Marketing.
 
 - Employees: see remaining balances, request annual, sick or any other leave type their policy allows, view history
 - Admins: approve/reject, log leave on behalf, see a team calendar, manage employees, public holidays, and invites
@@ -47,9 +47,9 @@ The schema includes a trigger that auto-promotes `tech@blackbird.marketing` to a
 2. **Domains → Add Domain**: `blackbird.marketing`. Follow Resend's instructions to add the DNS records (SPF, DKIM, optionally DMARC) in your domain registrar.
 3. Wait until the domain shows **Verified** (usually 5–30 minutes).
 4. **API Keys → Create API Key** (full access) → copy → save as `RESEND_API_KEY`.
-5. Set `RESEND_FROM` to `BBM Leave <leave@blackbird.marketing>` (or any address at your verified domain).
+5. Set `RESEND_FROM` to `Whooo <leave@blackbird.marketing>` (or any address at your verified domain).
 
-> If you want to test before verifying the domain, you can temporarily set `RESEND_FROM="BBM Leave <onboarding@resend.dev>"` — Resend's shared sender, limited to your own email.
+> If you want to test before verifying the domain, you can temporarily set `RESEND_FROM="Whooo <onboarding@resend.dev>"` — Resend's shared sender, limited to your own email.
 
 ---
 
@@ -114,7 +114,7 @@ This whole section is optional. Never press **Connect** and the app behaves exac
 ### 7.1 Create the Slack app
 
 1. Go to <https://api.slack.com/apps> → **Create New App** → **From scratch**.
-2. Name it **Blackbird Leave**, pick your workspace.
+2. Name it **Whooo**, pick your workspace.
 3. **OAuth & Permissions** → *Scopes* → *Bot Token Scopes* → **Add an OAuth Scope** → add **`chat:write`**. That's the only scope it needs.
 4. Scroll up → **Install to Workspace** → Allow.
 5. Copy the **Bot User OAuth Token** (starts with `xoxb-`). You'll paste it into the app in 7.3.
@@ -122,9 +122,9 @@ This whole section is optional. Never press **Connect** and the app behaves exac
 ### 7.2 Create the channel and lock it down
 
 1. In Slack, create a public channel — e.g. **#out-of-office**.
-2. Invite the bot: type `/invite @Blackbird Leave` **in that channel**. If you skip this the post fails with *"not_in_channel"*.
+2. Invite the bot: type `/invite @Whooo` **in that channel**. If you skip this the post fails with *"not_in_channel"*.
 3. Invite everyone else (channel name → **Members** → **Add people**).
-4. **Make it announcement-only** so only the app can post: click the channel name → **Settings** tab → **Manage posting permissions** → choose *Only specific people can post*, and make sure **Blackbird Leave** is in the allowed list. Add yourself too if you ever want to post a correction by hand.
+4. **Make it announcement-only** so only the app can post: click the channel name → **Settings** tab → **Manage posting permissions** → choose *Only specific people can post*, and make sure **Whooo** is in the allowed list. Add yourself too if you ever want to post a correction by hand.
 5. Get the channel ID: click the channel name → **About** tab → scroll to the bottom → **Channel ID**, looks like `C0123456789`. It's the ID you need, not the `#name`.
 
 ### 7.3 Connect it in the app
@@ -165,7 +165,7 @@ Deploy, then go to **Workspace → Integrations** in the admin nav (`/admin/inte
 
 ### 7.6 Checking it from the app
 
-**Integrations** (`/admin/integrations`) lists every service Blackbird Leave connects to and whether it is currently wired up. Slack shows its channel ID, the hour it posts, its schedule rules and what it shares — and **Edit** makes each of those changeable in place. When it isn't connected the card says *not connected* and shows the setup steps with the connect form underneath.
+**Integrations** (`/admin/integrations`) lists every service Whooo connects to and whether it is currently wired up. Slack shows its channel ID, the hour it posts, its schedule rules and what it shares — and **Edit** makes each of those changeable in place. When it isn't connected the card says *not connected* and shows the setup steps with the connect form underneath.
 
 The leave **type** is deliberately not among the editable settings. The digest lands in a channel the whole company can see and sick leave is health data, so everyone reads as simply "out" — there is no toggle for that anywhere in the UI or the API.
 
@@ -183,7 +183,7 @@ A muted channel stops making noise and drops out of the unread bolding, but the 
 
 ### 7.8 Approving leave from Slack
 
-Optional, and off until an admin switches it on. When it's on, every new leave request is sent to each admin as a **direct message** from the Blackbird Leave app with **Approve** and **Reject** buttons — the Slack twin of the "new request" email, which still goes out as before.
+Optional, and off until an admin switches it on. When it's on, every new leave request is sent to each admin as a **direct message** from the Whooo app with **Approve** and **Reject** buttons — the Slack twin of the "new request" email, which still goes out as before.
 
 - **Approve** decides it on the spot. **Reject** opens a small form for an optional note to the employee, the same as on the Requests page.
 - Either way the decision goes through exactly the same code as the website (`lib/leave-decision.ts`): the employee is emailed, the day lands in (or stays out of) their calendar, their Gmail auto-reply is updated, and the Hierarchy rule still blocks clashing annual leave.
@@ -192,12 +192,12 @@ Optional, and off until an admin switches it on. When it's on, every new leave r
 
 **Setup, once:**
 
-1. In the Slack app (<https://api.slack.com/apps>) → **OAuth & Permissions** → add the **`users:read`** and **`users:read.email`** bot scopes, then **Reinstall to Workspace**. Admins are matched to Slack by email, so each admin's Blackbird Leave email must be the one on their Slack account. An admin without a match is simply skipped in Slack and still gets the email.
+1. In the Slack app (<https://api.slack.com/apps>) → **OAuth & Permissions** → add the **`users:read`** and **`users:read.email`** bot scopes, then **Reinstall to Workspace**. Admins are matched to Slack by email, so each admin's Whooo email must be the one on their Slack account. An admin without a match is simply skipped in Slack and still gets the email.
 2. **Interactivity & Shortcuts** → switch **Interactivity** on → set the **Request URL** to `https://<your site>/api/slack/interactions` → Save.
 3. **App Home** → make sure the **Messages Tab** is enabled, so the DMs have somewhere to appear.
 4. **Basic Information** → **App Credentials** → copy the **Signing Secret**.
 5. Run `supabase/migrations/017_slack_leave_approvals.sql` in the Supabase SQL editor (after 016). Until it's run the toggle is replaced with a note asking for it; the digest keeps working either way.
-6. In Blackbird Leave → **Integrations** → Slack → **Edit** → tick *Send new leave requests to admins in Slack*, paste the signing secret, **Save changes**. Saving checks the scopes by looking you up by email, so a missing scope fails there and then.
+6. In Whooo → **Integrations** → Slack → **Edit** → tick *Send new leave requests to admins in Slack*, paste the signing secret, **Save changes**. Saving checks the scopes by looking you up by email, so a missing scope fails there and then.
 
 **Security.** `/api/slack/interactions` is public (Slack holds no session), so every press is checked against Slack's request signature using the company's signing secret, and refused if it doesn't verify or is more than five minutes old. A verified press then has to come from the Slack account the DM was sent to, and that person must still be an admin of the same company. The signing secret is stored like the bot token — write-only from the browser. `SLACK_SIGNING_SECRET` in the environment works as a bootstrap for Blackbird's own workspace, like the other `SLACK_*` variables.
 
@@ -338,7 +338,7 @@ Nothing here tests the sequence to decide whether a calendar is holding an entry
 
 Tombstones stay for as long as the feed's rolling window — last year onwards — because a cancellation has to survive long enough for every subscriber to poll at least once, and a laptop that was shut for a fortnight still has to hear about it.
 
-The practical result is the one that matters: **subscribing once is permanent.** The feed is a mirror of what Blackbird Leave says, not a list of bookings, so an employee never has to re-subscribe to clear something stale.
+The practical result is the one that matters: **subscribing once is permanent.** The feed is a mirror of what Whooo says, not a list of bookings, so an employee never has to re-subscribe to clear something stale.
 
 **Disconnecting does not remove entries already in people's calendars.** New approvals stop producing them and subscription links stop resolving, but mass-cancelling every future booking across the company is not something one click should do. Existing entries have to be removed by hand.
 
@@ -602,7 +602,7 @@ supabase/migrations/     001_init.sql … 019_company_verification.sql
 - **Allowances**: come from each person's leave policy template (section 11). Before migration 013 they're the per-person `profiles.annual_allowance` / `sick_allowance`, edited from the Employees page; after it those columns are no longer read.
 - **Cancellations**: only admins can cancel pending or approved requests (per spec). Cancellation emails the employee.
 - **Half-days**: pick `Morning only` or `Afternoon only` on the first and/or last day of a range. Single-day requests with a half flag count as 0.5.
-- **Integrations**: `/admin/integrations` (admin-only) shows what Blackbird Leave is connected to, and lets an admin connect it, edit its settings, fire a digest on demand, or disconnect it. The registry lives in `lib/integrations.ts`; the stored connection in `lib/slack-settings.ts`.
+- **Integrations**: `/admin/integrations` (admin-only) shows what Whooo is connected to, and lets an admin connect it, edit its settings, fire a digest on demand, or disconnect it. The registry lives in `lib/integrations.ts`; the stored connection in `lib/slack-settings.ts`.
 - **Holidays**: holiday calendars in `/admin/holidays` (migration 020), set up like leave policies. Create a calendar per country (Kosovo, Ireland, ...), add the people it applies to, and anyone not added follows the default calendar. Picking a country fills in this year's and next year's national holidays: about 45 countries have built-in rules in `lib/holiday-presets.ts` (Easter-based dates, "last Monday in May", weekend days off in lieu, a table of Eid dates), and any other country is fetched from [Nager.Date](https://date.nager.at). Every holiday is an ordinary row the admin can rename, move, remove or add to, and a later year is one click ("Add missing 2028 holidays"). Only national holidays are filled in; regional ones (German states, Spanish communities, US states) are added by hand. A person's holidays decide their working-day counts, the hatching on their calendar, the auto-reply's "back on" date and the conflict check. The Slack digest says "office closed" only when the day is a holiday for everyone; otherwise it lists who is off for a holiday under that calendar's name.
 - **Slack digest**: by default weekdays at 06:00 Kosovo time and silent when nobody is off — all editable on the Integrations page, except that the post hour is limited to what the cron schedule can reach (04:00–06:00 on the current two Hobby slots; see section 7). It never names the leave type, and that one isn't editable at all. If a post fails, the day's claim in `slack_daily_posts` is released so the second run — or a manual **Post to Slack now** — can retry.
 - **Security**: all DB access goes through Postgres Row-Level Security. The service-role key is only used in server-side route handlers (never exposed to the browser) for operations that need to bypass RLS (creating auth users, invite lookup, etc.).

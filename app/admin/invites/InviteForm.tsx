@@ -78,7 +78,7 @@ export default function InviteForm() {
         <div className="space-y-2">
           <p className={`text-sm ${message.kind === "err" || message.emailError ? "text-rose-700" : "text-neutral-700"}`}>
             {message.kind === "ok" && !message.emailError && (
-              <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
+              <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full dot-accent align-middle" />
             )}
             {message.text}
           </p>

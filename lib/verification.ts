@@ -120,7 +120,7 @@ export async function verifyDomain(orgId: string, adminEmail: string): Promise<V
   if (error) {
     // The unique index: another company already has this domain.
     return error.code === "23505"
-      ? { ok: false, status: 409, error: `Another company on Blackbird Leave already uses ${domain}.` }
+      ? { ok: false, status: 409, error: `Another company on Whooo already uses ${domain}.` }
       : { ok: false, status: 500, error: error.message };
   }
   return { ok: true };
@@ -148,7 +148,7 @@ export async function changeDomain(orgId: string, raw: string): Promise<VerifyRe
   const { error } = await createAdminClient().from("organizations").update({ domain }).eq("id", orgId);
   if (error) {
     return error.code === "23505"
-      ? { ok: false, status: 409, error: `Another company on Blackbird Leave already uses ${domain}.` }
+      ? { ok: false, status: 409, error: `Another company on Whooo already uses ${domain}.` }
       : { ok: false, status: 500, error: error.message };
   }
   return { ok: true };

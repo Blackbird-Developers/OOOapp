@@ -1,32 +1,32 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-05-25T00:00:00Z",
-  "title": "Design System: BBM Leave",
+  "title": "Design System: Whooo",
   "extensions": {
     "colorMeta": {
       "brand-accent": {
         "role": "primary",
-        "displayName": "Blackbird Lime",
-        "canonical": "oklch(0.95 0.21 121)",
-        "tonalRamp": ["#262d00", "#3d4900", "#5a6c00", "#7a9100", "#9bb917", "#bce53e", "#d7ff36", "#eaff8f"]
+        "displayName": "Whooo Yellow",
+        "canonical": "oklch(0.96 0.17 108)",
+        "tonalRamp": ["#313005", "#4c4a0b", "#6f6d1c", "#93912c", "#bab73e", "#e2df50", "#fcfa64", "#fdfdbe"]
       },
       "brand-ink": {
         "role": "neutral",
         "displayName": "Brand Ink",
         "canonical": "oklch(0.18 0.005 250)",
-        "tonalRamp": ["#0a0a0a", "#171717", "#262626", "#404040", "#525252", "#737373", "#a3a3a3", "#d4d4d4"]
+        "tonalRamp": ["#2c120b", "#422016", "#512f25", "#5b3f36", "#665547", "#7e7066", "#aba097", "#dad2cc"]
       },
       "warm-paper": {
         "role": "neutral",
         "displayName": "Warm Paper",
         "canonical": "oklch(0.985 0.005 80)",
-        "tonalRamp": ["#1f1f1d", "#3a3a36", "#5e5e58", "#83837c", "#a8a8a0", "#cecec5", "#ededeb", "#fafaf9"]
+        "tonalRamp": ["#1f1f1d", "#3a3a36", "#5e5e58", "#83837c", "#a8a8a0", "#cecec5", "#ededeb", "#fbfaf6"]
       },
       "surface": {
         "role": "neutral",
         "displayName": "Surface White",
         "canonical": "oklch(1 0 0)",
-        "tonalRamp": ["#171717", "#262626", "#404040", "#737373", "#a3a3a3", "#d4d4d4", "#f5f5f5", "#ffffff"]
+        "tonalRamp": ["#422016", "#512f25", "#5b3f36", "#7e7066", "#aba097", "#dad2cc", "#f8f4f0", "#ffffff"]
       },
       "rose-600": {
         "role": "secondary",
@@ -38,7 +38,7 @@
         "role": "neutral",
         "displayName": "Meta Neutral",
         "canonical": "oklch(0.55 0 0)",
-        "tonalRamp": ["#171717", "#262626", "#404040", "#525252", "#737373", "#a3a3a3", "#d4d4d4", "#e5e5e5"]
+        "tonalRamp": ["#422016", "#512f25", "#5b3f36", "#665547", "#7e7066", "#aba097", "#dad2cc", "#eae4df"]
       }
     },
     "typographyMeta": {
@@ -115,15 +115,15 @@
       "refersTo": "button-primary",
       "description": "Routine administrative action (Sign in, Save, Add holiday, Send invite). Ink black over warm paper.",
       "html": "<button class=\"ds-btn-primary\">Save</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #0a0a0a; color: #ffffff; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; transition: background 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-primary:hover { background: #262626; } .ds-btn-primary:focus-visible { outline: 2px solid #0a0a0a; outline-offset: 2px; } .ds-btn-primary:disabled { background: #d4d4d4; color: #737373; box-shadow: none; cursor: not-allowed; }"
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #422016; color: #ffffff; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(66,32,22,0.04); cursor: pointer; transition: background 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-primary:hover { background: #512f25; } .ds-btn-primary:focus-visible { outline: 2px solid #422016; outline-offset: 2px; } .ds-btn-primary:disabled { background: #dad2cc; color: #7e7066; box-shadow: none; cursor: not-allowed; }"
     },
     {
       "name": "Accent Button",
       "kind": "button",
       "refersTo": "button-accent",
-      "description": "The lime promise. Used only on the four leave-creating CTAs (Request leave, Submit request, Log leave, Approve) and the approval banner.",
+      "description": "The yellow promise. Used only on the four leave-creating CTAs (Request leave, Submit request, Log leave, Approve) and the approval banner.",
       "html": "<button class=\"ds-btn-accent\">Request leave <span aria-hidden>→</span></button>",
-      "css": ".ds-btn-accent { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #D7FF36; color: #0a0a0a; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 700; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; transition: filter 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-accent:hover { filter: brightness(1.04); } .ds-btn-accent:focus-visible { outline: 2px solid #0a0a0a; outline-offset: 2px; } .ds-btn-accent:disabled { background: #e5e5e5; color: #737373; box-shadow: none; cursor: not-allowed; filter: none; }"
+      "css": ".ds-btn-accent { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #FCFA64; color: #422016; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 700; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(66,32,22,0.04); cursor: pointer; transition: filter 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-accent:hover { filter: brightness(1.04); } .ds-btn-accent:focus-visible { outline: 2px solid #422016; outline-offset: 2px; } .ds-btn-accent:disabled { background: #eae4df; color: #7e7066; box-shadow: none; cursor: not-allowed; filter: none; }"
     },
     {
       "name": "Secondary Button",
@@ -131,7 +131,7 @@
       "refersTo": "button-secondary",
       "description": "Tertiary action: dialog cancel buttons, Copy beside invite link.",
       "html": "<button class=\"ds-btn-secondary\">Keep it</button>",
-      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #ffffff; color: #404040; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 1px solid #e5e5e5; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; transition: background 140ms cubic-bezier(.2,.7,.3,1), border-color 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-secondary:hover { background: #fafafa; border-color: #d4d4d4; } .ds-btn-secondary:focus-visible { outline: 2px solid #0a0a0a; outline-offset: 2px; } .ds-btn-secondary:disabled { background: #fafafa; color: #a3a3a3; border-color: #e5e5e5; box-shadow: none; cursor: not-allowed; }"
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #ffffff; color: #5b3f36; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 1px solid #eae4df; border-radius: 8px; box-shadow: 0 1px 2px rgba(66,32,22,0.04); cursor: pointer; transition: background 140ms cubic-bezier(.2,.7,.3,1), border-color 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-secondary:hover { background: #fcf9f7; border-color: #dad2cc; } .ds-btn-secondary:focus-visible { outline: 2px solid #422016; outline-offset: 2px; } .ds-btn-secondary:disabled { background: #fcf9f7; color: #aba097; border-color: #eae4df; box-shadow: none; cursor: not-allowed; }"
     },
     {
       "name": "Danger Button",
@@ -139,15 +139,15 @@
       "refersTo": "button-danger",
       "description": "Destructive confirmation: Reject, Cancel request, Delete invite, Remove holiday.",
       "html": "<button class=\"ds-btn-danger\">Reject request</button>",
-      "css": ".ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #e11d48; color: #ffffff; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; transition: background 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-danger:hover { background: #f43f5e; } .ds-btn-danger:focus-visible { outline: 2px solid #e11d48; outline-offset: 2px; } .ds-btn-danger:disabled { background: #fecdd3; box-shadow: none; cursor: not-allowed; }"
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; gap: 6px; background: #e11d48; color: #ffffff; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(66,32,22,0.04); cursor: pointer; transition: background 140ms cubic-bezier(.2,.7,.3,1); } .ds-btn-danger:hover { background: #f43f5e; } .ds-btn-danger:focus-visible { outline: 2px solid #e11d48; outline-offset: 2px; } .ds-btn-danger:disabled { background: #fecdd3; box-shadow: none; cursor: not-allowed; }"
     },
     {
       "name": "Input",
       "kind": "input",
       "refersTo": "input",
       "description": "Text, email, password, number, select, textarea. Always used inside a <Field> wrapper for label association.",
-      "html": "<label for=\"ds-input-demo\" style=\"display:block; font-family:Inter,sans-serif; font-size:11px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:#737373; margin-bottom:6px;\">Email</label><input id=\"ds-input-demo\" class=\"ds-input\" type=\"email\" placeholder=\"you@blackbird.marketing\" />",
-      "css": ".ds-input { width: 100%; min-height: 44px; padding: 8px 12px; background: #ffffff; color: #171717; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; border: 1px solid #e5e5e5; border-radius: 8px; transition: border-color 140ms cubic-bezier(.2,.7,.3,1), box-shadow 140ms cubic-bezier(.2,.7,.3,1); } .ds-input::placeholder { color: #a3a3a3; } .ds-input:focus { outline: none; border-color: #a3a3a3; box-shadow: 0 0 0 2px rgba(10,10,10,0.10); }"
+      "html": "<label for=\"ds-input-demo\" style=\"display:block; font-family:Inter,sans-serif; font-size:11px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:#7e7066; margin-bottom:6px;\">Email</label><input id=\"ds-input-demo\" class=\"ds-input\" type=\"email\" placeholder=\"you@blackbird.marketing\" />",
+      "css": ".ds-input { width: 100%; min-height: 44px; padding: 8px 12px; background: #ffffff; color: #422016; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; border: 1px solid #eae4df; border-radius: 8px; transition: border-color 140ms cubic-bezier(.2,.7,.3,1), box-shadow 140ms cubic-bezier(.2,.7,.3,1); } .ds-input::placeholder { color: #aba097; } .ds-input:focus { outline: none; border-color: #aba097; box-shadow: 0 0 0 2px rgba(10,10,10,0.10); }"
     },
     {
       "name": "Card",
@@ -155,15 +155,15 @@
       "refersTo": "card",
       "description": "Page-level content surface. White over warm paper, rounded-2xl, 1px neutral border, double-layer faint shadow.",
       "html": "<section class=\"ds-card\"><h2 class=\"ds-card-title\">Who's off</h2><p class=\"ds-card-sub\">Approved leave across the team this year</p></section>",
-      "css": ".ds-card { background: #ffffff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 8px 24px -12px rgba(0,0,0,0.08); } @media (min-width: 640px) { .ds-card { padding: 24px; } } .ds-card-title { margin: 0; font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #171717; } .ds-card-sub { margin: 2px 0 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; color: #737373; }"
+      "css": ".ds-card { background: #ffffff; border: 1px solid #eae4df; border-radius: 16px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 8px 24px -12px rgba(0,0,0,0.08); } @media (min-width: 640px) { .ds-card { padding: 24px; } } .ds-card-title { margin: 0; font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #422016; } .ds-card-sub { margin: 2px 0 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; color: #7e7066; }"
     },
     {
       "name": "Status Badge",
       "kind": "chip",
       "refersTo": "status-badge",
-      "description": "Neutral pill with a colored 6px dot. Pill background never changes; the dot encodes state. Lime = approved, rose = rejected, neutral filled = cancelled, neutral outlined ring = pending.",
-      "html": "<div style=\"display:flex; gap:8px; flex-wrap:wrap;\"><span class=\"ds-status\"><span class=\"ds-status-dot ds-status-dot--lime\"></span>approved</span><span class=\"ds-status\"><span class=\"ds-status-dot ds-status-dot--rose\"></span>rejected</span><span class=\"ds-status\"><span class=\"ds-status-dot ds-status-dot--outline\"></span>pending</span><span class=\"ds-status ds-status--muted\"><span class=\"ds-status-dot ds-status-dot--neutral\"></span>cancelled</span></div>",
-      "css": ".ds-status { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; background: #f5f5f5; color: #262626; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 500; border-radius: 9999px; } .ds-status--muted { color: #737373; } .ds-status-dot { width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; } .ds-status-dot--lime { background: #D7FF36; } .ds-status-dot--rose { background: #f43f5e; } .ds-status-dot--neutral { background: #a3a3a3; } .ds-status-dot--outline { background: transparent; box-shadow: inset 0 0 0 1.5px #737373; }"
+      "description": "Neutral pill with a colored 6px dot. Pill background never changes; the dot encodes state. Yellow = approved, rose = rejected, neutral filled = cancelled, neutral outlined ring = pending.",
+      "html": "<div style=\"display:flex; gap:8px; flex-wrap:wrap;\"><span class=\"ds-status\"><span class=\"ds-status-dot ds-status-dot--yellow\"></span>approved</span><span class=\"ds-status\"><span class=\"ds-status-dot ds-status-dot--rose\"></span>rejected</span><span class=\"ds-status\"><span class=\"ds-status-dot ds-status-dot--outline\"></span>pending</span><span class=\"ds-status ds-status--muted\"><span class=\"ds-status-dot ds-status-dot--neutral\"></span>cancelled</span></div>",
+      "css": ".ds-status { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; background: #f8f4f0; color: #512f25; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 500; border-radius: 9999px; } .ds-status--muted { color: #7e7066; } .ds-status-dot { width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; } .ds-status-dot--yellow { background: #FCFA64; } .ds-status-dot--rose { background: #f43f5e; } .ds-status-dot--neutral { background: #aba097; } .ds-status-dot--outline { background: transparent; box-shadow: inset 0 0 0 1.5px #7e7066; }"
     },
     {
       "name": "Empty State (Info)",
@@ -171,7 +171,7 @@
       "refersTo": "empty-state",
       "description": "First-use or no-results state. Dashed neutral border, headline + max-w-sm description + optional CTA. Teaches the interface instead of saying 'nothing here'.",
       "html": "<div class=\"ds-empty\"><h3 class=\"ds-empty-title\">Nothing submitted yet</h3><p class=\"ds-empty-desc\">Once you request leave, it shows up here with the admin's decision.</p><div class=\"ds-empty-action\"><button class=\"ds-btn-accent\">Request leave <span aria-hidden>→</span></button></div></div>",
-      "css": ".ds-empty { background: #ffffff; border: 1px dashed #d4d4d4; border-radius: 12px; padding: 48px 24px; text-align: center; } .ds-empty-title { margin: 0; font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #171717; } .ds-empty-desc { margin: 6px auto 0; max-width: 28rem; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5; color: #737373; } .ds-empty-action { margin-top: 20px; display: flex; justify-content: center; } .ds-btn-accent { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 16px; background: #D7FF36; color: #0a0a0a; font-family: Inter, sans-serif; font-size: 14px; font-weight: 700; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; }"
+      "css": ".ds-empty { background: #ffffff; border: 1px dashed #dad2cc; border-radius: 12px; padding: 48px 24px; text-align: center; } .ds-empty-title { margin: 0; font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #422016; } .ds-empty-desc { margin: 6px auto 0; max-width: 28rem; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5; color: #7e7066; } .ds-empty-action { margin-top: 20px; display: flex; justify-content: center; } .ds-btn-accent { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 16px; background: #FCFA64; color: #422016; font-family: Inter, sans-serif; font-size: 14px; font-weight: 700; border: 0; border-radius: 8px; box-shadow: 0 1px 2px rgba(66,32,22,0.04); cursor: pointer; }"
     },
     {
       "name": "Dialog",
@@ -179,33 +179,33 @@
       "refersTo": "dialog",
       "description": "Native <dialog> modal opened via showModal(). Focus trap, Esc, aria-modal handled by the platform. Backdrop click closes. Replaces all native alert/confirm/prompt.",
       "html": "<dialog open class=\"ds-dialog\"><div class=\"ds-dialog-body\"><h2 class=\"ds-dialog-title\">Reject this request?</h2><p class=\"ds-dialog-desc\">The employee will be notified and can see your reason on their My requests page.</p><div class=\"ds-dialog-footer\"><button class=\"ds-btn-secondary\">Keep pending</button><button class=\"ds-btn-danger\">Reject request</button></div></div></dialog>",
-      "css": ".ds-dialog { margin: auto; width: calc(100vw - 2rem); max-width: 28rem; padding: 0; background: #ffffff; border: 1px solid #e5e5e5; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); } .ds-dialog::backdrop { background: rgba(15,23,42,0.50); backdrop-filter: blur(2px); } .ds-dialog-body { padding: 24px; } .ds-dialog-title { margin: 0; font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #171717; } .ds-dialog-desc { margin: 6px 0 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; color: #525252; } .ds-dialog-footer { display: flex; flex-direction: column-reverse; gap: 8px; margin-top: 20px; } @media (min-width: 640px) { .ds-dialog-footer { flex-direction: row; justify-content: flex-end; } } .ds-btn-secondary, .ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; font-family: Inter, sans-serif; font-size: 14px; font-weight: 500; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.04); } .ds-btn-secondary { background: #ffffff; color: #404040; border: 1px solid #e5e5e5; } .ds-btn-danger { background: #e11d48; color: #ffffff; border: 0; }"
+      "css": ".ds-dialog { margin: auto; width: calc(100vw - 2rem); max-width: 28rem; padding: 0; background: #ffffff; border: 1px solid #eae4df; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); } .ds-dialog::backdrop { background: rgba(15,23,42,0.50); backdrop-filter: blur(2px); } .ds-dialog-body { padding: 24px; } .ds-dialog-title { margin: 0; font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #422016; } .ds-dialog-desc { margin: 6px 0 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; color: #665547; } .ds-dialog-footer { display: flex; flex-direction: column-reverse; gap: 8px; margin-top: 20px; } @media (min-width: 640px) { .ds-dialog-footer { flex-direction: row; justify-content: flex-end; } } .ds-btn-secondary, .ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; font-family: Inter, sans-serif; font-size: 14px; font-weight: 500; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(66,32,22,0.04); } .ds-btn-secondary { background: #ffffff; color: #5b3f36; border: 1px solid #eae4df; } .ds-btn-danger { background: #e11d48; color: #ffffff; border: 0; }"
     }
   ],
   "narrative": {
     "northStar": "The Quiet Tool",
-    "overview": "BBM Leave is internal software a small marketing agency opens once or twice a month. Its job is to disappear into the task: book leave in thirty seconds, approve in two clicks, close the tab. The visual system serves that disappearance. Generous space, a single saturated accent (lime) reserved for moments that matter, neutral everything else, no decoration that doesn't earn its place. The system rejects, by name, the things PRODUCT.md rejects: enterprise HR software (BambooHR, Workday, ADP, Personio); the generic Tailwind/shadcn reflex; cheery SaaS templates with pastel cards and gradient hero metrics; brand showcases where decoration obstructs the task. What replaces them: lime and ink over warm paper, an editorial display face on h1/h2 only, Inter for everything else, a 44px touch-target floor on every interactive element, and a single principle: lime is a promise.",
+    "overview": "Whooo is internal software a small marketing agency opens once or twice a month. Its job is to disappear into the task: book leave in thirty seconds, approve in two clicks, close the tab. The visual system serves that disappearance. Generous space, a single saturated accent (yellow) reserved for moments that matter, neutral everything else, no decoration that doesn't earn its place. The system rejects, by name, the things PRODUCT.md rejects: enterprise HR software (BambooHR, Workday, ADP, Personio); the generic Tailwind/shadcn reflex; cheery SaaS templates with pastel cards and gradient hero metrics; brand showcases where decoration obstructs the task. What replaces them: yellow and ink over warm paper, an editorial display face on h1/h2 only, Inter for everything else, a 44px touch-target floor on every interactive element, and a single principle: yellow is a promise.",
     "keyCharacteristics": [
-      "One brand color (lime), one negative color (rose), neutral everything else.",
-      "Lime occupies less than 10% of any screen.",
+      "One brand color (yellow), one negative color (rose), neutral everything else.",
+      "Yellow occupies less than 10% of any screen.",
       "Sharp craft over chrome: full borders, no side stripes, no glassmorphism beyond a purposeful sticky bar.",
       "Density is restrained. A tool used twice a month should breathe.",
       "Display font on headings only; body, labels, data, and buttons all Inter."
     ],
     "rules": [
       {
-        "name": "The Lime Promise Rule",
-        "body": "Lime appears only on actions and moments that advance leave: today's date, the four leave-creating CTAs, the approved status dot, and the moment leave is approved. It does not appear on settled administrative state, decorative dividers, hover-only flourishes, or the brand logo.",
+        "name": "The Yellow Promise Rule",
+        "body": "Yellow appears only on actions and moments that advance leave: today's date, the four leave-creating CTAs, the approved status dot, and the moment leave is approved. It does not appear on settled administrative state, decorative dividers, hover-only flourishes, or the brand logo.",
         "section": "colors"
       },
       {
         "name": "The Two-Track Status Rule",
-        "body": "Status is communicated on two tracks: a colored dot (lime / rose / neutral; outlined ring for in-process) on top of a uniform neutral pill. The pill is always bg-neutral-100. Color carries state, never the pill. Type discriminators (annual / sick, etc.) live in the text label, never in color.",
+        "body": "Status is communicated on two tracks: a colored dot (yellow / rose / neutral; outlined ring for in-process) on top of a uniform neutral pill. The pill is always bg-neutral-100. Color carries state, never the pill. Type discriminators (annual / sick, etc.) live in the text label, never in color.",
         "section": "colors"
       },
       {
         "name": "The Tinted Neutral Rule",
-        "body": "#000 and #fff are prohibited as Tailwind shortcuts. Use bg-brand-ink (#0a0a0a) and bg-warm-paper (#fafaf9). White is permitted only as a surface contrast inside cards, inputs, and dialogs over warm paper.",
+        "body": "#000 and #fff are prohibited as Tailwind shortcuts. Use bg-brand-ink (#422016) and bg-warm-paper (#fbfaf6). White is permitted only as a surface contrast inside cards, inputs, and dialogs over warm paper.",
         "section": "colors"
       },
       {
@@ -230,10 +230,10 @@
       }
     ],
     "dos": [
-      "Do use lime (brand-accent) only on today's date marker, the four leave-creating CTAs (Request leave, Submit request, Log leave for employee, Approve), the approved status dot, and the approval banner. Nowhere else.",
+      "Do use yellow (brand-accent) only on today's date marker, the four leave-creating CTAs (Request leave, Submit request, Log leave for employee, Approve), the approved status dot, and the approval banner. Nowhere else.",
       "Do route every form input through <Field> so htmlFor and aria-describedby are guaranteed.",
       "Do route every confirm / destructive interaction through <Dialog>, never window.confirm/alert/prompt.",
-      "Do use bg-brand-ink (#0a0a0a) instead of bg-black, and text-brand-ink instead of text-black. Same for opacity modifiers (bg-brand-ink/10).",
+      "Do use bg-brand-ink (#422016) instead of bg-black, and text-brand-ink instead of text-black. Same for opacity modifiers (bg-brand-ink/10).",
       "Do use text-neutral-500 as the contrast floor for body and meta text. neutral-400 is for genuinely decorative or aria-disabled content only.",
       "Do keep buttons and inputs at the min-h-11 (44px) touch floor. Inherit from .btn and .input; don't override below.",
       "Do give every interactive element a visible focus-visible state (ring or border shift).",
@@ -250,7 +250,7 @@
       "Don't use glassmorphism decoratively. The sticky TopBar blur is the only sanctioned use.",
       "Don't ship the hero-metric template. BalanceCards was deliberately refactored away from this pattern.",
       "Don't use window.alert/confirm/prompt. Ever.",
-      "Don't use emerald, amber, indigo, sky, violet, teal, cyan. The status palette is lime + rose + neutral, period.",
+      "Don't use emerald, amber, indigo, sky, violet, teal, cyan. The status palette is yellow + rose + neutral, period.",
       "Don't use em dashes. Use commas, colons, semicolons, periods, or parentheses.",
       "Don't apply hover effects that stack translate + scale + colored glow. The btn-accent hover is brightness-only by design.",
       "Don't wrap text in <label> siblings to inputs without htmlFor. Always use <Field>."

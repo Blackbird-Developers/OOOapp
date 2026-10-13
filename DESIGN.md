@@ -1,21 +1,21 @@
 ---
-name: BBM Leave
-description: Internal leave tracker for Blackbird Marketing. Calm utility, lime accent, restraint as personality.
+name: Whooo
+description: Leave tracker for small teams, built at Blackbird Marketing. Calm utility, brown ink, one yellow accent.
 colors:
-  brand-accent: "#D7FF36"
-  brand-ink: "#0a0a0a"
-  warm-paper: "#fafaf9"
+  brand-accent: "#FCFA64"
+  brand-ink: "#422016"
+  warm-paper: "#fbfaf6"
   surface: "#ffffff"
-  neutral-900: "#171717"
-  neutral-800: "#262626"
-  neutral-700: "#404040"
-  neutral-600: "#525252"
-  neutral-500: "#737373"
-  neutral-400: "#a3a3a3"
-  neutral-300: "#d4d4d4"
-  neutral-200: "#e5e5e5"
-  neutral-100: "#f5f5f5"
-  neutral-50: "#fafafa"
+  neutral-900: "#422016"
+  neutral-800: "#512f25"
+  neutral-700: "#5b3f36"
+  neutral-600: "#665547"
+  neutral-500: "#7e7066"
+  neutral-400: "#aba097"
+  neutral-300: "#dad2cc"
+  neutral-200: "#eae4df"
+  neutral-100: "#f8f4f0"
+  neutral-50: "#fcf9f7"
   rose-700: "#be123c"
   rose-600: "#e11d48"
   rose-500: "#f43f5e"
@@ -121,32 +121,41 @@ components:
     padding: "24px"
 ---
 
-# Design System: BBM Leave
+# Design System: Whooo
 
 ## 1. Overview
 
 **Creative North Star: "The Quiet Tool"**
 
-BBM Leave is internal software a small marketing agency opens once or twice a month. Its job is to disappear into the task: book leave in thirty seconds, approve in two clicks, close the tab. The visual system serves that disappearance. Generous space, a single saturated accent (lime) reserved for moments that matter, neutral everything else, no decoration that doesn't earn its place.
+Whooo is internal software a small marketing agency opens once or twice a month. Its job is to disappear into the task: book leave in thirty seconds, approve in two clicks, close the tab. The visual system serves that disappearance. Generous space, a single saturated accent (yellow) reserved for moments that matter, neutral everything else, no decoration that doesn't earn its place.
 
 The system rejects, by name, the things PRODUCT.md rejects: enterprise HR software (BambooHR, Workday, ADP, Personio) with their corporate-blue chrome; the generic Tailwind/shadcn reflex (gray-on-white, `rounded-lg shadow-sm` on every container); cheery SaaS templates with pastel cards and gradient hero metrics; brand showcases where decoration obstructs the task.
 
-What replaces them: lime (`#D7FF36`) and ink (`#0a0a0a`) over warm paper (`#fafaf9`), an editorial display face (Bricolage Grotesque) on h1/h2 only, Inter for everything else, a 44px touch-target floor on every interactive element, and a single principle: lime is a promise. It appears on the moments that are about leave itself, namely today's date, the four "request leave / log leave / submit / approve" CTAs, the "approved" status dot, and the "leave approved" banner. Nowhere else.
+What replaces them: yellow (`#FCFA64`) and ink (`#422016`) over warm paper (`#fbfaf6`), an editorial display face (Bricolage Grotesque) on h1/h2 only, Inter for everything else, a 44px touch-target floor on every interactive element, and a single principle: yellow is a promise. It appears on the moments that are about leave itself, namely today's date, the four "request leave / log leave / submit / approve" CTAs, the "approved" status dot, and the "leave approved" banner. Nowhere else.
 
 **Key Characteristics:**
-- One brand color (lime), one negative color (rose), neutral everything else.
-- Lime occupies less than 10% of any screen.
+- One brand color (yellow), one negative color (rose), neutral everything else.
+- Yellow occupies less than 10% of any screen.
 - Sharp craft over chrome: full borders, no side stripes, no glassmorphism beyond a purposeful sticky bar.
 - Density is restrained. A tool used twice a month should breathe.
 - Display font on headings only; body, labels, data, and buttons all Inter.
 
 ## 2. Colors: The Warm Paper Palette
 
-A near-monochrome system warmed by `#fafaf9` paper and grounded by ink. The single accent is a saturated lime; the only other named color is rose, reserved for destructive and error states.
+A near-monochrome system warmed by `#fbfaf6` paper and grounded by ink. The single accent is a warm yellow; the only other named color is rose, reserved for destructive and error states.
+
+### Logo
+
+The Whooo logotype (the serif "Whooo" wordmark and its "w" app icon, from the 2026 logotype PDF) is brown `#422016`, and yellow `#FCFA64` when it sits on brown. Files:
+
+- `public/whooo-logo.svg`: the wordmark, for the top bar (24px tall) and the sign-in pages (32px tall, over "Who's off").
+- `app/icon.png`: the favicon (64px), a rounded brown square with a yellow "w".
+- `app/apple-icon.png`: the same square, full-bleed, because iOS rounds the corners itself.
+- `public/whooo-email-logo.png`: the wordmark as a PNG at 2x, for email headers (mail clients don't render SVG).
 
 ### Primary
 
-- **Blackbird Lime** (`#D7FF36`, `oklch(0.95 0.21 121)`): the brand. Appears only on the today's-date marker in calendars, the four primary leave-creating CTAs ("Request leave", "Submit request", "Log leave for employee", "Approve"), the colored dot in the "approved" status pill, and the "Leave approved" banner. Never decorative.
+- **Whooo Yellow** (`#FCFA64`, `oklch(0.96 0.17 108)`): the brand. Appears only on the today's-date marker in calendars, the four primary leave-creating CTAs ("Request leave", "Submit request", "Log leave for employee", "Approve"), the colored dot in the "approved" status pill, and the "Leave approved" banner. Never decorative.
 
 ### Secondary
 
@@ -154,23 +163,23 @@ A near-monochrome system warmed by `#fafaf9` paper and grounded by ink. The sing
 
 ### Neutral
 
-- **Brand Ink** (`#0a0a0a`): primary text, primary buttons, focus rings (at 10% opacity), inputs and dialog headings. Tinted slightly off-pure-black per the no-`#000` rule.
-- **Warm Paper** (`#fafaf9`): page background. Tinted warm to harmonize with lime.
+- **Brand Ink** (`#422016`): primary text, primary buttons, focus rings (at 10% opacity), inputs and dialog headings. The brown of the Whooo logo; also `neutral-900`, so all dark text is the same ink.
+- **Warm Paper** (`#fbfaf6`): page background. Tinted warm to sit with the brown and yellow.
 - **Surface** (`#ffffff`): card, input, dialog, and table backgrounds. Permitted as a surface-contrast color over warm paper, not as a page background.
-- **Neutral 700-800** (`#404040`, `#262626`): secondary text and primary-button hover.
-- **Neutral 500** (`#737373`): tertiary text, meta labels, the WCAG AA contrast floor for body.
-- **Neutral 400** (`#a3a3a3`): exempt-only use (disabled controls, out-of-month calendar cells, past dates).
-- **Neutral 200** (`#e5e5e5`): borders, dividers.
-- **Neutral 100** (`#f5f5f5`): muted backgrounds (status badge pill, disabled button surfaces).
-- **Neutral 50** (`#fafafa`): table-row hover, table-head wash, weekend calendar cells.
+- **Neutral 700-800** (`#5b3f36`, `#512f25`): secondary text and primary-button hover.
+- **Neutral 500** (`#7e7066`): tertiary text, meta labels, the WCAG AA contrast floor for body.
+- **Neutral 400** (`#aba097`): exempt-only use (disabled controls, out-of-month calendar cells, past dates).
+- **Neutral 200** (`#eae4df`): borders, dividers.
+- **Neutral 100** (`#f8f4f0`): muted backgrounds (status badge pill, disabled button surfaces).
+- **Neutral 50** (`#fcf9f7`): table-row hover, table-head wash, weekend calendar cells.
 
 ### Named Rules
 
-**The Lime Promise Rule.** Lime appears only on actions and moments that advance leave: today's date, the four leave-creating CTAs, the approved status dot, and the moment leave is approved. It does not appear on settled administrative state, decorative dividers, hover-only flourishes, or the brand logo. If lime would compete with a rose neighbor (Reject button), keep the neighbor and do not adjust either.
+**The Yellow Promise Rule.** Yellow appears only on actions and moments that advance leave: today's date, the four leave-creating CTAs, the approved status dot, and the moment leave is approved. It does not appear on settled administrative state, decorative dividers, hover-only flourishes, or the brand logo. If yellow would compete with a rose neighbor (Reject button), keep the neighbor and do not adjust either.
 
-**The Two-Track Status Rule.** Status is communicated on two tracks: a colored dot (lime / rose / neutral; outlined ring for in-process) on top of a uniform neutral pill. The pill is always `bg-neutral-100`. Color carries state, never the pill. Type discriminators (annual / sick, etc.) live in the text label, never in color.
+**The Two-Track Status Rule.** Status is communicated on two tracks: a colored dot (yellow / rose / neutral; outlined ring for in-process) on top of a uniform neutral pill. The pill is always `bg-neutral-100`. Color carries state, never the pill. Type discriminators (annual / sick, etc.) live in the text label, never in color.
 
-**The Tinted Neutral Rule.** `#000` and `#fff` are prohibited as Tailwind shortcuts. Use `bg-brand-ink` (`#0a0a0a`) and `bg-warm-paper` (`#fafaf9`). White is permitted only as a surface contrast inside cards, inputs, and dialogs over warm paper.
+**The Tinted Neutral Rule.** `#000` and `#fff` are prohibited as Tailwind shortcuts. Use `bg-brand-ink` (`#422016`) and `bg-warm-paper` (`#fbfaf6`). White is permitted only as a surface contrast inside cards, inputs, and dialogs over warm paper.
 
 ## 3. Typography
 
@@ -217,8 +226,8 @@ Flat with two faint lifts. Surfaces are flat at rest. The `.card` and the `Today
 
 **Shape:** Rounded 8px (`rounded-lg`), `min-h-11` (44px floor), `px-4 py-2`, `text-sm` `font-medium`, 1.5 unit gap for icon+label. Every variant inherits the floor.
 
-- **Primary** (`btn-primary`): `bg-brand-ink` (`#0a0a0a`), white text, faint shadow. Hover background lifts to `neutral-800`. For routine administrative actions: Sign in, Save, Add holiday, Send invite.
-- **Accent** (`btn-accent`): `bg-brand-accent` (lime), `text-brand-ink`, `font-bold`. Hover only adjusts brightness (no translate, no glow). For leave-creating actions and the approval payoff (see Lime Promise Rule).
+- **Primary** (`btn-primary`): `bg-brand-ink` (`#422016`), white text, faint shadow. Hover background lifts to `neutral-800`. For routine administrative actions: Sign in, Save, Add holiday, Send invite.
+- **Accent** (`btn-accent`): `bg-brand-accent` (yellow), `text-brand-ink`, `font-bold`. Hover only adjusts brightness (no translate, no glow). For leave-creating actions and the approval payoff (see Yellow Promise Rule).
 - **Secondary** (`btn-secondary`): white background, 1px `neutral-200` border, `text-neutral-700`. Hover lifts to `neutral-50` background. For tertiary actions in dialogs (Keep pending, Keep it).
 - **Danger** (`btn-danger`): `bg-rose-600`, white text. For destructive confirmations (Reject, Cancel request, Delete invite).
 - **Ghost** (`btn-ghost`): transparent, `text-neutral-600`, hover to `neutral-100`. For top-bar Sign out and other recessive controls.
@@ -239,7 +248,7 @@ Every choice list is `components/Select`; the app has no native `<select>`. A na
 
 - **Closed:** the `.input` box exactly, with the header menus' 10px chevron on the right (flips while open). Hover darkens the border to `neutral-300`; open keeps the focus ring. Placeholder text is `neutral-500`, since it carries the prompt ("Add a person…").
 - **Open:** the header-menu panel (white, `rounded-xl`, 1px `neutral-200` border, modal shadow, the `menu-in` drop-in), 6px from the field. At least the field's width and up to 22rem, so descriptions have room; up to 320px tall, then it scrolls. It opens upwards, rising rather than dropping in, when there's more room above.
-- **Rows:** `min-h-11` (44px), `rounded-lg px-3 py-2`. The label in `text-sm`, and an optional description beneath in `text-xs neutral-600` saying what the choice means ("Resets every 1 January", "16 days left in 2026"). The hovered or keyboard-active row gets `bg-neutral-100`; the chosen one is `font-medium` with an ink check mark. Never lime: choosing isn't a leave-creating moment.
+- **Rows:** `min-h-11` (44px), `rounded-lg px-3 py-2`. The label in `text-sm`, and an optional description beneath in `text-xs neutral-600` saying what the choice means ("Resets every 1 January", "16 days left in 2026"). The hovered or keyboard-active row gets `bg-neutral-100`; the chosen one is `font-medium` with an ink check mark. Never yellow: choosing isn't a leave-creating moment.
 - **People pickers** pass `searchable` (a filter box heads the list) and `<Initials>` as each option's `leading` element, the top bar avatar at 24px.
 - **Behaviour:** the WAI-ARIA select-only combobox. Arrow keys, Enter or Space open it without changing the value; arrows, Home/End and Page Up/Down move; typing jumps to a label; Enter or Space chooses; Escape closes (without closing a surrounding dialog); Tab and clicks outside close without choosing. The list renders in the top layer (`popover="manual"`), so cards, scroll areas and modal dialogs never clip it.
 - **Use through `<Field>`** like any input: spread its props onto `<Select>`, which takes `value`, `onChange(value)` and `options` (`{ value, label, description?, leading?, disabled? }`). Without a visible label, pass `aria-label`.
@@ -256,14 +265,14 @@ Every choice list is `components/Select`; the app has no native `<select>`. A na
 
 - **Shape:** rounded-full pill, `px-2 py-0.5`, `text-[11px] font-medium`.
 - **Background:** always `bg-neutral-100`. Never colored.
-- **Dot:** 6px circle (`h-1.5 w-1.5`) preceding the text. Color encodes state: lime (approved), rose (rejected), neutral-400 (cancelled), neutral outline ring (pending).
+- **Dot:** 6px circle (`h-1.5 w-1.5`) preceding the text. Color encodes state: yellow (approved), rose (rejected), neutral-400 (cancelled), neutral outline ring (pending).
 - **Text:** lowercase; cancelled state uses muted `text-neutral-500`. All other states use `text-neutral-800`.
 
 ### Empty States
 
 - **Shape:** `rounded-xl` (12px) container, `px-6 py-12`, centered text.
 - **Info variant:** dashed `neutral-300` border. Title (Bricolage 600 16px) + max-w-sm description (Inter 14px `neutral-500`) + optional action slot.
-- **Positive variant:** solid `neutral-200` border, leading lime dot, no action slot. Used for "you're caught up" states.
+- **Positive variant:** solid `neutral-200` border, leading yellow dot, no action slot. Used for "you're caught up" states.
 
 ### Dialog (Modal)
 
@@ -276,7 +285,7 @@ Every choice list is `components/Select`; the app has no native `<select>`. A na
 
 ### TodayStrip (signature component)
 
-A one-line status bar above each calendar. Shows "Everyone's in today" / "Public holiday" / "N people off today" / upcoming-fortnight summary. A 10px dot encodes activity: lime if today is noteworthy (people off, public holiday), neutral otherwise.
+A one-line status bar above each calendar. Shows "Everyone's in today" / "Public holiday" / "N people off today" / upcoming-fortnight summary. A 10px dot encodes activity: yellow if today is noteworthy (people off, public holiday), neutral otherwise.
 
 ### Calendar (LeaveCalendar + DateRangePicker)
 
@@ -284,14 +293,14 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 - **Header row:** `bg-neutral-50/60`, day labels uppercase Inter 600 10px tracked at 0.1em.
 - **Grid:** `grid-cols-7 gap-px bg-neutral-100` (the gap shows the background as 1px hairlines).
 - **Cell:** `min-h-[68px]` mobile, `min-h-[104px]` desktop. Weekend cells get a `bg-neutral-50/40` wash. Out-of-month and past cells dim to `text-neutral-400`.
-- **Today marker:** lime pill (`bg-brand-accent text-brand-ink`), 20-24px, with `aria-label="Today, [date]"`.
-- **Event badge:** lime background for approved (`bg-brand-accent` for self, `bg-brand-accent/40` for peers); neutral background with dashed border for pending. Type discriminator carried by a `· A` / `· S` suffix in the label (the first letter of any other type's name, with the full name on hover), not by color. Colleagues' leave carries no type at all.
+- **Today marker:** yellow pill (`bg-brand-accent text-brand-ink`), 20-24px, with `aria-label="Today, [date]"`.
+- **Event badge:** yellow background for approved (`bg-brand-accent` for self, `bg-brand-accent/40` for peers); neutral background with dashed border for pending. Type discriminator carried by a `· A` / `· S` suffix in the label (the first letter of any other type's name, with the full name on hover), not by color. Colleagues' leave carries no type at all.
 - **DateRangePicker keyboard:** roving tabindex, arrow keys move focus by day, PageUp/Down by month, Shift+PageUp/Down by year, Home/End to week edges. `role="grid"` on the cell container. When paging months with the arrow buttons leaves the focused day off-screen, the selected start (if visible) or the 1st of the month takes Tab, so the grid never drops out of the tab order.
 - **Admin log-leave picker:** the same DateRangePicker, fed everyone's approved and pending leave. The chosen employee's own leave is blocked (`bg-rose-100`, struck through, as on the employee form), past days stay selectable for backfills, and colleagues off sit inside each day: first-name chips from `sm` up (`bg-brand-accent/40` approved, dashed outline pending; two rows at most, the second ending in `+N`) and dots on phones. Cells grow to `min-h-[60px]` from `sm` to fit them. Under the grid, the selection line names everyone else off in that range (the only place phones show names), followed by a legend for the swatches.
 
 ### Navigation (TopBar)
 
-- **Desktop:** sticky `h-14`, `border-b neutral-200`, white-with-blur backdrop (`bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur`). Three zones: logo + Inter 700 10px "Leave" tag on the left, page links in the middle, account on the right. From `lg` a `1fr auto 1fr` grid puts the links on the page's true center; between `md` and `lg` they center in the space between logo and account. The logo is the only link home (Overview for admins, Team availability for staff); neither nav repeats it. Staff links: Request leave, My requests, Account, Help; their account zone is the initials avatar, name (truncated past 10rem, full name on hover) and ghost Sign-out. Both roles switch from the drawer to the bar at `md`.
+- **Desktop:** sticky `h-14`, `border-b neutral-200`, white-with-blur backdrop (`bg-white/80 supports-[backdrop-filter]:bg-white/70 backdrop-blur`). Three zones: the Whooo wordmark (`/whooo-logo.svg`, 24px tall) on the left, page links in the middle, account on the right. From `lg` a `1fr auto 1fr` grid puts the links on the page's true center; between `md` and `lg` they center in the space between logo and account. The logo is the only link home (Overview for admins, Team availability for staff); neither nav repeats it. Staff links: Request leave, My requests, Account, Help; their account zone is the initials avatar, name (truncated past 10rem, full name on hover) and ghost Sign-out. Both roles switch from the drawer to the bar at `md`.
 - **Admin desktop:** only the pages admins open most sit on the bar: Who's off and Requests (with its pending badge). The rest wait one click away in two menus, **People** (Employees, Hierarchy, Leave policies, Invites) and **Workspace** (Holidays, Integrations, Settings), and the avatar on the right opens an account menu (name, email, Account, Sign out).
 - **Header menus:** the trigger looks like a bar link plus a 10px chevron, which flips and keeps the `neutral-100` wash while open. The panel is white, `rounded-xl`, 1px `neutral-200` border, modal shadow, hung 6px below the bar, with `rounded-lg` `px-3 py-2` rows. Built as a disclosure (an `aria-expanded` button over plain links), not `role="menu"`: Tab walks the links, arrow keys move between them, and Escape (focus returns to the trigger), a click outside, tabbing away or following a link closes it.
 - **Mobile:** hamburger triggers a right-side drawer (`w-[78vw] max-w-xs`, `h-dvh`, `inert` when closed, focus trapped when open). Returns focus to the hamburger on close. The drawer stays one flat list, admin menu pages included.
@@ -300,11 +309,11 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 
 ### Do:
 
-- **Do** use lime (`brand-accent`) only on today's date marker, the four leave-creating CTAs (Request leave, Submit request, Log leave for employee, Approve), the "approved" status dot, and the approval banner. Nowhere else.
+- **Do** use yellow (`brand-accent`) only on today's date marker, the four leave-creating CTAs (Request leave, Submit request, Log leave for employee, Approve), the "approved" status dot, and the approval banner. Nowhere else.
 - **Do** route every form input through `<Field>` so `htmlFor` and `aria-describedby` are guaranteed.
 - **Do** use `components/Select` for every choice list, with a description on options whose meaning isn't obvious from the label. Never a native `<select>`.
 - **Do** route every confirm / destructive interaction through `<Dialog>`, never `window.confirm/alert/prompt`.
-- **Do** use `bg-brand-ink` (`#0a0a0a`) instead of `bg-black`, and `text-brand-ink` instead of `text-black`. Same for opacity modifiers (`bg-brand-ink/10`).
+- **Do** use `bg-brand-ink` (`#422016`) instead of `bg-black`, and `text-brand-ink` instead of `text-black`. Same for opacity modifiers (`bg-brand-ink/10`).
 - **Do** use `text-neutral-500` as the contrast floor for body and meta text. `neutral-400` is for genuinely decorative or `aria-disabled` content only.
 - **Do** keep buttons and inputs at the `min-h-11` (44px) touch floor. Inherit from `.btn` and `.input`; don't override below.
 - **Do** give every interactive element a visible `focus-visible` state (ring or border shift).
@@ -322,7 +331,7 @@ A one-line status bar above each calendar. Shows "Everyone's in today" / "Public
 - **Don't** use glassmorphism decoratively. The sticky `TopBar` blur is the only sanctioned use.
 - **Don't** ship the hero-metric template (big number, small label, supporting stats, gradient accent). `BalanceCards` was deliberately refactored away from this pattern; keep it inline. The line itself stays annual and sick only; every other type waits behind its **All leave types** button, in a dialog listing one row per type (name left, days left or the cap per occasion right, the template's note and what's been taken underneath). An employee's admin page shows the same as a statement list (`LeaveOverview`), for the same reason.
 - **Don't** use `window.alert/confirm/prompt`. Ever.
-- **Don't** use emerald, amber, indigo, sky, violet, teal, cyan. The status palette is lime + rose + neutral, period.
+- **Don't** use emerald, amber, indigo, sky, violet, teal, cyan. The status palette is yellow + rose + neutral, period.
 - **Don't** use em dashes (`—` or `--`). Use commas, colons, semicolons, periods, or parentheses.
 - **Don't** apply hover effects that stack translate + scale + colored glow. The `btn-accent` hover is brightness-only by design.
 - **Don't** wrap text in `<label>` siblings to inputs without `htmlFor`. Always use `<Field>`.

@@ -198,7 +198,7 @@ async function checkApprovalScopes(
   } catch (e) {
     const code = (e as { slackCode?: string }).slackCode;
     if (code === "users_not_found") {
-      return `Slack has no account for ${email}. Approvals are sent to admins by matching their Blackbird Leave email to their Slack email — use the same address in both.`;
+      return `Slack has no account for ${email}. Approvals are sent to admins by matching their Whooo email to their Slack email — use the same address in both.`;
     }
     if (code === "missing_scope") {
       return "The Slack app needs the users:read and users:read.email scopes to find admins. Add them under OAuth & Permissions, reinstall the app, then try again.";

@@ -36,7 +36,7 @@ export const dynamic = "force-dynamic";
  * and Google ignore this and read `X-WR-CALNAME` out of the feed itself, where
  * the name does appear; only Microsoft takes it from the URL.
  */
-const CALENDAR_NAME = "Blackbird Leave - Out of office";
+const CALENDAR_NAME = "Whooo - Out of office";
 
 function targetFor(app: string, feed: string): string | null {
   // Apple and Google want the webcal form; Microsoft wants the https one.

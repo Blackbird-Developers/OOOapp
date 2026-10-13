@@ -64,7 +64,7 @@ export type LeaveEvent = {
 };
 
 export type OrganizerIdentity = {
-  /** Display name on the ORGANIZER line, e.g. "Blackbird Leave". */
+  /** Display name on the ORGANIZER line, e.g. "Whooo". */
   name: string;
   /** Address on the ORGANIZER line. Never receives replies; RSVP is off. */
   email: string;
@@ -87,7 +87,7 @@ export type FeedEntry = LeaveEvent & {
   cancelled?: boolean;
 };
 
-const PRODID = "-//Blackbird Marketing//Blackbird Leave//EN";
+const PRODID = "-//Blackbird Marketing//Whooo//EN";
 
 /**
  * The domain half of every UID. Derived from the deployment URL so two
@@ -164,7 +164,7 @@ function descriptionFor(e: LeaveEvent): string {
   const dayWord = e.days === 1 ? "day" : "days";
   const lines = [
     `${e.personName} is out of office.`,
-    `${e.days} ${dayWord} of leave, booked in Blackbird Leave.`,
+    `${e.days} ${dayWord} of leave, booked in Whooo.`,
   ];
   const half = halfDayNote(e);
   if (half) lines.push(`Note: ${half}.`);

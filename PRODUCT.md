@@ -18,23 +18,23 @@ Success looks like: an employee can book leave in under thirty seconds, an admin
 
 ## Brand Personality
 
-Calm, fast, out of the way. Quiet utility in the spirit of Linear, Stripe, and Vercel — but rendered in Blackbird's existing identity: black, near-black ink, and a single lime accent (`#D7FF36`). Restraint is the personality. The lime is a promise reserved for primary actions, confirmations, and the present moment on the calendar — never decoration.
+The product is called **Whooo** (as in "who's off"). Calm, fast, out of the way. Quiet utility in the spirit of Linear, Stripe, and Vercel, rendered in the Whooo identity: the serif Whooo logotype, warm brown ink (`#422016`), and a single yellow accent (`#FCFA64`). Restraint is the personality. The yellow is a promise reserved for primary actions, confirmations, and the present moment on the calendar, never decoration.
 
 A small amount of delight is allowed at the moment of payoff (the approval celebration already in the code is correct). Default state everywhere else is silence.
 
 ## Anti-references
 
 - **Enterprise HR software** (BambooHR, Workday, ADP, Personio). Heavy chrome, cluttered nav, corporate blue, stock photography, tabs nested in tabs. Everything we are not.
-- The generic Tailwind / shadcn reflex: gray-on-white, `neutral-500` everywhere, `rounded-lg shadow-sm` on every card. Nothing that signals Blackbird.
+- The generic Tailwind / shadcn reflex: gray-on-white, `neutral-500` everywhere, `rounded-lg shadow-sm` on every card. Nothing that signals Whooo.
 - Cheery SaaS templates: pastel cards, gradient hero metrics, identical card grids, illustrated empty states with cartoon characters.
 - Brand showcase as obstacle: animations that delay the task, oversized type that hurts density, branding louder than the action.
 
 ## Design Principles
 
 1. **The task in seconds.** Every screen optimizes for the one primary action a user came to do. Secondary information is reachable, not in the way.
-2. **Lime is a promise, not decoration.** The accent appears only on primary CTAs, confirmation states, and the "today" marker. If it shows up everywhere, it means nothing.
+2. **Yellow is a promise, not decoration.** The accent appears only on primary CTAs, confirmation states, and the "today" marker. If it shows up everywhere, it means nothing.
 3. **Restraint over richness.** A tool used twice a month should feel generous with space and ruthless with elements. Density and dashboards are not the goal.
-4. **Distinctly Blackbird, never enterprise.** Display typography, sharp craft, monochrome plus the single lime. The opposite of BambooHR in every visible choice.
+4. **Distinctly Whooo, never enterprise.** Display typography, sharp craft, brown ink plus the single yellow. The opposite of BambooHR in every visible choice.
 5. **Quiet by default, expressive at payoff.** Default state is silence. Reserve delight for the small set of moments that genuinely matter (approval landing, request submitted, year resets) and never inflate them.
 
 ## Accessibility & Inclusion
@@ -44,6 +44,6 @@ WCAG AA baseline:
 - Full keyboard navigation across forms, calendar, and admin tables. Visible focus rings on every interactive element.
 - All interactive controls reachable via Tab, with logical order. No keyboard traps.
 - Every form input has a programmatic label; errors are announced and visible.
-- Lime should not be the sole signal for status — pair color with text, icon, or shape so colorblind users do not depend on the accent.
+- Yellow should not be the sole signal for status — pair color with text, icon, or shape so colorblind users do not depend on the accent.
 
 No known specific user needs beyond standard AA.

@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #fafaf9;
-  --foreground: #0a0a0a;
-  --accent: #D7FF36;
+  --background: #fbfaf6;
+  --foreground: #422016;
+  --accent: #FCFA64;
   /* The family names the @fontsource-variable packages register (app/layout.tsx). */
   --font-inter: "Inter Variable";
   --font-display: "Bricolage Grotesque Variable";
@@ -37,8 +37,11 @@ h1, h2, h3, h4, h5, h6 {
 .input {
   @apply w-full min-h-11 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-ink/10 focus:border-neutral-400 aria-[invalid=true]:border-rose-300 aria-[invalid=true]:focus:ring-rose-100;
 }
+/* Yellow is too pale to read as a small dot on white on its own, so status
+   dots carry a faint ink edge. Same size as a plain dot. */
+.dot-accent { @apply bg-brand-accent ring-1 ring-inset ring-brand-ink/40; }
 .label { @apply block text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 mb-1.5; }
-.card  { @apply bg-white rounded-2xl border border-neutral-200 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-12px_rgba(0,0,0,0.08)]; }
+.card  { @apply bg-white rounded-2xl border border-neutral-200 shadow-[0_1px_2px_rgba(66,32,22,0.04),0_8px_24px_-12px_rgba(66,32,22,0.10)]; }
 
 /* Soft page background helper for top-level layouts */
 .bg-app { background: var(--background); }
@@ -88,5 +91,5 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Public holidays on the team calendar: faint diagonal hatching, which no leave colour uses. */
 .holiday-hatch {
-  background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgb(115 115 115 / 0.16) 6px 7px);
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgb(126 112 102 / 0.16) 6px 7px);
 }

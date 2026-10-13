@@ -57,7 +57,7 @@ export async function GET(
   return new Response(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'inline; filename="blackbird-leave.ics"',
+      "Content-Disposition": 'inline; filename="whooo.ics"',
       // Never let Vercel's edge or any proxy hold a copy: the URL is a bearer
       // credential and the body is one person's leave.
       "Cache-Control": "no-store, private",

@@ -8,9 +8,9 @@ import {
 import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = process.env.RESEND_FROM ?? "Blackbird Leave <onboarding@resend.dev>";
+const FROM = process.env.RESEND_FROM ?? "Whooo <onboarding@resend.dev>";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-const SUBJECT_PREFIX = "Blackbird Leave";
+const SUBJECT_PREFIX = "Whooo";
 
 /**
  * An iCalendar document travelling with an email.
@@ -96,11 +96,11 @@ async function send(
 }
 
 const wrap = (body: string) => `
-<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a">
-  <h2 style="margin:0 0 16px;color:#0f172a">Blackbird Leave</h2>
+<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#422016">
+  <img src="${SITE}/whooo-email-logo.png" width="120" height="29" alt="Whooo" style="display:block;margin:0 0 20px;border:0;font-size:22px;font-weight:700;color:#422016"/>
   ${body}
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-  <p style="font-size:12px;color:#64748b;margin:0">Blackbird Leave · <a href="${SITE}" style="color:#6366f1">Open dashboard</a></p>
+  <hr style="border:none;border-top:1px solid #eae4df;margin:24px 0"/>
+  <p style="font-size:12px;color:#7e7066;margin:0">Whooo · <a href="${SITE}" style="color:#422016">Open dashboard</a></p>
 </div>
 `;
 
@@ -148,8 +148,8 @@ function detailTable(rows: Array<[string, string]>): string {
     .map(
       ([label, value]) => `
         <tr>
-          <td style="padding:5px 16px 5px 0;font-size:13px;line-height:20px;color:#64748b;vertical-align:top;white-space:nowrap">${label}</td>
-          <td style="padding:5px 0;font-size:14px;line-height:20px;color:#0f172a;vertical-align:top">${value}</td>
+          <td style="padding:5px 16px 5px 0;font-size:13px;line-height:20px;color:#7e7066;vertical-align:top;white-space:nowrap">${label}</td>
+          <td style="padding:5px 0;font-size:14px;line-height:20px;color:#422016;vertical-align:top">${value}</td>
         </tr>`
     )
     .join("");
@@ -168,8 +168,8 @@ function buttonRow(buttons: Array<{ href: string; label: string; primary?: boole
   const cells = buttons
     .map(({ href, label, primary }, i) => {
       const style = primary
-        ? "background:#0f172a;border:1px solid #0f172a;color:#ffffff"
-        : "background:#ffffff;border:1px solid #cbd5e1;color:#0f172a";
+        ? "background:#422016;border:1px solid #422016;color:#ffffff"
+        : "background:#ffffff;border:1px solid #cbd5e1;color:#422016";
       return `<td style="padding:0 ${i === buttons.length - 1 ? "0" : "8px"} 0 0">
         <a href="${href}" style="display:inline-block;${style};font-size:13px;font-weight:600;line-height:18px;padding:9px 14px;border-radius:8px;text-decoration:none">${label}</a>
       </td>`;
@@ -196,21 +196,21 @@ function buttonRow(buttons: Array<{ href: string; label: string; primary?: boole
 function subscribeBlock(feedUrl: string, opts: { showAddress: boolean }): string {
   const links = subscribeLinks(feedUrl);
 
-  const personal = `<a href="${links.outlookPersonal}" style="color:#6366f1;text-decoration:none">personal Outlook.com account</a>`;
+  const personal = `<a href="${links.outlookPersonal}" style="color:#422016;text-decoration:none">personal Outlook.com account</a>`;
 
   // The raw address earns its space in the one-off setup email, where somebody
   // is sitting down to do this. Repeating it in every approval for the rest of
   // their employment would just be a wall of hex under a day off.
   const address = opts.showAddress
-    ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#64748b">
+    ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#7e7066">
          Got a ${personal}? Use that link instead. To add it by hand anywhere
          else (Add calendar &rarr; Subscribe from web):<br />
-         <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#334155;word-break:break-all">${feedUrl}</span>
+         <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#5b3f36;word-break:break-all">${feedUrl}</span>
        </p>`
-    : `<p style="margin:10px 0 0;font-size:12px;line-height:18px;color:#64748b">
+    : `<p style="margin:10px 0 0;font-size:12px;line-height:18px;color:#7e7066">
          Got a ${personal}? Use that link instead. Every option, and the
          address to paste by hand, is on
-         <a href="${SITE}/dashboard/account" style="color:#6366f1">your account page</a>.
+         <a href="${SITE}/dashboard/account" style="color:#422016">your account page</a>.
        </p>`;
 
   return `
@@ -255,7 +255,7 @@ function calendarPanel(opts: {
   const added = opts.method === "REQUEST";
   // Indigo for a booking that now exists, slate for one that has gone. The
   // colour is the fastest signal in the email of which of the two happened.
-  const accent = added ? "#6366f1" : "#94a3b8";
+  const accent = added ? "#422016" : "#aba097";
   const heading = added ? "Added to your calendar" : "Removed from your calendar";
   const file = added ? "invite.ics" : "cancel.ics";
 
@@ -273,9 +273,9 @@ function calendarPanel(opts: {
   const subscribe =
     added && opts.subscribeUrl
       ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:14px 0 0">
-           <tr><td style="border-top:1px solid #e2e8f0;padding:14px 0 0">
-             <p style="margin:0 0 10px;font-size:13px;line-height:19px;color:#475569">
-               <strong style="color:#0f172a">Set it up once and never open an attachment again.</strong>
+           <tr><td style="border-top:1px solid #eae4df;padding:14px 0 0">
+             <p style="margin:0 0 10px;font-size:13px;line-height:19px;color:#665547">
+               <strong style="color:#422016">Set it up once and never open an attachment again.</strong>
                Subscribe your calendar and every approved booking lands on its own.
              </p>
              ${subscribeBlock(opts.subscribeUrl, { showAddress: false })}
@@ -286,12 +286,12 @@ function calendarPanel(opts: {
   const tile = tileParts(opts.startDate);
   const tileCell = tile
     ? `<td width="46" valign="top" style="width:46px;padding-right:14px">
-         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="46" style="width:46px;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;background:#ffffff">
+         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="46" style="width:46px;border-collapse:collapse;border:1px solid #eae4df;border-radius:8px;background:#ffffff">
            <tr>
              <td align="center" bgcolor="${accent}" style="background:${accent};border-radius:7px 7px 0 0;color:#ffffff;font-size:10px;line-height:14px;font-weight:700;letter-spacing:1px;padding:3px 0">${tile.month}</td>
            </tr>
            <tr>
-             <td align="center" style="color:#0f172a;font-size:20px;line-height:24px;font-weight:700;padding:5px 0 7px">${tile.day}</td>
+             <td align="center" style="color:#422016;font-size:20px;line-height:24px;font-weight:700;padding:5px 0 7px">${tile.day}</td>
            </tr>
          </table>
        </td>`
@@ -300,17 +300,17 @@ function calendarPanel(opts: {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:20px 0">
       <tr>
-        <td style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${accent};border-radius:10px;padding:16px 18px">
+        <td style="background:#fcf9f7;border:1px solid #eae4df;border-left:3px solid ${accent};border-radius:10px;padding:16px 18px">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
             <tr>
               ${tileCell}
               <td valign="top">
-                <p style="margin:0;font-size:15px;line-height:20px;font-weight:600;color:#0f172a">${heading}</p>
-                <p style="margin:5px 0 0;font-size:13px;line-height:19px;color:#334155">Shows as &ldquo;Out of office&rdquo; &middot; ${prettyRange(opts.startDate, opts.endDate)}</p>
+                <p style="margin:0;font-size:15px;line-height:20px;font-weight:600;color:#422016">${heading}</p>
+                <p style="margin:5px 0 0;font-size:13px;line-height:19px;color:#5b3f36">Shows as &ldquo;Out of office&rdquo; &middot; ${prettyRange(opts.startDate, opts.endDate)}</p>
               </td>
             </tr>
           </table>
-          <p style="margin:14px 0 0;font-size:13px;line-height:20px;color:#475569">${explanation}</p>
+          <p style="margin:14px 0 0;font-size:13px;line-height:20px;color:#665547">${explanation}</p>
           ${subscribe}
         </td>
       </tr>
@@ -334,7 +334,7 @@ export async function emailNewRequestToAdmins(opts: {
       <li><strong>Days:</strong> ${opts.days}</li>
       ${opts.reason ? `<li><strong>Reason:</strong> ${escapeHtml(opts.reason)}</li>` : ""}
     </ul>
-    <p><a href="${SITE}/admin" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review in dashboard</a></p>
+    <p><a href="${SITE}/admin" style="display:inline-block;background:#422016;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review in dashboard</a></p>
   `;
   await send(opts.adminEmails, `Leave request from ${opts.employeeName} (${opts.days}d)`, wrap(body));
 }
@@ -349,7 +349,7 @@ export async function emailEditedRequestToAdmins(opts: {
   const changed = (a: string | number, b: string | number) =>
     a === b
       ? `${escapeHtml(String(b))}`
-      : `<s style="color:#94a3b8">${escapeHtml(String(a))}</s> → <strong>${escapeHtml(String(b))}</strong>`;
+      : `<s style="color:#aba097">${escapeHtml(String(a))}</s> → <strong>${escapeHtml(String(b))}</strong>`;
 
   const { before, after } = opts;
   const body = `
@@ -365,7 +365,7 @@ export async function emailEditedRequestToAdmins(opts: {
       <li><strong>Days:</strong> ${changed(before.days, after.days)}</li>
       <li><strong>Reason:</strong> ${changed(before.reason || "—", after.reason || "—")}</li>
     </ul>
-    <p><a href="${SITE}/admin" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review in dashboard</a></p>
+    <p><a href="${SITE}/admin" style="display:inline-block;background:#422016;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review in dashboard</a></p>
   `;
   await send(opts.adminEmails, `Leave request edited by ${opts.employeeName} (${after.days}d)`, wrap(body));
 }
@@ -388,7 +388,7 @@ export async function emailCancelledRequestToAdmins(opts: {
       <li><strong>Days:</strong> ${opts.days}</li>
       ${opts.reason ? `<li><strong>Original reason:</strong> ${escapeHtml(opts.reason)}</li>` : ""}
     </ul>
-    <p><a href="${SITE}/admin" style="color:#6366f1">View requests</a></p>
+    <p><a href="${SITE}/admin" style="color:#422016">View requests</a></p>
   `;
   await send(
     opts.adminEmails,
@@ -438,7 +438,7 @@ export async function emailDecisionToEmployee(opts: {
           })
         : ""
     }
-    <p style="margin:16px 0 0;font-size:14px"><a href="${SITE}/dashboard" style="color:#6366f1">View your dashboard</a></p>
+    <p style="margin:16px 0 0;font-size:14px"><a href="${SITE}/dashboard" style="color:#422016">View your dashboard</a></p>
   `;
   await send(
     opts.to,
@@ -474,10 +474,10 @@ export async function emailCalendarWithdrawn(opts: {
       startDate: opts.startDate,
       endDate: opts.endDate,
     })}
-    <p style="margin:0;font-size:13px;line-height:20px;color:#475569">
+    <p style="margin:0;font-size:13px;line-height:20px;color:#665547">
       A fresh calendar entry goes out as soon as the new dates are approved.
     </p>
-    <p style="margin:16px 0 0;font-size:14px"><a href="${SITE}/dashboard/my-requests" style="color:#6366f1">View your requests</a></p>
+    <p style="margin:16px 0 0;font-size:14px"><a href="${SITE}/dashboard/my-requests" style="color:#422016">View your requests</a></p>
   `;
   await send(
     opts.to,
@@ -510,16 +510,16 @@ export async function emailCalendarSetup(opts: {
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:0 0 16px">
       <tr>
-        <td style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid #6366f1;border-radius:10px;padding:16px 18px">
-          <p style="margin:0 0 12px;font-size:15px;line-height:20px;font-weight:600;color:#0f172a">Your out-of-office calendar</p>
+        <td style="background:#fcf9f7;border:1px solid #eae4df;border-left:3px solid #422016;border-radius:10px;padding:16px 18px">
+          <p style="margin:0 0 12px;font-size:15px;line-height:20px;font-weight:600;color:#422016">Your out-of-office calendar</p>
           ${subscribeBlock(opts.feedUrl, { showAddress: true })}
         </td>
       </tr>
     </table>
-    <p style="margin:0;font-size:12px;line-height:18px;color:#64748b">
+    <p style="margin:0;font-size:12px;line-height:18px;color:#7e7066">
       That address is personal to you — anyone holding it can see when you&rsquo;re off, so treat it
       like a password. You can replace it at any time from
-      <a href="${SITE}/dashboard/account" style="color:#6366f1">your account page</a>, which stops
+      <a href="${SITE}/dashboard/account" style="color:#422016">your account page</a>, which stops
       the old one working immediately.
     </p>
   `;
@@ -534,9 +534,9 @@ export async function emailInvite(opts: {
   const url = `${SITE}/invite/${opts.token}`;
   const body = `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>You've been invited to join Blackbird Leave.</p>
-    <p><a href="${url}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Accept invite & set password</a></p>
-    <p style="font-size:12px;color:#64748b">This link expires in 7 days.</p>
+    <p>You've been invited to join Whooo.</p>
+    <p><a href="${url}" style="display:inline-block;background:#422016;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Accept invite & set password</a></p>
+    <p style="font-size:12px;color:#7e7066">This link expires in 7 days.</p>
   `;
   await send(opts.to, "You're invited", wrap(body));
 }
@@ -549,14 +549,14 @@ export async function emailPasswordReset(opts: {
   const url = `${SITE}/reset-password/${opts.token}`;
   const body = `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>We received a request to reset the password on your Blackbird Leave account.</p>
-    <p><a href="${url}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Choose a new password</a></p>
-    <p style="font-size:12px;color:#64748b">This link expires in 1 hour. If you didn't request this, you can safely ignore the email — your password won't change.</p>
+    <p>We received a request to reset the password on your Whooo account.</p>
+    <p><a href="${url}" style="display:inline-block;background:#422016;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Choose a new password</a></p>
+    <p style="font-size:12px;color:#7e7066">This link expires in 1 hour. If you didn't request this, you can safely ignore the email — your password won't change.</p>
   `;
   await send(opts.to, "Reset your password", wrap(body));
 }
 
-const BUTTON = "display:inline-block;background:#6366f1;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none";
+const BUTTON = "display:inline-block;background:#422016;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none";
 
 /**
  * The link that finishes a self-service sign-up. The same email covers every
@@ -579,20 +579,20 @@ export async function emailSignupLink(opts: {
     opts.kind === "create"
       ? `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>Confirm your email to create <strong>${company}</strong> on Blackbird Leave. You'll be its first admin.</p>
-    ${opts.details ? `<p style="font-size:13px;color:#475569">${escapeHtml(opts.details)}</p>` : ""}
+    <p>Confirm your email to create <strong>${company}</strong> on Whooo. You'll be its first admin.</p>
+    ${opts.details ? `<p style="font-size:13px;color:#665547">${escapeHtml(opts.details)}</p>` : ""}
     <p><a href="${url}" style="${BUTTON}">Confirm & set password</a></p>
-    <p style="font-size:12px;color:#64748b">This link expires in 7 days. If you didn't ask for this, ignore the email and nothing will be created.</p>
+    <p style="font-size:12px;color:#7e7066">This link expires in 7 days. If you didn't ask for this, ignore the email and nothing will be created.</p>
   `
       : `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
     <p>${
       opts.viaDomain
-        ? `<strong>${company}</strong> already uses Blackbird Leave, and anyone with your work email can join.`
-        : `You're joining <strong>${company}</strong> on Blackbird Leave.`
+        ? `<strong>${company}</strong> already uses Whooo, and anyone with your work email can join.`
+        : `You're joining <strong>${company}</strong> on Whooo.`
     } Confirm your email to finish.</p>
     <p><a href="${url}" style="${BUTTON}">Confirm & set password</a></p>
-    <p style="font-size:12px;color:#64748b">This link expires in 7 days. If you didn't ask for this, ignore the email and nothing will be created.</p>
+    <p style="font-size:12px;color:#7e7066">This link expires in 7 days. If you didn't ask for this, ignore the email and nothing will be created.</p>
   `;
   await send(
     opts.to,
@@ -605,20 +605,20 @@ export async function emailSignupLink(opts: {
 export async function emailCompanyExists(opts: { to: string; fullName: string; companyName: string }) {
   const body = `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>Someone tried to create a company on Blackbird Leave with this email, but <strong>${escapeHtml(opts.companyName)}</strong> is already set up for your email domain, and each domain can only have one company.</p>
+    <p>Someone tried to create a company on Whooo with this email, but <strong>${escapeHtml(opts.companyName)}</strong> is already set up for your email domain, and each domain can only have one company.</p>
     <p>Ask whoever runs it at your company to invite you. If you don't know who set it up, your IT team can help.</p>
-    <p style="font-size:12px;color:#64748b">If you didn't ask for this, ignore the email.</p>
+    <p style="font-size:12px;color:#7e7066">If you didn't ask for this, ignore the email.</p>
   `;
-  await send(opts.to, `${opts.companyName} is already on Blackbird Leave`, wrap(body));
+  await send(opts.to, `${opts.companyName} is already on Whooo`, wrap(body));
 }
 
 /** Sent instead of a sign-up link when the address already has an account. */
 export async function emailAccountExists(opts: { to: string; fullName: string }) {
   const body = `
     <p>Hi ${escapeHtml(opts.fullName)},</p>
-    <p>Someone tried to sign up to Blackbird Leave with this email, but you already have an account.</p>
+    <p>Someone tried to sign up to Whooo with this email, but you already have an account.</p>
     <p><a href="${SITE}/login" style="${BUTTON}">Sign in</a></p>
-    <p style="font-size:12px;color:#64748b">Forgotten your password? <a href="${SITE}/forgot-password">Reset it here</a>. If this wasn't you, you can ignore this email.</p>
+    <p style="font-size:12px;color:#7e7066">Forgotten your password? <a href="${SITE}/forgot-password">Reset it here</a>. If this wasn't you, you can ignore this email.</p>
   `;
   await send(opts.to, "You already have an account", wrap(body));
 }
