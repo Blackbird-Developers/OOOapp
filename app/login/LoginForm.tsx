@@ -36,14 +36,14 @@ export default function LoginForm() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-8">
           <Image
-            src="/blackbird-logo.svg"
-            alt="Blackbird"
-            width={140}
-            height={24}
+            src="/whooo-logo.svg"
+            alt="Whooo"
+            width={132}
+            height={32}
             priority
-            className="h-6 w-auto"
+            className="h-8 w-auto"
           />
-          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-500">Leave</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-500">Who&rsquo;s off</span>
         </div>
 
         <form onSubmit={onSubmit} className="card p-8 space-y-5">
@@ -62,7 +62,7 @@ export default function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                placeholder="you@blackbird.marketing"
+                placeholder="you@company.com"
               />
             )}
           </Field>
@@ -102,7 +102,7 @@ export default function LoginForm() {
           </button>
 
           <p className="text-xs text-neutral-500 text-center pt-2">
-            New to Blackbird Leave?{" "}
+            New to Whooo?{" "}
             <Link href="/signup" className="font-medium text-neutral-900 hover:underline">
               Create a company
             </Link>

@@ -124,7 +124,7 @@ export async function verifySlackToken(token: string): Promise<SlackTokenCheck> 
 function explainSlackError(code: string): string {
   switch (code) {
     case "not_in_channel":
-      return "The bot isn't a member of that channel. Invite it with /invite @Blackbird Leave in the channel.";
+      return "The bot isn't a member of that channel. Invite it with /invite @Whooo in the channel.";
     case "channel_not_found":
       return "That channel ID doesn't match a channel this bot can see. Check the ID and that the app is installed.";
     case "invalid_auth":
@@ -231,7 +231,7 @@ function section(markdown: string): SlackBlock {
 function footer(label: string): SlackBlock {
   return {
     type: "context",
-    elements: [{ type: "mrkdwn", text: `${esc(label)}  ·  <${SITE}/dashboard|Open Blackbird Leave>` }],
+    elements: [{ type: "mrkdwn", text: `${esc(label)}  ·  <${SITE}/dashboard|Open Whooo>` }],
   };
 }
 

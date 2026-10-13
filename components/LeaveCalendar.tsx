@@ -384,7 +384,7 @@ function LegendDialog({
       title="Calendar colours"
       description={
         forViewer
-          ? "Your own leave is coloured by type. Colleagues show in lime, without their leave type."
+          ? "Your own leave is coloured by type. Colleagues show in yellow, without their leave type."
           : "Each type of leave has its own colour."
       }
       footer={

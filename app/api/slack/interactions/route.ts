@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   const payload = parsePayload(rawBody);
   if (!payload) return new NextResponse("Bad request", { status: 400 });
 
-  // The "Open in Blackbird Leave" link button still reports its press. Nothing
+  // The "Open in Whooo" link button still reports its press. Nothing
   // to do — Slack only needs the acknowledgement.
   const action = payload.actions?.[0];
   if (payload.type === "block_actions" && action?.action_id === OPEN_ACTION) {
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
   const respond = (text: string) => replyPrivately(payload, text);
 
   if (!(await loadSlackApprovalConfig(leave.organization_id))) {
-    await respond(`Approving in Slack is switched off. Decide it in Blackbird Leave instead: ${SITE}/admin/requests`);
+    await respond(`Approving in Slack is switched off. Decide it in Whooo instead: ${SITE}/admin/requests`);
     return new NextResponse(null, { status: 200 });
   }
 

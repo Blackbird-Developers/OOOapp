@@ -142,7 +142,7 @@ function InviteStatus({ invite }: { invite: { used_at: string | null; expires_at
       {key === "pending" ? (
         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-transparent ring-[1.5px] ring-inset ring-neutral-500" />
       ) : key === "accepted" ? (
-        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-brand-accent" />
+        <span aria-hidden className="h-1.5 w-1.5 rounded-full dot-accent" />
       ) : (
         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-rose-500" />
       )}

@@ -109,11 +109,11 @@ export async function saveCalendarSettings(
  * `Name <address@domain>`, but a bare address is also valid, so both parse.
  */
 export function organizerIdentity(): OrganizerIdentity {
-  const raw = process.env.RESEND_FROM ?? "Blackbird Leave <onboarding@resend.dev>";
+  const raw = process.env.RESEND_FROM ?? "Whooo <onboarding@resend.dev>";
   const match = raw.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
   if (match) {
     const name = match[1].replace(/^"|"$/g, "").trim();
-    return { name: name || "Blackbird Leave", email: match[2].trim() };
+    return { name: name || "Whooo", email: match[2].trim() };
   }
-  return { name: "Blackbird Leave", email: raw.trim() };
+  return { name: "Whooo", email: raw.trim() };
 }

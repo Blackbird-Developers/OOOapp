@@ -20,7 +20,7 @@ export default function TodayStrip({
   // Lime when today itself has activity worth knowing about; neutral otherwise.
   // The dot just signals "is right-now noteworthy?"; the title carries the meaning.
   const hasTodayActivity = !!holidayToday || peersOff.length > 0 || isYouOff;
-  const dot = hasTodayActivity ? "bg-brand-accent" : "bg-neutral-300";
+  const dot = hasTodayActivity ? "dot-accent" : "bg-neutral-300";
 
   let title = "Everyone's in today";
   let detail = "Nothing on the calendar for today.";

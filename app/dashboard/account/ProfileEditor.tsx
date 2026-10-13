@@ -115,7 +115,7 @@ export default function ProfileEditor({
       {error && <p className="text-sm text-rose-600">{error}</p>}
       {saved && !error && (
         <p className="text-sm text-neutral-700">
-          <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
+          <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full dot-accent align-middle" />
           Saved.
         </p>
       )}

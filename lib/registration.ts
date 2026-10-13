@@ -403,7 +403,7 @@ export async function completeSignup(token: string, password: string): Promise<C
         return {
           ok: false,
           status: 409,
-          error: "Your company was set up on Blackbird Leave while you were signing up. Ask its admin to invite you.",
+          error: "Your company was set up on Whooo while you were signing up. Ask its admin to invite you.",
         };
       }
       console.error("[signup] could not create the organization:", error?.message);

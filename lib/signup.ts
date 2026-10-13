@@ -191,7 +191,7 @@ export function defaultCustomPolicy(country: string | null) {
 export function declarationText(companyName: string, jobTitle: string): string {
   const company = companyName.trim() || "this company";
   const title = jobTitle.trim() || "an employee";
-  return `I confirm that I work at ${company} as ${title}, that I'm authorised to set up Blackbird Leave for ${company}, and that the details I've given are true.`;
+  return `I confirm that I work at ${company} as ${title}, that I'm authorised to set up Whooo for ${company}, and that the details I've given are true.`;
 }
 
 export const companySignupSchema = z.object({

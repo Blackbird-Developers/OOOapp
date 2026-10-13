@@ -23,7 +23,7 @@ export default function EmptyState({
       {tone === "positive" && (
         <span
           aria-hidden
-          className="mx-auto mb-3 block h-2 w-2 rounded-full bg-brand-accent"
+          className="mx-auto mb-3 block h-2 w-2 rounded-full dot-accent"
         />
       )}
       <h3 className="text-base font-semibold tracking-tight text-neutral-900">{title}</h3>

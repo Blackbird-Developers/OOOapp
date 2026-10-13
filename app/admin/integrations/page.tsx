@@ -22,7 +22,7 @@ export default async function IntegrationsPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Integrations</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Services Blackbird Leave connects to.
+            Services Whooo connects to.
           </p>
         </div>
         <span className="text-[11px] uppercase tracking-wider font-medium text-neutral-500">

@@ -323,7 +323,7 @@ export function buildApprovalMessage(view: ApprovalView): { text: string; blocks
         {
           type: "button",
           action_id: OPEN_ACTION,
-          text: { type: "plain_text", text: "Open in Blackbird Leave" },
+          text: { type: "plain_text", text: "Open in Whooo" },
           url: `${SITE}/admin/requests`,
         },
       ],

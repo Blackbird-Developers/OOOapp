@@ -8,8 +8,8 @@ import "@fontsource-variable/bricolage-grotesque";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Blackbird Leave",
-  description: "Blackbird Marketing leave tracker",
+  title: "Whooo",
+  description: "Who's off: leave requests, balances and the team calendar.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

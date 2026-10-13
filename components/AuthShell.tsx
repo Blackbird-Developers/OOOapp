@@ -22,14 +22,14 @@ export default function AuthShell({
       <div className={`w-full ${WIDTHS[width ?? (wide ? "md" : "sm")]}`}>
         <div className="flex flex-col items-center gap-2 mb-8">
           <Image
-            src="/blackbird-logo.svg"
-            alt="Blackbird"
-            width={140}
-            height={24}
+            src="/whooo-logo.svg"
+            alt="Whooo"
+            width={132}
+            height={32}
             priority
-            className="h-6 w-auto"
+            className="h-8 w-auto"
           />
-          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-500">Leave</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-500">Who&rsquo;s off</span>
         </div>
         {children}
       </div>

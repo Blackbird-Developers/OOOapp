@@ -200,21 +200,18 @@ export default function TopBar({ profile }: { profile: Profile }) {
           {/* The only link home, so its name says so. */}
           <Link
             href={isAdmin ? "/admin" : "/dashboard"}
-            aria-label="Blackbird Leave, home"
-            className="flex items-center gap-2.5 justify-self-start text-brand-ink"
+            aria-label="Whooo, home"
+            className="flex items-center justify-self-start text-brand-ink"
             onClick={() => setOpen(false)}
           >
             <Image
-              src="/blackbird-logo.svg"
-              alt="Blackbird"
-              width={120}
-              height={20}
+              src="/whooo-logo.svg"
+              alt="Whooo"
+              width={99}
+              height={24}
               priority
-              className="h-5 w-auto"
+              className="h-6 w-auto"
             />
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500 border-l border-neutral-200 pl-2.5">
-              Leave
-            </span>
           </Link>
 
           {/* Desktop nav */}
@@ -340,11 +337,11 @@ export default function TopBar({ profile }: { profile: Profile }) {
           <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-200">
             <div className="flex items-center gap-2.5">
               <Image
-                src="/blackbird-logo.svg"
-                alt="Blackbird"
-                width={108}
-                height={18}
-                className="h-[18px] w-auto"
+                src="/whooo-logo.svg"
+                alt="Whooo"
+                width={82}
+                height={20}
+                className="h-5 w-auto"
               />
               <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500 border-l border-neutral-200 pl-2.5">
                 Menu

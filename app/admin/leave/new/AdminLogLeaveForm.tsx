@@ -283,7 +283,7 @@ export default function AdminLogLeaveForm({
       {msg && (
         <p className={`text-sm ${msg.kind === "ok" ? "text-neutral-700" : "text-rose-700"}`}>
           {msg.kind === "ok" && (
-            <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand-accent align-middle" />
+            <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full dot-accent align-middle" />
           )}
           {msg.text}
         </p>

@@ -32,7 +32,7 @@ function Dot({ tone, shape }: { tone: Tone; shape: Shape }) {
     return <span aria-hidden className={`h-1.5 w-1.5 rounded-full bg-transparent ring-[1.5px] ring-inset ${ring}`} />;
   }
   const fill =
-    tone === "lime" ? "bg-brand-accent" :
+    tone === "lime" ? "dot-accent" :
     tone === "rose" ? "bg-rose-500" :
     "bg-neutral-400";
   return <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${fill}`} />;

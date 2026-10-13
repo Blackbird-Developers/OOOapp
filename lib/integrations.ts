@@ -7,7 +7,7 @@ import { autoReplyStats } from "@/lib/auto-reply";
 import { googleCredentials } from "@/lib/google-auth";
 
 /**
- * What Blackbird Leave talks to, and whether it's talking.
+ * What Whooo talks to, and whether it's talking.
  *
  * Everything here is derived from the same helpers the features themselves
  * use — the page never re-reads a setting on its own. Add a service by
