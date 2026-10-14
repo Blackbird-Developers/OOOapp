@@ -61,6 +61,8 @@ export default async function HolidaysPage() {
       thisYear: thisYear.length,
       year,
       next,
+      // Shown on the card, so nobody has to open the editor to see what's in it.
+      holidays: holidays.filter((h) => h.date.startsWith(`${year}-`) || h.date.startsWith(`${year + 1}-`)),
       // A year with nothing in it yet, worth a nudge.
       missingYears: [year, year + 1].filter((y) => !holidays.some((h) => h.date.startsWith(`${y}-`))),
       members: people.filter((p) => p.memberOf === c.id),
