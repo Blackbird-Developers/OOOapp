@@ -3,8 +3,11 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 import {
+  ACCRUAL_MIGRATION_MISSING_MESSAGE,
+  accrualRow,
   CORE_TYPES,
   getLeaveSetup,
+  isAccrualMigrationMissing,
   leaveTypeKey,
   LEAVE_TYPE_KEY,
   MIGRATION_MISSING_MESSAGE,
@@ -40,6 +43,20 @@ const schema = z.object({
     maxDays: z.number().positive().max(366),
     expires: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/).nullable(),
   }),
+  /** Absent from older editors (and sign-up): the template keeps what it has. */
+  accrual: z
+    .object({
+      method: z.enum(["hours", "pay_period", "service"]).nullable(),
+      hours: z.object({ days: z.number().positive().max(31), perHours: z.number().min(1).max(2080) }),
+      payPeriod: z.object({
+        frequency: z.enum(["weekly", "biweekly", "semimonthly", "monthly"]),
+        days: z.number().positive().max(31),
+      }),
+      service: z
+        .array(z.object({ fromYears: z.number().int().min(0).max(60), daysPerYear: z.number().min(0).max(366) }))
+        .max(20),
+    })
+    .optional(),
   rules: z.array(ruleSchema).max(200),
   newTypes: z
     .array(z.object({ ref: z.string().regex(NEW_TYPE_REF), name: z.string().trim().min(1).max(60) }))
@@ -74,6 +91,15 @@ export async function PATCH(
   }
   if (input.carryOver.expires && !realMonthDay(input.carryOver.expires)) {
     return NextResponse.json({ error: "Pick a real date for carried days to expire." }, { status: 400 });
+  }
+  if (input.accrual?.method === "service") {
+    const years = input.accrual.service.map((t) => t.fromYears);
+    if (!years.includes(0)) {
+      return NextResponse.json({ error: "The years-of-service scale needs a step that starts at 0 years." }, { status: 400 });
+    }
+    if (new Set(years).size !== years.length) {
+      return NextResponse.json({ error: "Each step of the years-of-service scale needs different years." }, { status: 400 });
+    }
   }
 
   // Every rule has to make sense on its own before anything is written.
@@ -149,18 +175,35 @@ export async function PATCH(
   }
 
   // 3. The template's own settings.
-  const { error: policyError } = await supabase
+  const settings = {
+    name: input.name,
+    ...policySettingsRow({
+      seniority: { ...input.seniority, extraDays: round(input.seniority.extraDays, 1) },
+      firstYear: { ...input.firstYear, daysPerMonth: round(input.firstYear.daysPerMonth, 2) },
+      carryOver: { ...input.carryOver, maxDays: round(input.carryOver.maxDays, 1) },
+    }),
+    updated_at: new Date().toISOString(),
+  };
+  const accrual = input.accrual
+    ? accrualRow({
+        method: input.accrual.method,
+        hours: { days: round(input.accrual.hours.days, 2), perHours: round(input.accrual.hours.perHours, 1) },
+        payPeriod: { ...input.accrual.payPeriod, days: round(input.accrual.payPeriod.days, 2) },
+        service: input.accrual.service.map((t) => ({ ...t, daysPerYear: round(t.daysPerYear, 1) })),
+      })
+    : {};
+  let { error: policyError } = await supabase
     .from("leave_policies")
-    .update({
-      name: input.name,
-      ...policySettingsRow({
-        seniority: { ...input.seniority, extraDays: round(input.seniority.extraDays, 1) },
-        firstYear: { ...input.firstYear, daysPerMonth: round(input.firstYear.daysPerMonth, 2) },
-        carryOver: { ...input.carryOver, maxDays: round(input.carryOver.maxDays, 1) },
-      }),
-      updated_at: new Date().toISOString(),
-    })
+    .update({ ...settings, ...accrual })
     .eq("id", id);
+  // Before migration 021 there's nowhere to keep accrual. Saving everything
+  // else is fine as long as nobody asked for it.
+  if (isAccrualMigrationMissing(policyError)) {
+    if (input.accrual?.method) {
+      return NextResponse.json({ error: ACCRUAL_MIGRATION_MISSING_MESSAGE }, { status: 409 });
+    }
+    ({ error: policyError } = await supabase.from("leave_policies").update(settings).eq("id", id));
+  }
   if (policyError) return NextResponse.json({ error: policyError.message }, { status: 500 });
 
   // 4. Its rule for every type it was sent.

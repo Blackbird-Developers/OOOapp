@@ -6,11 +6,15 @@ import Dialog from "@/components/Dialog";
 import Field from "@/components/Field";
 import Select, { type SelectOption } from "@/components/Select";
 import {
+  DEFAULT_WEEKLY_HOURS,
   describeLimit,
   monthDayLabel,
+  PAY_PERIODS_PER_YEAR,
+  type AccrualMethod,
   type DayUnit,
   type LeavePolicy,
   type LimitKind,
+  type PayFrequency,
 } from "@/lib/leave-rules";
 
 type TypeRow = {
@@ -38,6 +42,21 @@ const UNIT_OPTIONS: SelectOption<DayUnit>[] = [
   { value: "calendar", label: "Calendar days", description: "Every day in the range counts" },
 ];
 
+const ACCRUAL_OPTIONS: SelectOption<AccrualMethod>[] = [
+  { value: "hours", label: "Hours worked", description: "Days for every so many hours someone works" },
+  { value: "pay_period", label: "Pay periods completed", description: "Days for each pay period, like a payslip" },
+  { value: "service", label: "Years of service", description: "A yearly rate that grows with experience, earned monthly" },
+];
+
+const FREQUENCY_OPTIONS: SelectOption<PayFrequency>[] = [
+  { value: "weekly", label: "Weekly", description: "52 pay periods a year" },
+  { value: "biweekly", label: "Every two weeks", description: "26 pay periods a year" },
+  { value: "semimonthly", label: "Twice a month", description: "24 pay periods a year, ending on the 15th and month end" },
+  { value: "monthly", label: "Monthly", description: "12 pay periods a year" },
+];
+
+type TierRow = { id: number; fromYears: string; daysPerYear: string };
+
 // Carried days lapse at the end of a month, or never.
 const EXPIRY_OPTIONS = ["01-31", "02-28", "03-31", "04-30", "05-31", "06-30", "07-31", "08-31", "09-30", "10-31", "11-30"];
 
@@ -47,6 +66,8 @@ export type PolicyPayload = {
   seniority: LeavePolicy["seniority"];
   firstYear: LeavePolicy["firstYear"];
   carryOver: LeavePolicy["carryOver"];
+  /** Left out by sign-up, which doesn't offer accrual: the template keeps what it has. */
+  accrual?: LeavePolicy["accrual"];
   rules: { type: string; enabled: boolean; limit: LimitKind; days: number | null; unit: DayUnit; note: string | null }[];
 };
 
@@ -98,6 +119,21 @@ export default function PolicyEditor({
     maxDays: String(policy.carryOver.maxDays),
     expires: policy.carryOver.expires ?? "",
   });
+  const [accrual, setAccrual] = useState(() => ({
+    enabled: policy.accrual.method !== null,
+    method: policy.accrual.method ?? ("hours" as AccrualMethod),
+    hoursDays: String(policy.accrual.hours.days),
+    perHours: String(policy.accrual.hours.perHours),
+    frequency: policy.accrual.payPeriod.frequency,
+    periodDays: String(policy.accrual.payPeriod.days),
+  }));
+  // The years-of-service scale. A new one starts from today's yearly days.
+  const [tiers, setTiers] = useState<TierRow[]>(() =>
+    (policy.accrual.service.length
+      ? [...policy.accrual.service].sort((a, b) => a.fromYears - b.fromYears)
+      : [{ fromYears: 0, daysPerYear: Number(annualRule?.days ?? 20) }]
+    ).map((t, i) => ({ id: i, fromYears: String(t.fromYears), daysPerYear: String(t.daysPerYear) }))
+  );
   const [rows, setRows] = useState<TypeRow[]>(() =>
     policy.rules
       .filter((r) => r.type !== "annual")
@@ -120,6 +156,26 @@ export default function PolicyEditor({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  // What the chosen rate adds up to over a whole year, so admins can sanity-check it.
+  const annualNumber = num(annualDays);
+  const yearlyEstimate =
+    accrual.method === "hours"
+      ? (num(accrual.hoursDays) * DEFAULT_WEEKLY_HOURS * 52) / num(accrual.perHours)
+      : accrual.method === "pay_period"
+        ? num(accrual.periodDays) * PAY_PERIODS_PER_YEAR[accrual.frequency]
+        : NaN;
+  const capped = accrual.method !== "service";
+  // Hours-based rates read more naturally in working days: 1 day per 104 hours is every 13 days at 8 hours a day.
+  const workingDaysPerDay =
+    Math.round((num(accrual.perHours) / (DEFAULT_WEEKLY_HOURS / 5) / num(accrual.hoursDays)) * 10) / 10;
+  // How long a whole day takes to earn in everyday time, for either rate.
+  const weeksPerDay =
+    accrual.method === "hours"
+      ? workingDaysPerDay / 5
+      : accrual.method === "pay_period"
+        ? 52 / PAY_PERIODS_PER_YEAR[accrual.frequency] / num(accrual.periodDays)
+        : NaN;
 
   const expiryOptions =
     carry.expires && !EXPIRY_OPTIONS.includes(carry.expires) ? [...EXPIRY_OPTIONS, carry.expires].sort() : EXPIRY_OPTIONS;
@@ -170,6 +226,27 @@ export default function PolicyEditor({
       const perMonth = num(firstYear.daysPerMonth);
       if (!Number.isFinite(perMonth) || perMonth <= 0 || perMonth > 31) e.daysPerMonth = "More than 0, up to 31.";
     }
+    if (accrual.enabled && accrual.method === "hours") {
+      const d = num(accrual.hoursDays);
+      const h = num(accrual.perHours);
+      if (!Number.isFinite(d) || d <= 0 || d > 31) e.hoursDays = "More than 0, up to 31.";
+      if (!Number.isFinite(h) || h < 1 || h > 2080) e.perHours = "1 to 2,080 hours.";
+    }
+    if (accrual.enabled && accrual.method === "pay_period") {
+      const d = num(accrual.periodDays);
+      if (!Number.isFinite(d) || d <= 0 || d > 31) e.periodDays = "More than 0, up to 31.";
+    }
+    if (accrual.enabled && accrual.method === "service") {
+      const seen = new Set<number>();
+      for (const t of tiers) {
+        const y = num(t.fromYears);
+        const d = num(t.daysPerYear);
+        if (!Number.isInteger(y) || y < 0 || y > 60 || seen.has(y)) e[`tierYears:${t.id}`] = "Whole years, 0 to 60, each different.";
+        if (!halfStep(d) || d < 0 || d > 366) e[`tierDays:${t.id}`] = "0 to 366, in half days.";
+        seen.add(y);
+      }
+      if (!seen.has(0)) e.tiers = "Start the scale at 0 years, so new joiners earn too.";
+    }
     if (carry.enabled) {
       const max = num(carry.maxDays);
       if (!halfStep(max) || max <= 0 || max > 366) e.maxDays = "More than 0, up to 366, in half days.";
@@ -205,6 +282,18 @@ export default function PolicyEditor({
         enabled: carry.enabled,
         maxDays: orSaved(carry.maxDays, policy.carryOver.maxDays),
         expires: carry.expires || null,
+      },
+      accrual: {
+        method: accrual.enabled ? accrual.method : null,
+        hours: {
+          days: orSaved(accrual.hoursDays, policy.accrual.hours.days),
+          perHours: orSaved(accrual.perHours, policy.accrual.hours.perHours),
+        },
+        payPeriod: { frequency: accrual.frequency, days: orSaved(accrual.periodDays, policy.accrual.payPeriod.days) },
+        service:
+          accrual.enabled && accrual.method === "service"
+            ? tiers.map((t) => ({ fromYears: num(t.fromYears), daysPerYear: num(t.daysPerYear) }))
+            : policy.accrual.service,
       },
       rules: [
         { type: "annual", enabled: true, limit: "per_year", days: num(annualDays), unit: "working", note: annualRule?.note ?? null },
@@ -277,8 +366,14 @@ export default function PolicyEditor({
 
         <div className="mt-5 max-w-xs">
           <Field
-            label="Days a year"
-            hint="Working days. Weekends and public holidays don't count."
+            label={accrual.enabled && capped ? "Most days earned a year" : "Days a year"}
+            hint={
+              accrual.enabled && accrual.method === "service"
+                ? "Not used while leave is earned by years of service: the scale below sets the days."
+                : accrual.enabled
+                  ? "Working days. Earning stops here for the year (plus any seniority days)."
+                  : "Working days. Weekends and public holidays don't count."
+            }
             error={
               errors.annualDays ??
               (draft?.annualMinimum != null && num(annualDays) < draft.annualMinimum
@@ -343,9 +438,220 @@ export default function PolicyEditor({
           </p>
         </Toggle>
 
+        {!draft && (
+          <Toggle
+            label="Earn leave gradually"
+            description="Instead of the whole year's days on 1 January, people earn them as they go: by hours worked, pay periods completed, or at a rate that grows with years of service. They can book what they've earned so far."
+            checked={accrual.enabled}
+            onChange={(enabled) => setAccrual((s) => ({ ...s, enabled }))}
+          >
+            <div className="max-w-md">
+              <Field label="Earned by">
+                {(p) => (
+                  <Select
+                    {...p}
+                    value={accrual.method}
+                    onChange={(method) => setAccrual((s) => ({ ...s, method }))}
+                    options={ACCRUAL_OPTIONS}
+                  />
+                )}
+              </Field>
+            </div>
+
+            {accrual.method === "hours" && (
+              <div className="grid grid-cols-2 gap-3 max-w-md">
+                <Field label="Days earned" error={errors.hoursDays}>
+                  {(p) => (
+                    <input
+                      {...p}
+                      type="number"
+                      inputMode="decimal"
+                      step={0.01}
+                      min={0.01}
+                      className="input"
+                      value={accrual.hoursDays}
+                      onChange={(e) => setAccrual((s) => ({ ...s, hoursDays: e.target.value }))}
+                    />
+                  )}
+                </Field>
+                <Field label="For every (hours worked)" error={errors.perHours}>
+                  {(p) => (
+                    <input
+                      {...p}
+                      type="number"
+                      inputMode="decimal"
+                      step={1}
+                      min={1}
+                      className="input"
+                      value={accrual.perHours}
+                      onChange={(e) => setAccrual((s) => ({ ...s, perHours: e.target.value }))}
+                    />
+                  )}
+                </Field>
+              </div>
+            )}
+
+            {accrual.method === "pay_period" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+                <Field label="Pay periods">
+                  {(p) => (
+                    <Select
+                      {...p}
+                      value={accrual.frequency}
+                      onChange={(frequency) => setAccrual((s) => ({ ...s, frequency }))}
+                      options={FREQUENCY_OPTIONS}
+                    />
+                  )}
+                </Field>
+                <Field label="Days per pay period" error={errors.periodDays}>
+                  {(p) => (
+                    <input
+                      {...p}
+                      type="number"
+                      inputMode="decimal"
+                      step={0.01}
+                      min={0.01}
+                      className="input"
+                      value={accrual.periodDays}
+                      onChange={(e) => setAccrual((s) => ({ ...s, periodDays: e.target.value }))}
+                    />
+                  )}
+                </Field>
+              </div>
+            )}
+
+            {capped && (
+              <p className="text-xs text-neutral-500">
+                {Number.isFinite(yearlyEstimate) && yearlyEstimate > 0
+                  ? `That's 1 day ${everyLabel(weeksPerDay)}${
+                      accrual.method === "hours"
+                        ? ` (every ${workingDaysPerDay} working days at ${DEFAULT_WEEKLY_HOURS} hours a week)`
+                        : ""
+                    }, so about ${Math.round(yearlyEstimate * 10) / 10} days over a full year, never more than ${Number.isFinite(annualNumber) ? annualNumber : "the days a year"} plus seniority. `
+                  : ""}
+                {Number.isFinite(annualNumber) && annualNumber > 0 && (
+                  <button
+                    type="button"
+                    className="font-medium text-neutral-700 underline decoration-neutral-300 underline-offset-2 hover:text-neutral-900"
+                    onClick={() =>
+                      setAccrual((s) =>
+                        s.method === "hours"
+                          ? {
+                              ...s,
+                              hoursDays: "1",
+                              perHours: String(Math.round((DEFAULT_WEEKLY_HOURS * 52) / annualNumber)),
+                            }
+                          : {
+                              ...s,
+                              periodDays: String(Math.round((annualNumber / PAY_PERIODS_PER_YEAR[s.frequency]) * 100) / 100),
+                            }
+                      )
+                    }
+                  >
+                    Spread {annualNumber} days evenly over the year
+                  </button>
+                )}
+                {accrual.method === "hours" && (
+                  <span className="block mt-1">
+                    Hours are each person&apos;s hours a week (set under Employees, {DEFAULT_WEEKLY_HOURS} if not), worked Monday
+                    to Friday. Approved unpaid leave earns nothing.
+                  </span>
+                )}
+              </p>
+            )}
+
+            {accrual.method === "service" && (
+              <div className="max-w-md">
+                <ul className="space-y-2">
+                  {tiers.map((t) => (
+                    <li key={t.id} className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
+                      <Field label="From (years)" error={errors[`tierYears:${t.id}`]}>
+                        {(p) => (
+                          <input
+                            {...p}
+                            type="number"
+                            inputMode="numeric"
+                            step={1}
+                            min={0}
+                            className="input"
+                            value={t.fromYears}
+                            onChange={(e) =>
+                              setTiers((all) => all.map((x) => (x.id === t.id ? { ...x, fromYears: e.target.value } : x)))
+                            }
+                          />
+                        )}
+                      </Field>
+                      <Field label="Days a year" error={errors[`tierDays:${t.id}`]}>
+                        {(p) => (
+                          <input
+                            {...p}
+                            type="number"
+                            inputMode="decimal"
+                            step={0.5}
+                            min={0}
+                            className="input"
+                            value={t.daysPerYear}
+                            onChange={(e) =>
+                              setTiers((all) => all.map((x) => (x.id === t.id ? { ...x, daysPerYear: e.target.value } : x)))
+                            }
+                          />
+                        )}
+                      </Field>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-rose-600 transition hover:text-rose-700 disabled:invisible"
+                        disabled={tiers.length === 1}
+                        onClick={() => setTiers((all) => all.filter((x) => x.id !== t.id))}
+                        aria-label={`Remove the step from ${t.fromYears} years`}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {errors.tiers && <p className="mt-2 text-xs text-rose-700">{errors.tiers}</p>}
+                <button
+                  type="button"
+                  className="btn-secondary mt-3"
+                  disabled={tiers.length >= 20}
+                  onClick={() =>
+                    setTiers((all) => {
+                      const last = all[all.length - 1];
+                      const id = Math.max(...all.map((x) => x.id)) + 1;
+                      return [
+                        ...all,
+                        {
+                          id,
+                          fromYears: String((num(last?.fromYears ?? "0") || 0) + 5),
+                          daysPerYear: String((num(last?.daysPerYear ?? "20") || 20) + 1),
+                        },
+                      ];
+                    })
+                  }
+                >
+                  Add a step
+                </button>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Each month worked earns a twelfth of the year&apos;s days. Years of service count previous experience, like
+                  seniority, and the seniority bonus doesn&apos;t add to this scale.
+                </p>
+              </div>
+            )}
+
+            <p className="text-xs text-neutral-500">
+              Earning starts on 1 January, or on someone&apos;s start date in the year they join, so it replaces first-year
+              leave. Carry-over still works on whatever is left at the end of the year.
+            </p>
+          </Toggle>
+        )}
+
         <Toggle
           label="First-year leave"
-          description="In the year someone joins, they earn days for each month worked instead of getting the full allowance. From the next 1 January they get the full amount."
+          description={
+            accrual.enabled
+              ? "Not used while leave is earned gradually: earning already starts on each person's start date."
+              : "In the year someone joins, they earn days for each month worked instead of getting the full allowance. From the next 1 January they get the full amount."
+          }
           checked={firstYear.enabled}
           onChange={(enabled) => setFirstYear((s) => ({ ...s, enabled }))}
         >
@@ -539,6 +845,25 @@ export default function PolicyEditor({
       />
     </form>
   );
+}
+
+/** "about every 2½ weeks": a time to earn one day, in the unit that reads best. */
+function everyLabel(weeks: number): string {
+  if (!Number.isFinite(weeks) || weeks <= 0) return "";
+  const half = (n: number) => {
+    const whole = Math.floor(n);
+    return n === whole ? String(whole) : whole === 0 ? "½" : `${whole}½`;
+  };
+  if (weeks < 0.9) {
+    const days = Math.max(1, Math.round(weeks * 5));
+    return days === 1 ? "every working day" : `about every ${days} working days`;
+  }
+  if (weeks < 7.75) {
+    const w = Math.round(weeks * 2) / 2;
+    return w === 1 ? "about every week" : `about every ${half(w)} weeks`;
+  }
+  const months = Math.round((weeks / (52 / 12)) * 2) / 2;
+  return months === 1 ? "about every month" : `about every ${half(months)} months`;
 }
 
 function Toggle({

@@ -184,7 +184,7 @@ export async function POST(req: Request) {
     );
     if (available !== null && days > available) {
       return NextResponse.json(
-        { error: limitMessage(rule, available, days, input.start_date) },
+        { error: limitMessage(rule, available, days, input.start_date), overLimit: true },
         { status: 400 }
       );
     }

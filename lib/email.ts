@@ -407,6 +407,8 @@ export async function emailDecisionToEmployee(opts: {
   endDate: string;
   days: number;
   note?: string | null;
+  /** The admin who decided it, so a company with several admins knows whom to ask. */
+  decidedBy?: string | null;
   /**
    * Rides along with the decision the employee is already being told about,
    * rather than arriving as a second email. An approval carries a REQUEST
@@ -422,11 +424,13 @@ export async function emailDecisionToEmployee(opts: {
     ["Dates", prettyRange(opts.startDate, opts.endDate)],
     ["Days", `${opts.days} ${opts.days === 1 ? "day" : "days"}`],
   ];
-  if (opts.note) rows.push(["Note from admin", escapeHtml(opts.note)]);
+  if (opts.note) {
+    rows.push([opts.decidedBy ? `Note from ${escapeHtml(opts.decidedBy.split(" ")[0])}` : "Note from admin", escapeHtml(opts.note)]);
+  }
 
   const body = `
     <p style="margin:0 0 12px;font-size:14px;line-height:21px">Hi ${escapeHtml(opts.employeeName)},</p>
-    <p style="margin:0;font-size:14px;line-height:21px">Your ${escapeHtml(leavePhrase(opts.typeName))} request has been <strong style="color:${color}">${verb}</strong>.</p>
+    <p style="margin:0;font-size:14px;line-height:21px">Your ${escapeHtml(leavePhrase(opts.typeName))} request has been <strong style="color:${color}">${verb}</strong>${opts.decidedBy ? ` by ${escapeHtml(opts.decidedBy)}` : ""}.</p>
     ${detailTable(rows)}
     ${
       opts.calendar

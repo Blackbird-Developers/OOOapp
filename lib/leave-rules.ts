@@ -29,6 +29,42 @@ export type LeaveTypeRule = {
   note: string | null;
 };
 
+/** How annual leave is earned gradually instead of all on 1 January. */
+export type AccrualMethod = "hours" | "pay_period" | "service";
+export type PayFrequency = "weekly" | "biweekly" | "semimonthly" | "monthly";
+
+/** One step of the years-of-service scale: from `fromYears` of experience, this many days a year. */
+export type ServiceTier = { fromYears: number; daysPerYear: number };
+
+export type Accrual = {
+  /** Null: the whole year's days are there from 1 January (the original behaviour). */
+  method: AccrualMethod | null;
+  /** hours: `days` earned for every `perHours` hours worked. */
+  hours: { days: number; perHours: number };
+  /** pay_period: `days` earned for each pay period completed. */
+  payPeriod: { frequency: PayFrequency; days: number };
+  /** service: a yearly rate that grows with years of service, earned month by month. */
+  service: ServiceTier[];
+};
+
+/** A template that gives the whole year's days up front. */
+export const NO_ACCRUAL: Accrual = {
+  method: null,
+  hours: { days: 1, perHours: 104 },
+  payPeriod: { frequency: "biweekly", days: 0.77 },
+  service: [],
+};
+
+/** Hours a week assumed for anyone without their own figure. */
+export const DEFAULT_WEEKLY_HOURS = 40;
+
+export const PAY_PERIODS_PER_YEAR: Record<PayFrequency, number> = {
+  weekly: 52,
+  biweekly: 26,
+  semimonthly: 24,
+  monthly: 12,
+};
+
 export type LeavePolicy = {
   /** Null for the stand-in built from profile allowances before migration 013 runs. */
   id: string | null;
@@ -38,6 +74,8 @@ export type LeavePolicy = {
   firstYear: { enabled: boolean; daysPerMonth: number };
   /** `expires` is a month-day ("06-30") in the year the days carry into; null keeps them all year. */
   carryOver: { enabled: boolean; maxDays: number; expires: string | null };
+  /** Earning annual leave gradually through the year. Replaces first-year leave while on. */
+  accrual: Accrual;
   /** Every leave type in the catalogue, in display order. Types a template never set come through disabled. */
   rules: LeaveTypeRule[];
 };
@@ -49,6 +87,8 @@ export type Employment = {
   priorExperienceMonths: number;
   /** When the account was created (yyyy-MM-dd). Stands in for the start date when deciding the first year worth carrying over from. */
   joinedOn: string;
+  /** Contracted hours a week, for hours-based accrual. Null means {@link DEFAULT_WEEKLY_HOURS}. */
+  weeklyHours?: number | null;
 };
 
 /** The slice of a leave_requests row the maths needs. */
@@ -94,9 +134,15 @@ export function monthsWorked(startISO: string, asOfISO: string): number {
   return Math.max(0, months);
 }
 
-/** Completed years of experience by `asOfISO`, or null without a start date. */
+/**
+ * Completed years of experience by `asOfISO`. Without a start date only the
+ * previous experience counts, so someone entered with 15 years elsewhere
+ * still gets their seniority days. Null when neither is known.
+ */
 export function experienceYears(emp: Employment, asOfISO: string): number | null {
-  if (!emp.startDate) return null;
+  if (!emp.startDate) {
+    return emp.priorExperienceMonths > 0 ? Math.floor(emp.priorExperienceMonths / 12) : null;
+  }
   const months = emp.priorExperienceMonths + monthsWorked(emp.startDate, asOfISO);
   return Math.floor(months / 12);
 }
@@ -125,10 +171,12 @@ export type AnnualBreakdown = {
   base: number;
   /** Extra days for experience. 0 when the rule is off or no step is reached. */
   seniorityDays: number;
-  /** Years of experience completed by 31 December, or null without a start date. */
+  /** Years of experience completed by 31 December, or null with no start date or previous experience. */
   experienceYears: number | null;
   /** Set when this is the year they joined and first-year leave applies. */
   firstYear: { months: number; perMonth: number } | null;
+  /** Set when the template earns annual leave gradually: what's been earned so far and how. */
+  accrual: AccrualProgress | null;
   /** This year's own days: base plus seniority, or what the first year has earned. */
   own: number;
   /** Unused days brought in from last year. */
@@ -191,6 +239,144 @@ function firstCarryYear(emp: Employment): number {
   return Math.max(FIRST_TRACKED_YEAR, yearOf(emp.startDate ?? emp.joinedOn));
 }
 
+/** How far someone has got earning this year's annual leave. */
+export type AccrualProgress = {
+  method: AccrualMethod;
+  /** Days earned so far (never more than `cap`). */
+  earned: number;
+  /** The most that can be earned this year. */
+  cap: number;
+  /** hours: hours worked so far. pay_period: periods completed. service: months worked. */
+  progress: number;
+  /** In words, e.g. "1 day per 104 hours worked". */
+  rate: string;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const dayNumber = (iso: string) => Date.UTC(yearOf(iso), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / DAY_MS;
+const isoOfDay = (n: number) => new Date(n * DAY_MS).toISOString().slice(0, 10);
+
+/** Monday-to-Friday days from `fromISO` to `toISO`, both included. */
+export function weekdaysBetween(fromISO: string, toISO: string): number {
+  let count = 0;
+  for (let d = dayNumber(fromISO), end = dayNumber(toISO); d <= end; d++) {
+    const dow = new Date(d * DAY_MS).getUTCDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
+/**
+ * Pay periods completed from `fromISO` to `toISO`. Weekly and fortnightly
+ * periods run from the day earning starts; twice-monthly periods end on the
+ * 15th and the last day of the month; monthly ones on the last day.
+ */
+export function payPeriodsBetween(frequency: PayFrequency, fromISO: string, toISO: string): number {
+  if (toISO < fromISO) return 0;
+  const span = dayNumber(toISO) - dayNumber(fromISO) + 1;
+  if (frequency === "weekly") return Math.floor(span / 7);
+  if (frequency === "biweekly") return Math.floor(span / 14);
+  let count = 0;
+  for (let d = dayNumber(fromISO), end = dayNumber(toISO); d <= end; d++) {
+    const iso = isoOfDay(d);
+    const lastOfMonth = isoOfDay(d + 1).slice(8, 10) === "01";
+    if (lastOfMonth || (frequency === "semimonthly" && iso.slice(8, 10) === "15")) count++;
+  }
+  return count;
+}
+
+/** The scale's yearly days for someone with `years` of experience (the first step if unknown). */
+export function serviceTierDays(tiers: ServiceTier[], years: number | null): number {
+  const sorted = [...tiers].sort((a, b) => a.fromYears - b.fromYears);
+  let days = sorted[0]?.daysPerYear ?? 0;
+  for (const t of sorted) if ((years ?? 0) >= t.fromYears) days = t.daysPerYear;
+  return days;
+}
+
+const fmt = (n: number) => String(Math.round(n * 100) / 100);
+const PERIOD_WORDS: Record<PayFrequency, string> = {
+  weekly: "weekly pay period",
+  biweekly: "fortnightly pay period",
+  semimonthly: "twice-monthly pay period",
+  monthly: "monthly pay period",
+};
+
+/** How a template's accrual reads, e.g. "1 day per 104 hours worked". */
+export function describeAccrual(accrual: Accrual, tierDays?: number): string {
+  const d = (n: number) => `${fmt(n)} day${n === 1 ? "" : "s"}`;
+  if (accrual.method === "hours") return `${d(accrual.hours.days)} per ${fmt(accrual.hours.perHours)} hours worked`;
+  if (accrual.method === "pay_period") return `${d(accrual.payPeriod.days)} per ${PERIOD_WORDS[accrual.payPeriod.frequency]}`;
+  if (accrual.method === "service") {
+    return tierDays === undefined ? "Earned monthly, more with years of service" : `${d(tierDays)} a year for their service, earned monthly`;
+  }
+  return "All at once on 1 January";
+}
+
+/**
+ * Annual days earned so far in `year` under a gradual-accrual template.
+ *
+ * Earning starts on 1 January, or on the start date in the year someone
+ * joins, and runs to today (or to 31 December for a year that's over), so
+ * leave can only be booked against days already earned. It never goes above
+ * the year's cap: the template's days plus seniority for hours and pay
+ * periods, or the service scale's days for the years-of-service method.
+ * Approved unpaid leave isn't time worked, so it earns nothing.
+ */
+export function accruedAnnual(
+  policy: LeavePolicy,
+  emp: Employment,
+  rows: LeaveRow[],
+  year: number,
+  todayISO: string,
+  capWithSeniority: number,
+  experience: number | null
+): AccrualProgress | null {
+  const { accrual } = policy;
+  if (!accrual.method) return null;
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
+  const from = emp.startDate && emp.startDate > yearStart ? emp.startDate : yearStart;
+  const to = todayISO < yearEnd ? todayISO : yearEnd;
+  const started = from <= to;
+
+  if (accrual.method === "hours") {
+    const perDay = (emp.weeklyHours ?? DEFAULT_WEEKLY_HOURS) / 5;
+    const unpaidDays = rows
+      .filter((r) => r.type === "unpaid" && r.status === "approved" && r.start_date >= from && r.start_date <= to)
+      .reduce((n, r) => n + Number(r.days_count), 0);
+    const hours = started ? Math.max(0, (weekdaysBetween(from, to) - unpaidDays) * perDay) : 0;
+    const earned = Math.floor(hours / accrual.hours.perHours * accrual.hours.days * 100) / 100;
+    return {
+      method: "hours",
+      earned: round1(Math.min(capWithSeniority, earned)),
+      cap: capWithSeniority,
+      progress: Math.round(hours),
+      rate: describeAccrual(accrual),
+    };
+  }
+
+  if (accrual.method === "pay_period") {
+    const periods = started ? payPeriodsBetween(accrual.payPeriod.frequency, from, to) : 0;
+    return {
+      method: "pay_period",
+      earned: round1(Math.min(capWithSeniority, periods * accrual.payPeriod.days)),
+      cap: capWithSeniority,
+      progress: periods,
+      rate: describeAccrual(accrual),
+    };
+  }
+
+  const tierDays = serviceTierDays(accrual.service, experience);
+  const months = started ? monthsWorked(from, to) : 0;
+  return {
+    method: "service",
+    earned: round1(Math.min(tierDays, (months * tierDays) / 12)),
+    cap: tierDays,
+    progress: months,
+    rate: describeAccrual(accrual, tierDays),
+  };
+}
+
 /**
  * This year's own annual days, before carry-over.
  *
@@ -203,8 +389,9 @@ function ownAnnualDays(
   policy: LeavePolicy,
   emp: Employment,
   year: number,
-  todayISO: string
-): Pick<AnnualBreakdown, "base" | "seniorityDays" | "experienceYears" | "firstYear" | "own"> {
+  todayISO: string,
+  rows: LeaveRow[] = []
+): Pick<AnnualBreakdown, "base" | "seniorityDays" | "experienceYears" | "firstYear" | "accrual" | "own"> {
   const rule = ruleFor(policy, "annual");
   const base = Number(rule?.days ?? 0);
   const yearEnd = `${year}-12-31`;
@@ -212,7 +399,27 @@ function ownAnnualDays(
 
   if (emp.startDate && emp.startDate > yearEnd) {
     // Not started yet that year.
-    return { base, seniorityDays: 0, experienceYears: exp, firstYear: null, own: 0 };
+    return { base, seniorityDays: 0, experienceYears: exp, firstYear: null, accrual: null, own: 0 };
+  }
+
+  const seniorityDays =
+    policy.seniority.enabled && exp !== null && policy.seniority.everyYears > 0
+      ? round1(Math.floor(exp / policy.seniority.everyYears) * policy.seniority.extraDays)
+      : 0;
+
+  // Gradual accrual covers the joining year by itself (earning starts on the
+  // start date), so it replaces first-year leave rather than stacking on it.
+  if (policy.accrual.method) {
+    const accrual = accruedAnnual(policy, emp, rows, year, todayISO, round1(base + seniorityDays), exp);
+    return {
+      base,
+      // The service scale already rewards experience; seniority doesn't add to it.
+      seniorityDays: policy.accrual.method === "service" ? 0 : seniorityDays,
+      experienceYears: exp,
+      firstYear: null,
+      accrual,
+      own: accrual?.earned ?? 0,
+    };
   }
 
   if (policy.firstYear.enabled && emp.startDate && yearOf(emp.startDate) === year) {
@@ -224,15 +431,12 @@ function ownAnnualDays(
       seniorityDays: 0,
       experienceYears: exp,
       firstYear: { months, perMonth },
+      accrual: null,
       own: Math.min(base, round1(months * perMonth)),
     };
   }
 
-  const seniorityDays =
-    policy.seniority.enabled && exp !== null && policy.seniority.everyYears > 0
-      ? round1(Math.floor(exp / policy.seniority.everyYears) * policy.seniority.extraDays)
-      : 0;
-  return { base, seniorityDays, experienceYears: exp, firstYear: null, own: round1(base + seniorityDays) };
+  return { base, seniorityDays, experienceYears: exp, firstYear: null, accrual: null, own: round1(base + seniorityDays) };
 }
 
 /**
@@ -252,7 +456,7 @@ export function annualYear(
   todayISO: string,
   excludeId?: string
 ): AnnualBreakdown & { used: number; pending: number; leftover: number } {
-  const own = ownAnnualDays(policy, emp, year, todayISO);
+  const own = ownAnnualDays(policy, emp, year, todayISO, rows);
   const carriedIn = carryInto(policy, emp, rows, year, todayISO, excludeId);
   const carryExpires =
     carriedIn > 0 && policy.carryOver.expires ? monthDayIn(year, policy.carryOver.expires) : null;

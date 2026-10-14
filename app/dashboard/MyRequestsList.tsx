@@ -18,7 +18,15 @@ type Request = {
   decision_note: string | null;
   reason?: string | null;
   created_at: string;
+  /** The admin who approved or rejected it ("you" for your own auto-approved leave). */
+  decided_by_name?: string | null;
 };
+
+/** "Approved by Jane Doe", for decided requests only: a cancelled one keeps its old approver, which would mislead. */
+function decisionLine(r: Request): string | null {
+  if (!r.decided_by_name || (r.status !== "approved" && r.status !== "rejected")) return null;
+  return `${r.status === "approved" ? "Approved" : "Rejected"} by ${r.decided_by_name}`;
+}
 
 // Pending or approved leave that hasn't started yet can still be edited.
 function isEditable(r: Request, todayISO: string) {
@@ -39,7 +47,7 @@ export default function MyRequestsList({ requests }: { requests: Request[] }) {
     return (
       <EmptyState
         title="Nothing submitted yet"
-        description="Once you request leave, it shows up here with the admin's decision (and the reason, if rejected)."
+        description="Once you request leave, it shows up here with the decision, who made it, and the reason if rejected."
         action={
           <Link href="/dashboard/request" className="btn-accent">
             Request leave
@@ -129,7 +137,12 @@ function DesktopRow({
           {r.start_date} <span className="text-neutral-500">→</span> {r.end_date}
         </td>
         <td className="py-3 px-4 text-neutral-700">{r.days_count}</td>
-        <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
+        <td className="py-3 px-4">
+          <StatusBadge status={r.status} />
+          {decisionLine(r) && (
+            <span className="mt-1 block text-[11px] text-neutral-500">{decisionLine(r)}</span>
+          )}
+        </td>
         <td className="py-3 px-4 text-right">
           <div className="flex items-center justify-end gap-3">
             {editable && (
@@ -159,7 +172,7 @@ function DesktopRow({
       {isOpen && isRejected && (
         <tr className="border-b border-neutral-100 bg-rose-50/30">
           <td colSpan={5} className="px-4 pb-4 pt-1">
-            <RejectionDetail reason={r.reason} note={r.decision_note} />
+            <RejectionDetail reason={r.reason} note={r.decision_note} decidedBy={r.decided_by_name} />
           </td>
         </tr>
       )}
@@ -195,6 +208,7 @@ function MobileCard({
           </div>
           <div className="text-xs text-neutral-500 mt-0.5">
             {r.days_count} {r.days_count === 1 ? "day" : "days"}
+            {decisionLine(r) && <> · {decisionLine(r)}</>}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -224,7 +238,7 @@ function MobileCard({
       </div>
       {isOpen && isRejected && (
         <div className="mt-3 pt-3 border-t border-rose-100">
-          <RejectionDetail reason={r.reason} note={r.decision_note} />
+          <RejectionDetail reason={r.reason} note={r.decision_note} decidedBy={r.decided_by_name} />
         </div>
       )}
     </div>
@@ -232,11 +246,13 @@ function MobileCard({
 }
 
 function RejectionDetail({
-  reason, note,
+  reason, note, decidedBy,
 }: {
   reason?: string | null;
   note: string | null;
+  decidedBy?: string | null;
 }) {
+  const who = decidedBy && decidedBy !== "you" ? decidedBy : null;
   return (
     <div className="space-y-3 text-sm">
       {reason && (
@@ -246,11 +262,11 @@ function RejectionDetail({
         </div>
       )}
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 mb-1">Comment from admin</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 mb-1">Comment from {who ?? "admin"}</div>
         {note ? (
           <p className="text-neutral-800 whitespace-pre-wrap leading-relaxed">{note}</p>
         ) : (
-          <p className="text-neutral-500 italic">Admin didn't leave a comment.</p>
+          <p className="text-neutral-500 italic">{who ?? "Admin"} didn't leave a comment.</p>
         )}
       </div>
     </div>

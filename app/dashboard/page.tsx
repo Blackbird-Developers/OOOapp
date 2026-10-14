@@ -125,6 +125,7 @@ export default async function DashboardPage() {
             holidays={holidays}
             types={leaveTypes}
             viewerUserId={profile.id}
+            request={{ href: "/dashboard/request", userId: profile.id, todayISO }}
           />
         </section>
       </main>

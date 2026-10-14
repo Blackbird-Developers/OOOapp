@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import Dialog from "@/components/Dialog";
 import { FALLBACK_COLOR, leaveColors, type LeaveColor } from "@/lib/leave-colors";
 import {
@@ -32,17 +33,30 @@ const DEFAULT_TYPES = [
 /** Leave types the inline legend names beyond annual and sick; the rest are under "View all". */
 const LEGEND_EXTRA = 3;
 
+/** Lets a day's popup start a leave request for the person looking at the calendar. */
+export type RequestFromDay = {
+  /** The request form; the day goes on as `?start=`. */
+  href: string;
+  /** Whose leave counts as already booked on a day. */
+  userId: string;
+  /** Days before this (yyyy-MM-dd) are in the past and can't be requested. */
+  todayISO: string;
+};
+
 export default function LeaveCalendar({
   events,
   holidays,
   viewerUserId,
   types = DEFAULT_TYPES,
+  request,
 }: {
   events: CalendarEvent[];
   holidays: { date: string; name: string }[];
   viewerUserId?: string;
   /** The leave type catalogue, in order: names the legend and assigns colours. */
   types?: { key: string; name: string }[];
+  /** When set, a day's popup offers to request that day off. */
+  request?: RequestFromDay;
 }) {
   const [cursor, setCursor] = useState(new Date());
   const [openDay, setOpenDay] = useState<string | null>(null);
@@ -246,7 +260,9 @@ export default function LeaveCalendar({
         >
           View all leave types{hiddenTypes > 0 ? ` (+${hiddenTypes})` : ""}
         </button>
-        <span className="text-neutral-400">Click a day to see who's off.</span>
+        <span className="text-neutral-400">
+          {request ? "Click a day to see who's off, or to request it off." : "Click a day to see who's off."}
+        </span>
       </div>
 
       <LegendDialog
@@ -264,6 +280,7 @@ export default function LeaveCalendar({
         viewerUserId={viewerUserId}
         colors={colors}
         onClose={closeDay}
+        request={request}
       />
     </div>
   );
@@ -280,6 +297,7 @@ function DayDialog({
   viewerUserId,
   colors,
   onClose,
+  request,
 }: {
   iso: string | null;
   events: CalendarEvent[];
@@ -287,6 +305,7 @@ function DayDialog({
   viewerUserId?: string;
   colors: Colors;
   onClose: () => void;
+  request?: RequestFromDay;
 }) {
   const sorted = [...events].sort(
     (a, b) => Number(a.status === "pending") - Number(b.status === "pending") || a.userName.localeCompare(b.userName)
@@ -299,6 +318,11 @@ function DayDialog({
           events.length > approved ? `, ${events.length - approved} pending` : ""
         }.`;
 
+  // Offer to book the day unless it's past or already covered by your own
+  // approved or pending leave (the form would only refuse it).
+  const mine = request ? events.find((ev) => ev.userId === request.userId) : undefined;
+  const canRequest = request && iso !== null && iso >= request.todayISO && !mine;
+
   return (
     <Dialog
       open={iso !== null}
@@ -306,11 +330,24 @@ function DayDialog({
       title={iso ? format(parseISO(iso), "EEEE d MMMM yyyy") : ""}
       description={holiday ? `${holiday} (public holiday). ${summary}` : summary}
       footer={
-        <button type="button" className="btn-secondary" onClick={onClose}>
-          Close
-        </button>
+        <>
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Close
+          </button>
+          {canRequest && (
+            <Link href={`${request.href}?start=${iso}`} className="btn-accent">
+              Request this day off
+              <span aria-hidden>→</span>
+            </Link>
+          )}
+        </>
       }
     >
+      {request && mine && (
+        <p className="mb-3 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+          You already have {mine.status === "pending" ? "a pending request" : "leave"} on this day. Change it under My requests.
+        </p>
+      )}
       {sorted.length > 0 && (
         <ul className="-mx-1 max-h-[55vh] divide-y divide-neutral-100 overflow-y-auto">
           {sorted.map((ev) => {

@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { getEveryonesLeaveContext } from "@/lib/leave-policies";
-import { describeLimit, monthDayLabel, type LeavePolicy } from "@/lib/leave-rules";
+import { describeAccrual, describeLimit, monthDayLabel, type LeavePolicy } from "@/lib/leave-rules";
 import EmptyState from "@/components/EmptyState";
 import PolicyManager, { type Person, type Template } from "./PolicyManager";
 
@@ -8,11 +8,17 @@ import PolicyManager, { type Person, type Template } from "./PolicyManager";
 function summarize(policy: LeavePolicy): { annual: string; others: string } {
   const annualRule = policy.rules.find((r) => r.type === "annual");
   const parts = [annualRule ? describeLimit(annualRule) : "No annual leave"];
+  if (policy.accrual.method === "service") {
+    const steps = [...policy.accrual.service].sort((a, b) => a.fromYears - b.fromYears);
+    parts[0] = `earned monthly: ${steps.map((t) => `${t.daysPerYear} a year from ${t.fromYears} years`).join(", ")}`;
+  } else if (policy.accrual.method) {
+    parts[0] = `up to ${parts[0]}, earned at ${describeAccrual(policy.accrual)}`;
+  }
   if (policy.seniority.enabled) {
     const { extraDays, everyYears } = policy.seniority;
     parts.push(`+${extraDays} day${extraDays === 1 ? "" : "s"} every ${everyYears} year${everyYears === 1 ? "" : "s"} of experience`);
   }
-  if (policy.firstYear.enabled) {
+  if (policy.firstYear.enabled && !policy.accrual.method) {
     parts.push(`${policy.firstYear.daysPerMonth} a month in the first year`);
   }
   if (policy.carryOver.enabled) {

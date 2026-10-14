@@ -18,7 +18,9 @@ export default async function MyRequestsPage() {
     getLeaveSummary(profile.id),
     supabase
       .from("leave_requests")
-      .select("id, type, start_date, end_date, days_count, status, decision_note, reason, created_at, decided_at")
+      .select(
+        "id, type, start_date, end_date, days_count, status, decision_note, reason, created_at, decided_at, decided_by, decider:decided_by(full_name)"
+      )
       .eq("user_id", profile.id)
       .order("start_date", { ascending: false }),
   ]);
@@ -59,7 +61,17 @@ export default async function MyRequestsPage() {
           </span>
         </div>
 
-        <MyRequestsList requests={(requests ?? []).map((r) => ({ ...r, type_name: nameOf(r.type) }))} />
+        <MyRequestsList
+          requests={(requests ?? []).map(({ decider, decided_by, ...r }) => ({
+            ...r,
+            type_name: nameOf(r.type),
+            // Who approved or rejected it: with several admins, the person to ask.
+            decided_by_name:
+              decided_by === profile.id
+                ? "you"
+                : ((Array.isArray(decider) ? decider[0] : decider) as { full_name: string } | null)?.full_name ?? null,
+          }))}
+        />
       </main>
     </>
   );

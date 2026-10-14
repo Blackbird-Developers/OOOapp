@@ -174,6 +174,7 @@ function Editor({ person, ready }: { person: PersonLeave; ready: boolean }) {
       name={person.full_name}
       startDate={person.employment.startDate}
       priorExperienceMonths={person.employment.priorExperienceMonths}
+      weeklyHours={person.employment.weeklyHours ?? null}
     />
   );
 }
@@ -206,6 +207,7 @@ function Remaining({ balance }: { balance: YearBalance | null }) {
   const notes: string[] = [`${used} used`];
   if (pending > 0) notes.push(`${pending} pending`);
   if (annual?.firstYear) notes.push("first year");
+  if (annual?.accrual) notes.push(`${annual.accrual.earned} of ${annual.accrual.cap} earned`);
   if (annual && annual.seniorityDays > 0) notes.push(`+${annual.seniorityDays} seniority`);
   if (annual && annual.carriedIn > 0) notes.push(`+${annual.carriedIn} carried`);
   return (

@@ -43,7 +43,9 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
   const { startDate, priorExperienceMonths } = summary.employment;
   const experience = startDate
     ? duration(priorExperienceMonths + monthsWorked(startDate, summary.todayISO))
-    : null;
+    : priorExperienceMonths > 0
+      ? duration(priorExperienceMonths)
+      : null;
   const count = (requests ?? []).length;
 
   return (
@@ -82,6 +84,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
                 name={person.full_name}
                 startDate={startDate}
                 priorExperienceMonths={priorExperienceMonths}
+                weeklyHours={summary.employment.weeklyHours ?? null}
               />
             </div>
           )}
@@ -113,7 +116,12 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
             <dt className="label">Work experience</dt>
             <dd className="text-sm text-neutral-900 tabular-nums">
               {experience ?? <span className="text-neutral-500">Needs a start date</span>}
-              {experience && priorExperienceMonths > 0 && (
+              {experience && !startDate && (
+                <span className="block text-xs text-neutral-500">
+                  Before the company only. Add a start date to count time here too.
+                </span>
+              )}
+              {experience && startDate && priorExperienceMonths > 0 && (
                 <span className="block text-xs text-neutral-500">
                   Including {duration(priorExperienceMonths)} before the company
                 </span>
