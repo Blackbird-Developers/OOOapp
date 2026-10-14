@@ -9,8 +9,14 @@ import AllLeaveTypes from "@/components/AllLeaveTypes";
 import RequestLeaveForm from "../RequestLeaveForm";
 import { getHolidaysFor } from "@/lib/holiday-calendars";
 
-export default async function RequestLeavePage() {
+export default async function RequestLeavePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ start?: string }>;
+}) {
   const profile = await requireUser();
+  // A day pressed on the team calendar arrives as ?start=yyyy-MM-dd.
+  const { start } = await searchParams;
   const supabase = await createServerClient();
 
   const [summary, holidays, { data: existing }] = await Promise.all([
@@ -58,6 +64,7 @@ export default async function RequestLeavePage() {
           rows={summary.rows}
           todayISO={summary.todayISO}
           blockedDates={blockedDates}
+          initialStart={start && /^\d{4}-\d{2}-\d{2}$/.test(start) && start >= summary.todayISO ? start : undefined}
           calendarHref={profile.role === "admin" ? "/admin" : "/dashboard"}
         />
       </section>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COUNTRY_CODES, annualLeaveLaw } from "@/lib/countries";
+import { NO_ACCRUAL } from "@/lib/leave-rules";
 
 /**
  * What creating a company asks for, shared by the sign-up form and the
@@ -168,6 +169,8 @@ export function defaultCustomPolicy(country: string | null) {
     seniority: { enabled: false, everyYears: 5, extraDays: 1 },
     firstYear: { enabled: false, daysPerMonth: 1.5 },
     carryOver: { enabled: false, maxDays: 5, expires: null as string | null },
+    // Gradual accrual is set up later, under Leave policies.
+    accrual: NO_ACCRUAL,
     rules: [
       { type: "annual", name: "Annual leave", enabled: true, limit: "per_year" as const, days: standardAnnualDays(country) as number | null, unit: "working" as const, note: null as string | null },
       { type: "sick", name: "Sick leave", enabled: true, limit: "per_year" as const, days: 20 as number | null, unit: "working" as const, note: null as string | null },

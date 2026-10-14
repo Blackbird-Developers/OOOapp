@@ -72,7 +72,16 @@ export function explainAnnual(a: AnnualBreakdown): string | null {
 /** The pieces of `explainAnnual`, without the "Annual:" lead-in, for lists that already name the type. */
 export function annualParts(a: AnnualBreakdown, who: "you" | "they" = "you"): string | null {
   const parts: string[] = [];
-  if (a.firstYear) {
+  if (a.accrual) {
+    const { earned, cap, progress, method, rate } = a.accrual;
+    const so = method === "hours"
+      ? `${progress} hours`
+      : method === "pay_period"
+        ? `${progress} pay period${progress === 1 ? "" : "s"}`
+        : `${progress} month${progress === 1 ? "" : "s"}`;
+    parts.push(`${days(earned)} earned so far, of up to ${cap} this year (${rate}: ${so} so far)`);
+    if (a.seniorityDays > 0) parts.push(`the ${cap} includes ${days(a.seniorityDays)} for ${a.experienceYears} years' experience`);
+  } else if (a.firstYear) {
     parts.push(
       `${days(a.own)} earned in ${who === "you" ? "your" : "their"} first year (${a.firstYear.perMonth} a month, up to ${a.base})`
     );

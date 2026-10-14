@@ -50,7 +50,7 @@ const content: Record<Locale, Copy> = {
             body: (
               <>
                 <ol className="list-decimal pl-5 space-y-1.5">
-                  <li>Click <strong>Request leave</strong> in the top nav.</li>
+                  <li>Click <strong>Request leave</strong> in the top nav, or click a day on the team calendar and press <strong>Request this day off</strong>.</li>
                   <li>Pick your start and end date on the calendar.</li>
                   <li>Pick the <strong>Leave type</strong>: annual, sick, or another type your leave policy includes.</li>
                   <li>Add a reason if you'd like (it's optional).</li>
@@ -132,7 +132,7 @@ const content: Record<Locale, Copy> = {
             title: "Where do I see my own requests?",
             body: (
               <>
-                <p>Click <strong>My requests</strong> in the top nav. You'll see every leave request you've ever submitted along with its status (pending, approved, rejected, cancelled).</p>
+                <p>Click <strong>My requests</strong> in the top nav. You'll see every leave request you've ever submitted along with its status (pending, approved, rejected, cancelled), and who approved or rejected it.</p>
                 <p className="mt-2">A red dot on the <strong>My requests</strong> link means there's a new decision you haven't looked at yet. Visiting the page clears it.</p>
               </>
             ),
@@ -214,7 +214,7 @@ const content: Record<Locale, Copy> = {
             body: (
               <>
                 <ol className="list-decimal pl-5 space-y-1.5">
-                  <li>Kliko <strong>Request leave</strong> në navigimin e sipërm.</li>
+                  <li>Kliko <strong>Request leave</strong> në navigimin e sipërm, ose kliko një ditë në kalendarin e ekipit dhe shtyp <strong>Request this day off</strong>.</li>
                   <li>Zgjidh datën e fillimit dhe atë të mbarimit në kalendar.</li>
                   <li>Zgjidh llojin te <strong>Leave type</strong>: vjetor, mjekësor ose një lloj tjetër që e përfshin politika jote e pushimeve.</li>
                   <li>Shto një arsye nëse dëshiron (është opsionale).</li>
@@ -296,7 +296,7 @@ const content: Record<Locale, Copy> = {
             title: "Ku i shoh kërkesat e mia?",
             body: (
               <>
-                <p>Kliko <strong>My requests</strong> në navigimin e sipërm. Do të shohësh çdo kërkesë pushimi që ke dërguar, me statusin përkatës (pending, approved, rejected, cancelled).</p>
+                <p>Kliko <strong>My requests</strong> në navigimin e sipërm. Do të shohësh çdo kërkesë pushimi që ke dërguar, me statusin përkatës (pending, approved, rejected, cancelled) dhe kush e aprovoi ose e refuzoi.</p>
                 <p className="mt-2">Një pikë e kuqe te lidhja <strong>My requests</strong> do të thotë se ka një vendim të ri që nuk e ke parë ende. Vizita e faqes e pastron atë.</p>
               </>
             ),

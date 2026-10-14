@@ -16,6 +16,7 @@ import {
   type LeaveRow,
 } from "@/lib/leave-rules";
 import DateRangePicker from "@/components/DateRangePicker";
+import Dialog from "@/components/Dialog";
 import Field from "@/components/Field";
 import Select from "@/components/Select";
 
@@ -37,6 +38,7 @@ export default function RequestLeaveForm({
   rows,
   todayISO,
   blockedDates,
+  initialStart,
   calendarHref,
   edit,
 }: {
@@ -49,6 +51,8 @@ export default function RequestLeaveForm({
   todayISO: string;
   // ISO dates the user already has approved/pending leave on.
   blockedDates: string[];
+  // A day picked on the team calendar, to start the range on.
+  initialStart?: string;
   // Calendar page to land on after a successful submit.
   calendarHref: string;
   // When present, the form edits this existing request instead of creating one.
@@ -67,13 +71,16 @@ export default function RequestLeaveForm({
   }, [policy, edit]);
 
   const [type, setType] = useState(edit?.type ?? options[0]?.type ?? "annual");
-  const [start, setStart] = useState(edit?.start ?? today);
-  const [end, setEnd] = useState(edit?.end ?? today);
+  const [start, setStart] = useState(edit?.start ?? initialStart ?? today);
+  const [end, setEnd] = useState(edit?.end ?? initialStart ?? today);
   const [halfStart, setHalfStart] = useState<HalfKind>(edit?.halfStart ?? "full");
   const [halfEnd, setHalfEnd] = useState<HalfKind>(edit?.halfEnd ?? "full");
   const [reason, setReason] = useState(edit?.reason ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The popup for asking for more days than are left. Holds the server's
+  // wording when it's the server that refused (someone else's change landed first).
+  const [limitPopup, setLimitPopup] = useState<{ detail: string } | null>(null);
 
   const rule = ruleFor(policy, type);
   const unit = rule?.unit ?? "working";
@@ -111,7 +118,8 @@ export default function RequestLeaveForm({
       return;
     }
     if (overLimit && rule && available !== null) {
-      setError(limitMessage(rule, available, days, start));
+      setError(null);
+      setLimitPopup({ detail: limitMessage(rule, available, days, start) });
       return;
     }
     setSubmitting(true);
@@ -131,7 +139,8 @@ export default function RequestLeaveForm({
     const json = await res.json();
     if (!res.ok) {
       setSubmitting(false);
-      setError(json.error || "Something went wrong.");
+      if (json.overLimit) setLimitPopup({ detail: json.error });
+      else setError(json.error || "Something went wrong.");
       return;
     }
     setReason("");
@@ -254,7 +263,9 @@ export default function RequestLeaveForm({
         </p>
         <button
           className="btn-accent w-full sm:w-auto"
-          disabled={submitting || days === 0 || overLimit || !!conflict || !rule}
+          // Left pressable when over the limit, so pressing it explains why
+          // in a popup rather than the button just doing nothing.
+          disabled={submitting || days === 0 || !!conflict || !rule}
         >
           {edit
             ? submitting
@@ -273,6 +284,28 @@ export default function RequestLeaveForm({
       )}
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
+
+      <Dialog
+        open={limitPopup !== null}
+        onClose={() => setLimitPopup(null)}
+        title={
+          rule?.limit === "per_request"
+            ? "This request is longer than allowed"
+            : "You're taking more days off than you have"
+        }
+        description="Please review your request again."
+        footer={
+          <button type="button" className="btn-accent" onClick={() => setLimitPopup(null)}>
+            Review my request
+          </button>
+        }
+      >
+        {limitPopup && (
+          <p className="text-sm text-neutral-700">
+            {limitPopup.detail} {halves ? "Shorten the dates, take a half day, or pick another leave type." : "Shorten the dates or pick another leave type."}
+          </p>
+        )}
+      </Dialog>
     </form>
   );
 }

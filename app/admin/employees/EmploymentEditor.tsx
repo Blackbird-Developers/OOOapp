@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Dialog from "@/components/Dialog";
 import Field from "@/components/Field";
+import { DEFAULT_WEEKLY_HOURS } from "@/lib/leave-rules";
 
 /**
  * A person's start date and previous work experience: what seniority and
@@ -14,17 +15,21 @@ export default function EmploymentEditor({
   name,
   startDate,
   priorExperienceMonths,
+  weeklyHours,
 }: {
   id: string;
   name: string;
   startDate: string | null;
   priorExperienceMonths: number;
+  /** Contracted hours a week; null means the 40-hour default. */
+  weeklyHours: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [start, setStart] = useState(startDate ?? "");
   const [years, setYears] = useState(String(Math.floor(priorExperienceMonths / 12)));
   const [months, setMonths] = useState(String(priorExperienceMonths % 12));
+  const [hours, setHours] = useState(weeklyHours === null ? "" : String(weeklyHours));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +37,7 @@ export default function EmploymentEditor({
     setStart(startDate ?? "");
     setYears(String(Math.floor(priorExperienceMonths / 12)));
     setMonths(String(priorExperienceMonths % 12));
+    setHours(weeklyHours === null ? "" : String(weeklyHours));
     setError(null);
   }
 
@@ -49,12 +55,21 @@ export default function EmploymentEditor({
       setError("Previous experience needs whole years (0 to 60) and months (0 to 11).");
       return;
     }
+    const h = hours.trim() === "" ? null : Number(hours);
+    if (h !== null && (!Number.isFinite(h) || h <= 0 || h > 100)) {
+      setError("Hours a week needs a number from 1 to 100, or leave it empty for 40.");
+      return;
+    }
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/employees/${id}/employment`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ start_date: start || null, prior_experience_months: y * 12 + m }),
+      body: JSON.stringify({
+        start_date: start || null,
+        prior_experience_months: y * 12 + m,
+        weekly_hours: h === null ? null : Math.round(h * 10) / 10,
+      }),
     });
     setBusy(false);
     if (!res.ok) {
@@ -80,7 +95,7 @@ export default function EmploymentEditor({
         open={open}
         onClose={close}
         title={`Employment details for ${name}`}
-        description="Seniority and first-year leave on their leave policy are worked out from these. Without a start date, they simply get their policy's yearly days."
+        description="Seniority and first-year leave on their leave policy are worked out from these. Without a start date, only previous experience counts towards seniority."
         footer={
           <>
             <button type="button" className="btn-secondary" disabled={busy} onClick={close}>
@@ -134,6 +149,25 @@ export default function EmploymentEditor({
               </Field>
             </div>
           </div>
+          <Field
+            label="Hours a week"
+            hint={`For leave policies that earn leave by hours worked. Leave empty for ${DEFAULT_WEEKLY_HOURS}.`}
+          >
+            {(p) => (
+              <input
+                {...p}
+                type="number"
+                inputMode="decimal"
+                min={1}
+                max={100}
+                step={0.5}
+                placeholder={String(DEFAULT_WEEKLY_HOURS)}
+                className="input max-w-[10rem]"
+                value={hours}
+                onChange={(e) => setHours(e.target.value)}
+              />
+            )}
+          </Field>
           {error && (
             <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
               {error}

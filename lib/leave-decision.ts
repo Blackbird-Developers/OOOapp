@@ -81,11 +81,10 @@ export async function decideLeaveRequest(opts: {
     return { ok: false, status: 404, error: error?.message ?? "Request not found or already decided" };
   }
 
-  const { data: employee } = await supabase
-    .from("profiles")
-    .select("email, full_name")
-    .eq("id", row.user_id)
-    .single();
+  const [{ data: employee }, { data: decider }] = await Promise.all([
+    supabase.from("profiles").select("email, full_name").eq("id", row.user_id).single(),
+    supabase.from("profiles").select("full_name").eq("id", admin.id).maybeSingle(),
+  ]);
 
   // Best-effort: the decision is already saved, so an email failure
   // must not fail the response.
@@ -105,6 +104,7 @@ export async function decideLeaveRequest(opts: {
         endDate: row.end_date,
         days: Number(row.days_count),
         note,
+        decidedBy: decider?.full_name ?? null,
         calendar: calendar ?? undefined,
       });
     }

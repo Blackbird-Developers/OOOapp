@@ -6,7 +6,7 @@ Leave / sick-day tracker for small teams, built for (and first used by) Blackbir
 - Admins: approve/reject, log leave on behalf, see a team calendar, manage employees, public holidays, and invites
 - Half-days supported (0.5)
 - Working-day counts automatically exclude weekends and the public holidays of each person's own holiday calendar (one per country)
-- Leave policy templates per country or company: yearly allowances, seniority, first-year leave, carry-over and custom leave types (section 11)
+- Leave policy templates per country or company: yearly allowances, seniority, first-year leave, gradual accrual, carry-over and custom leave types (section 11)
 - Balances reset every Jan 1, less anything carried over
 - Email notifications on every state change (Resend)
 - Optional daily Slack digest of who's out of office today (section 7)
@@ -386,12 +386,13 @@ Each template sets:
 - **Annual leave**: days a year (working days), plus three rules that can each be switched on:
   - **Seniority bonus**: extra days per block of work experience (Kosovo: +1 day for every 5 years). Experience is the person's time since their start date plus any previous experience, and years completed by 31 December count for that whole year.
   - **First-year leave**: in the calendar year someone joins, they earn a set number of days per month worked (Kosovo: 1.5) instead of the full allowance, up to that allowance. A month counts once worked in full. From the next 1 January they get the full amount.
+  - **Earn leave gradually** (migration 021): instead of the whole year up front, annual days are earned by **hours worked** (X days per Y hours, from each person's hours a week, 40 by default, Monday to Friday, less approved unpaid leave), by **pay periods completed** (X days per weekly, fortnightly, twice-monthly or monthly period), or by **years of service** (a scale such as 20 a year from 0 years and 25 from 5, earned a twelfth per month worked; seniority doesn't add to it). Earning starts on 1 January or the start date, runs to today, and stops at the year's days plus seniority (or the scale's days). People can book only what they've earned so far. It replaces first-year leave while on, and carry-over works on what's left.
   - **Carry-over**: unused annual days move into the next year up to a cap, optionally expiring at the end of a chosen month. Carried days are spent first, on the earliest leave, since they're the ones that can lapse. With no expiry, what's left can carry again (still capped). The first leftovers that can carry are 2026's, and never from before someone joined.
 - **Every other leave type**, on or off: a yearly allowance, a cap per occasion (marriage: 5 days for each wedding), or no fixed limit (unpaid: approval decides). Each type counts working days or calendar days (maternity runs in months), and can carry a note employees see when they pick it, e.g. how it's paid.
 
 Types are one catalogue shared by all templates: annual, sick, maternity, paternity, marriage, bereavement, blood donation and unpaid leave come built in, and admins can add their own from any template (it joins the others switched off). A type nobody has booked can be deleted; one that has been booked can only be switched off, so past leave keeps its name. New templates start from **the full company policy** (every type on, with seniority and first-year leave) or **blank** (20 annual, 20 sick).
 
-Start dates and previous experience are set per person on **People → Employees** (Edit). Without a start date, nobody gets seniority or first-year proration, just the template's days.
+Start dates, previous experience and hours a week are set per person on **People → Employees** (Edit). Without a start date there's no first-year proration, and seniority counts previous experience only.
 
 Every type keeps its own count: paternity leave never comes out of annual leave. Employees see all of theirs from **All leave types**, at the end of the annual and sick balance line on Request leave and My requests; admins open a person from **People → Employees** to see the same, with their policy, start date and requests. Yearly allowances count down ("16 of 21 left"); types capped per occasion show the cap, the template's note on what they're for, and what's been taken that year, since there's no yearly total to count down (switch a type to "Days per year" on its template if a running total is what you want).
 

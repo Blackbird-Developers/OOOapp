@@ -99,6 +99,7 @@ export default async function AdminWhosOffPage() {
           events={teamEvents}
           holidays={holidays}
           types={leaveTypes}
+          request={{ href: "/dashboard/request", userId: profile.id, todayISO }}
         />
       </section>
     </main>

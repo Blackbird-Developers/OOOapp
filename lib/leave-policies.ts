@@ -3,12 +3,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabase/server";
 import {
   FIRST_TRACKED_YEAR,
+  NO_ACCRUAL,
+  type Accrual,
+  type AccrualMethod,
   type DayUnit,
   type Employment,
   type LeavePolicy,
   type LeaveRow,
   type LeaveTypeRule,
   type LimitKind,
+  type PayFrequency,
+  type ServiceTier,
 } from "@/lib/leave-rules";
 
 /**
@@ -57,6 +62,25 @@ const POLICY_COLUMNS =
   "first_year_enabled, first_year_days_per_month, carry_over_enabled, carry_over_max_days, " +
   "carry_over_expires, created_at, leave_policy_rules(leave_type, enabled, limit_kind, days, day_unit, note)";
 
+/** Added by migration 021. Read separately so the app still works before it runs. */
+const ACCRUAL_COLUMNS =
+  "accrual_method, accrual_hours_days, accrual_hours_per, accrual_pay_frequency, accrual_period_days, accrual_service_tiers";
+
+/**
+ * True when a query failed only because migration 021 (gradual accrual)
+ * hasn't been run. Checked before {@link isPoliciesMigrationMissing}, which
+ * would otherwise read a missing accrual column as the whole feature missing.
+ */
+export function isAccrualMigrationMissing(error: QueryError): boolean {
+  // 42703 when reading a missing column; PGRST204 when writing one.
+  return (
+    !!error && (error.code === "42703" || error.code === "PGRST204") && /accrual_|weekly_hours/.test(error.message ?? "")
+  );
+}
+
+export const ACCRUAL_MIGRATION_MISSING_MESSAGE =
+  "Gradual accrual isn't set up yet. Run supabase/migrations/021_leave_accrual.sql in the Supabase SQL editor first.";
+
 type RuleRow = {
   leave_type: string;
   enabled: boolean;
@@ -80,7 +104,26 @@ type PolicyRow = {
   carry_over_expires: string | null;
   created_at: string;
   leave_policy_rules: RuleRow[] | null;
+  accrual_method?: AccrualMethod | null;
+  accrual_hours_days?: number | string;
+  accrual_hours_per?: number | string;
+  accrual_pay_frequency?: PayFrequency;
+  accrual_period_days?: number | string;
+  accrual_service_tiers?: ServiceTier[] | null;
 };
+
+function toAccrual(row: PolicyRow): Accrual {
+  if (row.accrual_method === undefined) return NO_ACCRUAL;
+  return {
+    method: row.accrual_method ?? null,
+    hours: { days: Number(row.accrual_hours_days ?? 1), perHours: Number(row.accrual_hours_per ?? 104) },
+    payPeriod: { frequency: row.accrual_pay_frequency ?? "biweekly", days: Number(row.accrual_period_days ?? 0.77) },
+    service: (row.accrual_service_tiers ?? []).map((t) => ({
+      fromYears: Number(t.fromYears),
+      daysPerYear: Number(t.daysPerYear),
+    })),
+  };
+}
 
 /**
  * A template in the shape the maths uses. Every catalogue type gets a rule:
@@ -104,6 +147,7 @@ function toPolicy(row: PolicyRow, types: LeaveType[]): LeavePolicy {
       maxDays: Number(row.carry_over_max_days),
       expires: row.carry_over_expires,
     },
+    accrual: toAccrual(row),
     rules: types.map((t): LeaveTypeRule => {
       const r = byType.get(t.key);
       if (!r) {
@@ -133,6 +177,7 @@ export function legacyPolicy(profile: { annual_allowance?: number | string | nul
     seniority: { enabled: false, everyYears: 5, extraDays: 1 },
     firstYear: { enabled: false, daysPerMonth: 1.5 },
     carryOver: { enabled: false, maxDays: 5, expires: null },
+    accrual: NO_ACCRUAL,
     rules: [
       { type: "annual", name: "Annual leave", enabled: true, limit: "per_year", days: Number(profile?.annual_allowance ?? 20), unit: "working", note: null },
       { type: "sick", name: "Sick leave", enabled: true, limit: "per_year", days: Number(profile?.sick_allowance ?? 20), unit: "working", note: null },
@@ -147,10 +192,14 @@ export type LeaveSetup =
 /** The catalogue and every template. Deduped within one server render. */
 export const getLeaveSetup = cache(async (): Promise<LeaveSetup> => {
   const supabase = await createServerClient();
-  const [typesRes, policiesRes] = await Promise.all([
+  const [typesRes, firstPoliciesRes] = await Promise.all([
     supabase.from("leave_types").select("key, name, sort_order").order("sort_order").order("name"),
-    supabase.from("leave_policies").select(POLICY_COLUMNS).order("created_at"),
+    supabase.from("leave_policies").select(`${POLICY_COLUMNS}, ${ACCRUAL_COLUMNS}`).order("created_at"),
   ]);
+  // Before migration 021, read templates without accrual: they all give the year up front.
+  const policiesRes = isAccrualMigrationMissing(firstPoliciesRes.error)
+    ? await supabase.from("leave_policies").select(POLICY_COLUMNS).order("created_at")
+    : firstPoliciesRes;
 
   if (typesRes.error || policiesRes.error) {
     const error = typesRes.error ?? policiesRes.error;
@@ -209,14 +258,40 @@ type ProfileRow = {
   sick_allowance?: number | string | null;
 };
 
-type EmploymentRow = { user_id: string; start_date: string | null; prior_experience_months: number | null };
+type EmploymentRow = {
+  user_id: string;
+  start_date: string | null;
+  prior_experience_months: number | null;
+  weekly_hours?: number | string | null;
+};
 
 function toEmployment(profile: ProfileRow | null, details: EmploymentRow | null): Employment {
   return {
     startDate: details?.start_date ?? null,
     priorExperienceMonths: Number(details?.prior_experience_months ?? 0),
     joinedOn: (profile?.created_at ?? `${FIRST_TRACKED_YEAR}-01-01`).slice(0, 10),
+    weeklyHours: details?.weekly_hours == null ? null : Number(details.weekly_hours),
   };
+}
+
+const EMPLOYMENT_COLUMNS = "user_id, start_date, prior_experience_months";
+
+/**
+ * Employment details for one person, or everyone. Falls back to the columns
+ * from before migration 021 rather than losing start dates (and with them
+ * everyone's seniority) over a missing weekly_hours column.
+ */
+async function selectEmployment(
+  supabase: SupabaseClient,
+  userId?: string
+): Promise<EmploymentRow[]> {
+  const run = (columns: string) => {
+    const q = supabase.from("employment_details").select(columns);
+    return userId ? q.eq("user_id", userId) : q;
+  };
+  let { data, error } = await run(`${EMPLOYMENT_COLUMNS}, weekly_hours`);
+  if (isAccrualMigrationMissing(error)) ({ data, error } = await run(EMPLOYMENT_COLUMNS));
+  return (data ?? []) as unknown as EmploymentRow[];
 }
 
 function contextFor(
@@ -251,21 +326,12 @@ export async function getLeaveContext(userId: string): Promise<LeaveContext> {
     return contextFor(setup, profile as ProfileRow | null, null);
   }
 
-  const [{ data: membership }, { data: profile }, { data: details }] = await Promise.all([
+  const [{ data: membership }, { data: profile }, details] = await Promise.all([
     supabase.from("leave_policy_members").select("policy_id").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("id, created_at, annual_allowance, sick_allowance").eq("id", userId).single(),
-    supabase
-      .from("employment_details")
-      .select("user_id, start_date, prior_experience_months")
-      .eq("user_id", userId)
-      .maybeSingle(),
+    selectEmployment(supabase, userId),
   ]);
-  return contextFor(
-    setup,
-    profile as ProfileRow | null,
-    membership?.policy_id ?? null,
-    details as EmploymentRow | null
-  );
+  return contextFor(setup, profile as ProfileRow | null, membership?.policy_id ?? null, details[0] ?? null);
 }
 
 export type PersonLeave = LeaveContext & {
@@ -293,14 +359,14 @@ export async function getEveryonesLeaveContext(): Promise<{ setup: LeaveSetup; p
     return { setup, people };
   }
 
-  const [{ data: profiles, error }, { data: memberships }, { data: details }] = await Promise.all([
+  const [{ data: profiles, error }, { data: memberships }, details] = await Promise.all([
     supabase.from("profiles").select(base).order("full_name"),
     supabase.from("leave_policy_members").select("user_id, policy_id"),
-    supabase.from("employment_details").select("user_id, start_date, prior_experience_months"),
+    selectEmployment(supabase),
   ]);
   if (error) throw new Error(`Couldn't load employees: ${error.message}`);
   const memberOf = new Map((memberships ?? []).map((m) => [m.user_id, m.policy_id]));
-  const detailsOf = new Map(((details ?? []) as EmploymentRow[]).map((d) => [d.user_id, d]));
+  const detailsOf = new Map(details.map((d) => [d.user_id, d]));
   const people = (profiles ?? []).map((p) => ({
     ...contextFor(setup, p as ProfileRow, memberOf.get(p.id) ?? null, detailsOf.get(p.id) ?? null),
     id: p.id,
@@ -414,6 +480,18 @@ export function policySettingsRow(p: Pick<LeavePolicy, "seniority" | "firstYear"
     carry_over_enabled: p.carryOver.enabled,
     carry_over_max_days: p.carryOver.maxDays,
     carry_over_expires: p.carryOver.expires,
+  };
+}
+
+/** The columns gradual accrual lives in (migration 021). */
+export function accrualRow(a: Accrual) {
+  return {
+    accrual_method: a.method,
+    accrual_hours_days: a.hours.days,
+    accrual_hours_per: a.hours.perHours,
+    accrual_pay_frequency: a.payPeriod.frequency,
+    accrual_period_days: a.payPeriod.days,
+    accrual_service_tiers: [...a.service].sort((x, y) => x.fromYears - y.fromYears),
   };
 }
 
