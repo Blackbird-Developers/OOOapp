@@ -22,7 +22,7 @@ export default function CalendarEditor({
   calendar,
   holidays,
   years,
-  year,
+  year: initialYear,
   countries,
   warning,
 }: {
@@ -35,6 +35,8 @@ export default function CalendarEditor({
   warning: string | null;
 }) {
   const router = useRouter();
+  // Switching years is instant: every year's holidays are already here, so only the URL changes.
+  const [year, setYear] = useState(initialYear);
   const inYear = holidays.filter((h) => h.date.startsWith(`${year}-`));
   // Holidays already in the calendar, marked in the date pickers.
   const taken = new Map(holidays.map((h) => [h.date, h.name]));
@@ -155,7 +157,10 @@ export default function CalendarEditor({
   }
 
   function goToYear(y: number) {
-    router.push(`/admin/holidays/${calendar.id}?year=${y}`, { scroll: false });
+    setYear(y);
+    setNotice(null);
+    setEditing(null);
+    window.history.replaceState(null, "", `/admin/holidays/${calendar.id}?year=${y}`);
   }
 
   const countryOptions = [

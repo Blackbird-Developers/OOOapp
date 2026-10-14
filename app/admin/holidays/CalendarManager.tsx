@@ -20,6 +20,8 @@ export type CalendarCard = {
   thisYear: number;
   year: number;
   next: { date: string; name: string } | null;
+  /** This year's and next year's holidays, in date order. */
+  holidays: { date: string; name: string }[];
   /** This year or next, when there's nothing in them yet. */
   missingYears: number[];
   members: Person[];
@@ -323,6 +325,8 @@ function CalendarCardView({
         </div>
       </div>
 
+      <HolidayList calendar={calendar} />
+
       {calendar.country && calendar.missingYears.length > 0 && (
         <div className="mb-4 flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
           <span>No holidays for {calendar.missingYears.join(" or ")} yet.</span>
@@ -417,5 +421,74 @@ function CalendarCardView({
         </div>
       )}
     </section>
+  );
+}
+
+/** The calendar's holidays at a glance, this year or next. */
+function HolidayList({ calendar }: { calendar: CalendarCard }) {
+  const years = [calendar.year, calendar.year + 1];
+  const [year, setYear] = useState(calendar.year);
+  const [showPast, setShowPast] = useState(false);
+  const inYear = calendar.holidays.filter((h) => h.date.startsWith(`${year}-`));
+  const countFor = (y: number) => calendar.holidays.filter((h) => h.date.startsWith(`${y}-`)).length;
+  // Anything before the next holiday has been and gone; tucked away so what's coming is first.
+  const isPast = (date: string) => (calendar.next ? date < calendar.next.date : true);
+  const past = inYear.filter((h) => isPast(h.date));
+  const shown = showPast ? inYear : inYear.filter((h) => !isPast(h.date));
+
+  return (
+    <div className="mb-4">
+      <div role="tablist" aria-label={`${calendar.name} year`} className="-mx-1 mb-2 flex flex-wrap gap-1">
+        {years.map((y) => (
+          <button
+            key={y}
+            type="button"
+            role="tab"
+            aria-selected={y === year}
+            onClick={() => setYear(y)}
+            className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium tabular-nums transition ${
+              y === year ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+            }`}
+          >
+            {y}
+            <span className={`text-[11px] ${y === year ? "text-neutral-300" : "text-neutral-400"}`}>{countFor(y)}</span>
+          </button>
+        ))}
+      </div>
+      {inYear.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-neutral-200 px-3 py-2.5 text-xs text-neutral-500">
+          No holidays in {year} yet.
+        </p>
+      ) : (
+        <>
+          {past.length > 0 && (
+            <button
+              type="button"
+              className="mb-1 inline-flex min-h-9 items-center text-xs font-medium text-neutral-600 transition hover:text-neutral-900"
+              onClick={() => setShowPast(!showPast)}
+            >
+              {showPast
+                ? "Hide past holidays"
+                : `Show ${past.length} past holiday${past.length === 1 ? "" : "s"}`}
+            </button>
+          )}
+          {shown.length > 0 && (
+            <ul className="divide-y divide-neutral-100 rounded-lg border border-neutral-200">
+              {shown.map((h) => {
+                const gone = isPast(h.date);
+                return (
+                  <li key={h.date + h.name} className="flex gap-3 px-3 py-2 text-sm">
+                    <span className={`w-24 shrink-0 tabular-nums ${gone ? "text-neutral-400" : "text-neutral-600"}`}>
+                      {format(parseISO(h.date), "EEE d MMM")}
+                    </span>
+                    <span className={`min-w-0 flex-1 ${gone ? "text-neutral-400" : "text-neutral-900"}`}>{h.name}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
   );
 }
