@@ -166,7 +166,7 @@ export default function LeaveCalendar({
                 key={iso}
                 onClick={() => setOpenDay(iso)}
                 aria-label={`${format(d, "EEEE d MMMM")}${holiday ? `, ${holiday}` : ""}: ${
-                  dayEvents.length === 0 ? "nobody off" : `${dayEvents.length} off`
+                  dayEvents.length === 0 ? (holiday ? "office closed" : "nobody off") : `${dayEvents.length} off`
                 }`}
                 className={`block w-full text-left bg-white p-1 sm:p-2 transition-colors min-h-[68px] sm:min-h-[104px] hover:bg-neutral-50 focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink/30 ${
                   weekend ? "bg-neutral-50/40" : ""
@@ -311,9 +311,13 @@ function DayDialog({
     (a, b) => Number(a.status === "pending") - Number(b.status === "pending") || a.userName.localeCompare(b.userName)
   );
   const approved = events.filter((ev) => ev.status === "approved").length;
+  // A public holiday closes the whole office, so "Nobody is off" would read
+  // backwards there.
   const summary =
     events.length === 0
-      ? "Nobody is off."
+      ? holiday
+        ? "The office is closed."
+        : "Nobody is off."
       : `${approved} ${approved === 1 ? "person" : "people"} off${
           events.length > approved ? `, ${events.length - approved} pending` : ""
         }.`;
