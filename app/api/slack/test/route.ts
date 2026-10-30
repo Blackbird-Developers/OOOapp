@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getDayAvailability } from "@/lib/whos-off";
+import { getDayAvailability, getUpcomingHolidays } from "@/lib/whos-off";
 import { buildDailyDigest, postToSlack } from "@/lib/slack";
 import { loadSlackSettings } from "@/lib/slack-settings";
 import { todayISOIn } from "@/lib/days";
@@ -29,10 +29,12 @@ export async function POST() {
   }
 
   const supabase = await createServerClient();
-  const day = await getDayAvailability(supabase, admin.organization_id, todayISOIn());
+  const today = todayISOIn();
+  const day = await getDayAvailability(supabase, admin.organization_id, today);
+  const upcoming = await getUpcomingHolidays(supabase, admin.organization_id, today);
 
   try {
-    await postToSlack(admin.organization_id, buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays }));
+    await postToSlack(admin.organization_id, buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays, upcoming }));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Slack post failed.";
     return NextResponse.json({ error: message }, { status: 502 });

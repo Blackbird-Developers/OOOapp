@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { addDays, format, isWeekend, parseISO } from "date-fns";
 import type { HalfKind } from "@/lib/days";
 import { loadHolidayBook } from "@/lib/holiday-calendars";
 
@@ -103,6 +104,49 @@ export async function getDayAvailability(
   const people = Array.from(byUser.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   return { dateISO, people, holiday: null, holidaysOff };
+}
+
+/** A public holiday on the next business day, announced the working day before. */
+export type UpcomingHoliday = {
+  dateISO: string;
+  name: string;
+  /** The calendar it comes from, or null when it's for everyone (office closed). */
+  calendar: string | null;
+  /** Who it covers, by name. Empty when the office is closed. */
+  people: string[];
+};
+
+/**
+ * Public holidays on the next business day after `todayISO`, so the channel
+ * hears about them a working day ahead rather than on the morning itself.
+ *
+ * Weekends are stepped over, so Friday announces Monday. When the office is
+ * closed the search carries on to the day after, so a run like Christmas Eve
+ * and Christmas Day is announced together. A holiday for part of the team
+ * ends the search: the rest are in that day, which makes it the next business
+ * day. Gives up after a fortnight, like `nextWorkingDay` in lib/days.ts.
+ */
+export async function getUpcomingHolidays(
+  supabase: SupabaseClient,
+  orgId: string,
+  todayISO: string
+): Promise<UpcomingHoliday[]> {
+  const upcoming: UpcomingHoliday[] = [];
+  let cursor = addDays(parseISO(todayISO), 1);
+
+  for (let i = 0; i < 14; i++, cursor = addDays(cursor, 1)) {
+    if (isWeekend(cursor)) continue;
+    const day = await getDayAvailability(supabase, orgId, format(cursor, "yyyy-MM-dd"));
+    if (day.holiday) {
+      upcoming.push({ dateISO: day.dateISO, name: day.holiday.name, calendar: null, people: [] });
+      continue;
+    }
+    for (const h of day.holidaysOff) {
+      upcoming.push({ dateISO: day.dateISO, name: h.name, calendar: h.calendar, people: h.people });
+    }
+    break;
+  }
+  return upcoming;
 }
 
 /** Which part of `dateISO` a single leave request covers. */

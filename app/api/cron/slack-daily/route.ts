@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isWeekend, parseISO } from "date-fns";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getDayAvailability } from "@/lib/whos-off";
+import { getDayAvailability, getUpcomingHolidays } from "@/lib/whos-off";
 import { buildDailyDigest, postToSlack } from "@/lib/slack";
 import { loadSlackSettings } from "@/lib/slack-settings";
 import { APP_TIME_ZONE, hourNowIn, todayISOIn } from "@/lib/days";
@@ -28,6 +28,11 @@ export const dynamic = "force-dynamic";
  * Running every day rather than Mon-Fri is deliberate: the weekday rule is now
  * a setting, so it belongs in the code where it can be switched off, not baked
  * into a schedule that can only be changed by a redeploy.
+ *
+ * Public holidays are announced a business day ahead — Friday's post flags
+ * Monday's holiday — and the closed day itself gets no post, since nobody is
+ * in to read it. A holiday for part of the team is flagged ahead too, and
+ * still listed on the day, when the rest of the team is working.
  *
  * Runs once per company, each against its own settings and channel.
  * `slack_daily_posts` is what keeps this to one message a day per company: the
@@ -59,7 +64,7 @@ export async function GET(req: Request) {
 
 type RunResult =
   | { ok: true; posted: false; reason: string }
-  | { ok: true; posted: true; people: number; holiday: string | null }
+  | { ok: true; posted: true; people: number; upcomingHolidays: string[] }
   | { ok: false; error: string };
 
 type OrgResult = RunResult & { organization: string };
@@ -88,7 +93,18 @@ async function runFor(orgId: string, dateISO: string): Promise<RunResult> {
   const supabase = createAdminClient();
   const day = await getDayAvailability(supabase, orgId, dateISO);
 
-  if (settings.silentWhenEmpty && !day.holiday && day.holidaysOff.length === 0 && day.people.length === 0) {
+  if (day.holiday) return skipped("public holiday, announced the business day before");
+
+  // Only a working day announces what's coming, so a weekend post (with the
+  // weekday rule off) doesn't repeat Friday's notice.
+  const upcoming = isWeekend(parseISO(dateISO)) ? [] : await getUpcomingHolidays(supabase, orgId, dateISO);
+
+  if (
+    settings.silentWhenEmpty &&
+    day.holidaysOff.length === 0 &&
+    day.people.length === 0 &&
+    upcoming.length === 0
+  ) {
     return skipped("nobody off");
   }
 
@@ -104,7 +120,7 @@ async function runFor(orgId: string, dateISO: string): Promise<RunResult> {
   }
 
   try {
-    await postToSlack(orgId, buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays }));
+    await postToSlack(orgId, buildDailyDigest(day, { shareHalfDays: settings.shareHalfDays, upcoming }));
   } catch (err) {
     await supabase
       .from("slack_daily_posts")
@@ -116,7 +132,7 @@ async function runFor(orgId: string, dateISO: string): Promise<RunResult> {
     return { ok: false, error: message };
   }
 
-  return { ok: true, posted: true, people: day.people.length, holiday: day.holiday?.name ?? null };
+  return { ok: true, posted: true, people: day.people.length, upcomingHolidays: upcoming.map((h) => `${h.dateISO} ${h.name}`) };
 }
 
 /**
