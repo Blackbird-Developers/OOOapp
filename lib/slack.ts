@@ -1,5 +1,5 @@
-import { format, parseISO } from "date-fns";
-import type { DayAvailability, PersonOff } from "@/lib/whos-off";
+import { addDays, format, parseISO } from "date-fns";
+import type { DayAvailability, PersonOff, UpcomingHoliday } from "@/lib/whos-off";
 import { loadSlackCredentials } from "@/lib/slack-settings";
 
 const POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
@@ -151,6 +151,8 @@ function explainSlackError(code: string): string {
 export type DigestOptions = {
   /** Append "morning only" / "afternoon only". The leave type is never shared. */
   shareHalfDays?: boolean;
+  /** Holidays on the next business day, flagged a working day ahead. */
+  upcoming?: UpcomingHoliday[];
 };
 
 /**
@@ -164,15 +166,20 @@ export function buildDailyDigest(
   day: DayAvailability,
   options: DigestOptions = {}
 ): { text: string; blocks: SlackBlock[] } {
-  const { shareHalfDays = true } = options;
+  const { shareHalfDays = true, upcoming = [] } = options;
   const pretty = format(parseISO(day.dateISO), "EEEE, d MMMM");
+  const aheadBlocks = upcoming.map((h) => upcomingSection(h, day.dateISO));
+  const aheadText = upcoming.length
+    ? ` · Public holiday ${whenFrom(upcoming[0].dateISO, day.dateISO)}: ${upcoming.map((h) => esc(h.name)).join(", ")}`
+    : "";
 
   if (day.holiday) {
     const name = esc(day.holiday.name);
     return {
-      text: `Public holiday — office closed (${name})`,
+      text: `Public holiday — office closed (${name})${aheadText}`,
       blocks: [
         section(`*🎉 Public holiday — office closed*\n_${pretty} · ${name}_`),
+        ...aheadBlocks,
         footer("Nobody's expected in today"),
       ],
     };
@@ -187,8 +194,12 @@ export function buildDailyDigest(
 
   if (day.people.length === 0 && onHoliday === 0) {
     return {
-      text: `Everyone's in today — ${pretty}`,
-      blocks: [section(`*✅ Everyone's in today*\n_${pretty}_`), footer("No leave on the calendar")],
+      text: `Everyone's in today — ${pretty}${aheadText}`,
+      blocks: [
+        section(`*✅ Everyone's in today*\n_${pretty}_`),
+        ...aheadBlocks,
+        footer("No leave on the calendar"),
+      ],
     };
   }
 
@@ -208,14 +219,33 @@ export function buildDailyDigest(
     // Escaped here too, not just in the blocks: `text` is what Slack shows in
     // the notification, and it parses mentions — an unescaped `<!channel>` in
     // someone's profile name would ping the whole workspace from a push alert.
-    text: `${countLabel} today — ${names.map(esc).join(", ")}`,
+    text: `${countLabel} today — ${names.map(esc).join(", ")}${aheadText}`,
     blocks: [
       section(`*🌴 Out of office today*\n_${pretty}_`),
       ...leaveBlocks,
       ...holidayBlocks,
+      ...aheadBlocks,
       footer(countLabel),
     ],
   };
+}
+
+/** The heads-up for one upcoming holiday: who it covers, or that the office is shut. */
+function upcomingSection(h: UpcomingHoliday, todayISO: string): SlackBlock {
+  const when = whenFrom(h.dateISO, todayISO);
+  const pretty = format(parseISO(h.dateISO), "EEEE, d MMMM");
+  if (!h.calendar) {
+    return section(`*📅 Public holiday ${when} — office closed*\n_${pretty} · ${esc(h.name)}_`);
+  }
+  return section(
+    `*📅 Public holiday ${when} in ${esc(h.calendar)}* · _${esc(h.name)}_\n_${pretty}_\n${h.people.map((n) => `• ${esc(n)}`).join("\n")}`
+  );
+}
+
+/** "tomorrow" when it is, otherwise "on Monday" — Friday's notice for Monday. */
+function whenFrom(dateISO: string, todayISO: string): string {
+  const tomorrow = format(addDays(parseISO(todayISO), 1), "yyyy-MM-dd");
+  return dateISO === tomorrow ? "tomorrow" : `on ${format(parseISO(dateISO), "EEEE")}`;
 }
 
 function portionSuffix(p: PersonOff): string {
