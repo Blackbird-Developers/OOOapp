@@ -93,19 +93,17 @@ export function outOfOfficeWindow(leave: OutOfOfficeLeave): { start: Date; end: 
 
 function eventBody(leave: OutOfOfficeLeave) {
   const { start, end } = outOfOfficeWindow(leave);
-  const dayWord = leave.days === 1 ? "day" : "days";
-  const site = process.env.NEXT_PUBLIC_SITE_URL;
 
+  // Kept to the fields Google's own Out of office events carry. Google refuses
+  // this event type with a description ("An out of office event must not have
+  // a description"), so the details the emailed invite gives in its body have
+  // no place here; extra fields like extendedProperties are left off for the
+  // same reason, since nothing reads them — the event is found again by id.
   return {
     id: outOfOfficeEventId(leave.id),
     // No leave type, for the reason lib/ics.ts gives: colleagues can see
     // titles, and "Sick leave" in a shared calendar is health data.
     summary: "Out of office",
-    description: [
-      `${leave.personName} is out of office.`,
-      `${leave.days} ${dayWord} of leave, booked in Whooo.`,
-      ...(site ? [`Manage this leave: ${site}/dashboard/my-requests`] : []),
-    ].join("\n"),
     eventType: "outOfOffice",
     // Required by Google for this event type, and the point anyway: the time
     // is unavailable.
@@ -119,7 +117,6 @@ function eventBody(leave: OutOfOfficeLeave) {
       autoDeclineMode: "declineOnlyNewConflictingInvitations",
       declineMessage: `${leave.personName} is on leave and will reply when back.`,
     },
-    extendedProperties: { private: { blackbirdLeaveId: leave.id } },
   };
 }
 
