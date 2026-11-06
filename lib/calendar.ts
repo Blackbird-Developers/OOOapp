@@ -4,6 +4,8 @@ import { buildInvite, buildCancellation, type FeedEntry, type LeaveEvent } from 
 import { loadCalendarSettings, organizerIdentity } from "@/lib/calendar-settings";
 import { emailCalendarWithdrawn, type CalendarAttachment } from "@/lib/email";
 import type { HalfKind } from "@/lib/days";
+import { googleCredentials, isImpersonatable } from "@/lib/google-auth";
+import { deleteOutOfOffice, putOutOfOffice } from "@/lib/google-calendar";
 
 /**
  * The calendar integration's moving parts: when an event is sent, when it is
@@ -265,6 +267,73 @@ function toEvent(
 }
 
 /**
+ * The service-account credentials to reach this person's Google Calendar with,
+ * or null when it cannot be reached — another company, no key configured, or
+ * an address outside the Workspace domain.
+ */
+function calendarAccess(leave: LeaveRow, person: { email: string }) {
+  const credentials = googleCredentials(leave.organization_id);
+  if (!credentials || !isImpersonatable(person.email, credentials)) return null;
+  return credentials;
+}
+
+/**
+ * Put approved leave in the person's Google Calendar as an "Out of office"
+ * event. True when it landed, which means no emailed invite should follow.
+ *
+ * Exists because an invite can only become an ordinary busy event, and Slack's
+ * Google Calendar app reads those as meetings — see lib/google-calendar.ts.
+ * Any failure (the scope not yet delegated, the Calendar API switched off)
+ * answers false, and the caller falls back to the invite, so leave still
+ * reaches the calendar.
+ */
+async function placeOutOfOffice(
+  leave: LeaveRow,
+  person: { full_name: string; email: string }
+): Promise<boolean> {
+  const credentials = calendarAccess(leave, person);
+  if (!credentials) return false;
+  try {
+    await putOutOfOffice(person.email, credentials, {
+      id: leave.id,
+      personName: person.full_name,
+      startDate: leave.start_date,
+      endDate: leave.end_date,
+      halfStart: leave.half_start,
+      halfEnd: leave.half_end,
+      days: Number(leave.days_count),
+    });
+    return true;
+  } catch (e) {
+    console.warn("[calendar] could not place Out of office event, sending an invite instead:", e);
+    return false;
+  }
+}
+
+/**
+ * Take a placed Out of office event back out. True when one was there and is
+ * now gone, which means no iCalendar cancellation is owed.
+ *
+ * False covers both "never placed" — leave approved by invite, before this
+ * existed or after a failed placement — and a failure to reach Google. Either
+ * way the cancellation goes out as before: harmless for a UID the calendar
+ * never held, and the only thing that removes one it does.
+ */
+async function removeOutOfOffice(
+  leave: LeaveRow,
+  person: { email: string }
+): Promise<boolean> {
+  const credentials = calendarAccess(leave, person);
+  if (!credentials) return false;
+  try {
+    return await deleteOutOfOffice(person.email, credentials, leave.id);
+  } catch (e) {
+    console.warn("[calendar] could not remove Out of office event:", e);
+    return false;
+  }
+}
+
+/**
  * The revision a row is currently published at, for reading rather than
  * sending — the feed's view, where nothing is being advanced.
  *
@@ -311,6 +380,10 @@ export async function publishApprovedLeave(
     if (revision === null) return null;
 
     if (!settings.sendInvites) return null;
+
+    // Where the API can reach the person's calendar, the event goes in
+    // directly as Out of office and the email carries nothing.
+    if (await placeOutOfOffice(loaded.leave, loaded.person)) return null;
 
     const event = toEvent(loaded.leave, loaded.person, revision);
     return {
@@ -395,6 +468,10 @@ async function prepareCancellation(
 
   const revision = await advanceEvent(loaded.leave, { withdrawing: true });
   if (revision === null) return null;
+
+  // An Out of office event placed through the API is withdrawn the same way,
+  // and then there is no invite to revoke and nothing to email.
+  if (await removeOutOfOffice(loaded.leave, loaded.person)) return null;
 
   const event = toEvent(loaded.leave, loaded.person, revision);
   // Clients match a cancellation on UID, so this is not what makes the event
