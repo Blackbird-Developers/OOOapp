@@ -5,11 +5,21 @@ import { isBlackbird } from "@/lib/org";
  * Google Workspace service-account auth, with domain-wide delegation.
  *
  * The app holds one service account that a Workspace super admin has
- * authorised to act as any user in the domain, for one scope:
- * `gmail.settings.basic`. That scope can read and write a mailbox SETTINGS —
- * the vacation responder among them — and cannot read, send or delete a single
- * message. Worth stating plainly, because "the app can act as any employee"
- * sounds far broader than what was actually granted.
+ * authorised to act as any user in the domain, for two scopes:
+ *
+ * - `gmail.settings.basic` can read and write a mailbox SETTINGS — the
+ *   vacation responder among them — and cannot read, send or delete a single
+ *   message.
+ * - `calendar.events` can create and remove events in a person's calendar,
+ *   which is how approved leave lands as a real "Out of office" event.
+ *
+ * Worth stating plainly, because "the app can act as any employee" sounds far
+ * broader than what was actually granted.
+ *
+ * Each scope gets a token of its own rather than one token asking for both.
+ * Google refuses an assertion outright if any scope in it is not delegated, so
+ * a combined request would let a missing calendar grant take the auto-reply
+ * down with it.
  *
  * Signed here rather than with `googleapis` or `google-auth-library`. This is
  * one RS256 assertion against one endpoint; the libraries bring a dependency
@@ -21,7 +31,8 @@ import { isBlackbird } from "@/lib/org";
  */
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
-const SCOPE = "https://www.googleapis.com/auth/gmail.settings.basic";
+export const GMAIL_SETTINGS_SCOPE = "https://www.googleapis.com/auth/gmail.settings.basic";
+export const CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 /** Seconds before true expiry that a cached token is considered spent. */
 const EXPIRY_MARGIN_SECONDS = 60;
@@ -86,7 +97,8 @@ export function isImpersonatable(email: string, credentials: GoogleCredentials):
 type CachedToken = { token: string; expiresAt: number };
 
 /**
- * One access token per impersonated mailbox, reused until it is nearly spent.
+ * One access token per impersonated mailbox and scope, reused until it is
+ * nearly spent.
  *
  * Module-level, so it survives across requests within a warm serverless
  * instance and disappears with it. Approving a week of leave for a team hits
@@ -95,8 +107,12 @@ type CachedToken = { token: string; expiresAt: number };
  */
 const tokenCache = new Map<string, CachedToken>();
 
+function cacheKey(subject: string, scope: string): string {
+  return `${scope} ${subject.trim().toLowerCase()}`;
+}
+
 /**
- * An access token that acts as `subjectEmail`.
+ * An access token that acts as `subjectEmail`, for one scope.
  *
  * Fails loudly and specifically, because the two realistic failures look
  * identical from the call site and have completely different fixes: the
@@ -105,15 +121,16 @@ const tokenCache = new Map<string, CachedToken>();
  */
 export async function getAccessTokenFor(
   subjectEmail: string,
-  credentials: GoogleCredentials
+  credentials: GoogleCredentials,
+  scope: string = GMAIL_SETTINGS_SCOPE
 ): Promise<string> {
   const subject = subjectEmail.trim().toLowerCase();
   const now = Math.floor(Date.now() / 1000);
 
-  const cached = tokenCache.get(subject);
+  const cached = tokenCache.get(cacheKey(subject, scope));
   if (cached && cached.expiresAt - EXPIRY_MARGIN_SECONDS > now) return cached.token;
 
-  const assertion = signAssertion(subject, credentials, now);
+  const assertion = signAssertion(subject, credentials, now, scope);
 
   let res: Response;
   try {
@@ -139,21 +156,21 @@ export async function getAccessTokenFor(
   };
 
   if (!res.ok || !body.access_token) {
-    throw new GoogleAuthError(explainTokenError(body, subject), {
+    throw new GoogleAuthError(explainTokenError(body, subject, scope), {
       permanent: PERMANENT_ERRORS.has(body.error ?? ""),
     });
   }
 
-  tokenCache.set(subject, {
+  tokenCache.set(cacheKey(subject, scope), {
     token: body.access_token,
     expiresAt: now + (body.expires_in ?? 3600),
   });
   return body.access_token;
 }
 
-/** Forget a mailbox token — used when Gmail rejects one as unauthorised. */
-export function forgetToken(subjectEmail: string): void {
-  tokenCache.delete(subjectEmail.trim().toLowerCase());
+/** Forget a mailbox token — used when Google rejects one as unauthorised. */
+export function forgetToken(subjectEmail: string, scope: string = GMAIL_SETTINGS_SCOPE): void {
+  tokenCache.delete(cacheKey(subjectEmail, scope));
 }
 
 /**
@@ -175,15 +192,16 @@ const PERMANENT_ERRORS = new Set([
  */
 function explainTokenError(
   body: { error?: string; error_description?: string },
-  subject: string
+  subject: string,
+  scope: string
 ): string {
   const detail = body.error_description ?? body.error ?? "unknown error";
 
   switch (body.error) {
     case "unauthorized_client":
-      return `Google refused the delegation (${detail}). In the Google Admin console, under Security → Access and data control → API controls → Manage domain-wide delegation, check that this app client ID is listed with exactly the scope https://www.googleapis.com/auth/gmail.settings.basic. A newly added delegation can also take a few minutes to take effect.`;
+      return `Google refused the delegation (${detail}). In the Google Admin console, under Security → Access and data control → API controls → Manage domain-wide delegation, check that this app client ID is listed with the scope ${scope}. A newly added delegation can also take a few minutes to take effect.`;
     case "invalid_grant":
-      return `Google rejected the request to act as ${subject} (${detail}). That address usually either does not exist in this Workspace or has no Gmail mailbox.`;
+      return `Google rejected the request to act as ${subject} (${detail}). That address usually either does not exist in this Workspace or has no mailbox.`;
     case "invalid_client":
       return `Google did not recognise the service account (${detail}). Check GOOGLE_SA_CLIENT_EMAIL and GOOGLE_SA_PRIVATE_KEY match the JSON key you downloaded.`;
     default:
@@ -195,7 +213,8 @@ function explainTokenError(
 function signAssertion(
   subject: string,
   credentials: GoogleCredentials,
-  now: number
+  now: number,
+  scope: string
 ): string {
   const header = { alg: "RS256", typ: "JWT" };
   const claims = {
@@ -203,7 +222,7 @@ function signAssertion(
     // The mailbox being acted for. This single field is what domain-wide
     // delegation authorises, and it is why the Admin console step was needed.
     sub: subject,
-    scope: SCOPE,
+    scope,
     aud: TOKEN_ENDPOINT,
     iat: now,
     // Google caps assertion lifetime at an hour and rejects anything longer.
