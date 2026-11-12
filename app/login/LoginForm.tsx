@@ -3,14 +3,23 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import Field from "@/components/Field";
 
+// Set by middleware.ts when a signed-out visit to a page bounced here.
+const AFTER_LOGIN_COOKIE = "whooo_after_login";
+
+/** Reads and clears the page to return to. Only same-site paths are honoured. */
+function takeAfterLoginPath(): string {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${AFTER_LOGIN_COOKIE}=([^;]*)`));
+  document.cookie = `${AFTER_LOGIN_COOKIE}=; path=/; max-age=0`;
+  const path = match ? decodeURIComponent(match[1]) : "";
+  return path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/\\") ? path : "/";
+}
+
 export default function LoginForm() {
   const router = useRouter();
-  const sp = useSearchParams();
-  const redirectTo = sp.get("redirect") || "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +36,7 @@ export default function LoginForm() {
       setError(error.message);
       return;
     }
-    router.push(redirectTo);
+    router.push(takeAfterLoginPath());
     router.refresh();
   }
 

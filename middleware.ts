@@ -29,7 +29,10 @@ const PUBLIC_PATHS = [
   "/favicon.ico",
 ];
 
-type CookieSet = { name: string; value: string; options?: CookieOptions };
+// Where to send someone once they've signed in. Kept in sync with LoginForm.
+const AFTER_LOGIN_COOKIE = "whooo_after_login";
+
+type CookieSet ={ name: string; value: string; options?: CookieOptions };
 
 export async function middleware(request: NextRequest) {
   try {
@@ -76,10 +79,21 @@ export async function middleware(request: NextRequest) {
     }
 
     if (!user) {
+      // Plain /login, no query string. The page they were after rides along in
+      // a short-lived cookie instead, read once by app/login/LoginForm.tsx.
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      url.searchParams.set("redirect", path);
-      return NextResponse.redirect(url);
+      url.search = "";
+      const redirect = NextResponse.redirect(url);
+      if (path !== "/") {
+        redirect.cookies.set(AFTER_LOGIN_COOKIE, path, {
+          path: "/",
+          maxAge: 60 * 10,
+          sameSite: "lax",
+          secure: request.nextUrl.protocol === "https:",
+        });
+      }
+      return redirect;
     }
 
     return response;
